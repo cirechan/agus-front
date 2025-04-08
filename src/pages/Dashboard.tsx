@@ -2,15 +2,46 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Button, Alert } from 'react-bootstrap';
 import { getEquipos, getJugadoresPorEquipo, getAsistenciasPorEquipo } from '../services/api';
 
+interface Equipo {
+  _id: string;
+  nombre: string;
+  categoria: string;
+}
+
+interface Jugador {
+  _id: string;
+  nombre: string;
+  apellidos: string;
+  posicion: string;
+}
+
+interface Asistencia {
+  _id: string;
+  jugador: string;
+  presente: boolean;
+  fecha: string;
+}
+
+interface Usuario {
+  _id: string;
+  nombreUsuario: string;
+  rol: string;
+  equipo?: {
+    _id: string;
+    nombre: string;
+    categoria: string;
+  };
+}
+
 const Dashboard = () => {
-  const [equipos, setEquipos] = useState([]);
-  const [jugadores, setJugadores] = useState([]);
-  const [asistencias, setAsistencias] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [usuario, setUsuario] = useState(null);
-  const [equipoSeleccionado, setEquipoSeleccionado] = useState(null);
-  const [temporadaActual, setTemporadaActual] = useState('2024-2025');
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [jugadores, setJugadores] = useState<Jugador[]>([]);
+  const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [equipoSeleccionado, setEquipoSeleccionado] = useState<string | null>(null);
+  const [temporadaActual, setTemporadaActual] = useState<string>('2024-2025');
 
   useEffect(() => {
     // Cargar usuario del localStorage
@@ -61,7 +92,7 @@ const Dashboard = () => {
     }
   };
 
-  const cargarDatosEquipo = async (equipoId) => {
+  const cargarDatosEquipo = async (equipoId: string) => {
     try {
       // Cargar jugadores del equipo
       const resJugadores = await getJugadoresPorEquipo(equipoId);
@@ -76,17 +107,17 @@ const Dashboard = () => {
     }
   };
 
-  const cambiarEquipo = (equipoId) => {
+  const cambiarEquipo = (equipoId: string) => {
     setEquipoSeleccionado(equipoId);
   };
 
-  const getNombreEquipo = () => {
+  const getNombreEquipo = (): string => {
     if (!equipoSeleccionado || !equipos.length) return 'Cargando...';
     const equipo = equipos.find(e => e._id === equipoSeleccionado);
     return equipo ? equipo.nombre : 'Equipo no encontrado';
   };
 
-  const calcularPorcentajeAsistencia = () => {
+  const calcularPorcentajeAsistencia = (): number => {
     if (!jugadores.length || !asistencias.length) return 0;
     
     // Lógica simplificada para calcular porcentaje de asistencia

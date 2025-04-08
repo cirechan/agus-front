@@ -2,22 +2,62 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Button, Form, Alert } from 'react-bootstrap';
 import { getAsistenciasPorEquipo, getEquipos, getTemporadas, guardarAsistencias } from '../services/api';
 
+interface Equipo {
+  _id: string;
+  nombre: string;
+  categoria: string;
+}
+
+interface Temporada {
+  _id: string;
+  nombre: string;
+  activa: boolean;
+  fechaInicio: string;
+  fechaFin: string;
+}
+
+interface Asistencia {
+  _id?: string;
+  jugador: string;
+  presente: boolean;
+  motivo: string;
+  fecha: string;
+  equipo: string;
+}
+
+interface Usuario {
+  _id: string;
+  nombreUsuario: string;
+  rol: string;
+  equipo?: {
+    _id: string;
+    nombre: string;
+    categoria: string;
+  };
+}
+
+interface FiltrosAsistencia {
+  equipo: string;
+  fecha: string;
+  temporada: string;
+}
+
 const Asistencias = () => {
-  const [asistencias, setAsistencias] = useState([]);
-  const [equipos, setEquipos] = useState([]);
-  const [temporadas, setTemporadas] = useState([]);
-  const [jugadores, setJugadores] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [filtros, setFiltros] = useState({
+  const [asistencias, setAsistencias] = useState<Asistencia[]>([]);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [temporadas, setTemporadas] = useState<Temporada[]>([]);
+  const [jugadores, setJugadores] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [success, setSuccess] = useState<string>('');
+  const [filtros, setFiltros] = useState<FiltrosAsistencia>({
     equipo: '',
     fecha: new Date().toISOString().split('T')[0], // Fecha actual en formato YYYY-MM-DD
     temporada: ''
   });
-  const [usuario, setUsuario] = useState(null);
-  const [modoRegistro, setModoRegistro] = useState(false);
-  const [asistenciasRegistro, setAsistenciasRegistro] = useState([]);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [modoRegistro, setModoRegistro] = useState<boolean>(false);
+  const [asistenciasRegistro, setAsistenciasRegistro] = useState<Asistencia[]>([]);
 
   useEffect(() => {
     // Cargar usuario del localStorage
@@ -64,7 +104,7 @@ const Asistencias = () => {
       setTemporadas(resTemporadas.data);
       
       // Establecer temporada activa como predeterminada
-      const temporadaActiva = resTemporadas.data.find(t => t.activa);
+      const temporadaActiva = resTemporadas.data.find((t: Temporada) => t.activa);
       if (temporadaActiva) {
         setFiltros(prev => ({
           ...prev,
@@ -98,7 +138,7 @@ const Asistencias = () => {
       let asistenciasFiltradas = res.data;
       if (filtros.fecha) {
         const fechaSeleccionada = new Date(filtros.fecha).toISOString().split('T')[0];
-        asistenciasFiltradas = asistenciasFiltradas.filter(a => 
+        asistenciasFiltradas = asistenciasFiltradas.filter((a: Asistencia) => 
           new Date(a.fecha).toISOString().split('T')[0] === fechaSeleccionada
         );
       }
@@ -106,12 +146,12 @@ const Asistencias = () => {
       setAsistencias(asistenciasFiltradas);
       
       // Extraer jugadores únicos de las asistencias para el modo de registro
-      const jugadoresUnicos = [...new Set(asistenciasFiltradas.map(a => a.jugador))];
+      const jugadoresUnicos = [...new Set(asistenciasFiltradas.map((a: Asistencia) => a.jugador))];
       setJugadores(jugadoresUnicos);
       
       // Preparar datos para el modo de registro
-      const asistenciasParaRegistro = jugadoresUnicos.map(jugadorId => {
-        const asistenciaExistente = asistenciasFiltradas.find(a => a.jugador === jugadorId);
+      const asistenciasParaRegistro = jugadoresUnicos.map((jugadorId: string) => {
+        const asistenciaExistente = asistenciasFiltradas.find((a: Asistencia) => a.jugador === jugadorId);
         return {
           jugador: jugadorId,
           presente: asistenciaExistente ? asistenciaExistente.presente : true,
@@ -130,7 +170,7 @@ const Asistencias = () => {
     }
   };
 
-  const handleFiltroChange = (e) => {
+  const handleFiltroChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     const { name, value } = e.target;
     setFiltros(prev => ({
       ...prev,
@@ -146,9 +186,9 @@ const Asistencias = () => {
     }
   };
 
-  const handleAsistenciaChange = (index, campo, valor) => {
+  const handleAsistenciaChange = (index: number, campo: string, valor: boolean | string) => {
     const nuevasAsistencias = [...asistenciasRegistro];
-    nuevasAsistencias[index][campo] = valor;
+    nuevasAsistencias[index][campo as keyof Asistencia] = valor as never;
     setAsistenciasRegistro(nuevasAsistencias);
   };
 
@@ -180,13 +220,13 @@ const Asistencias = () => {
     }
   };
 
-  const getNombreEquipo = (equipoId) => {
+  const getNombreEquipo = (equipoId: string): string => {
     if (!equipoId || !equipos.length) return 'No asignado';
     const equipo = equipos.find(e => e._id === equipoId);
     return equipo ? equipo.nombre : 'Equipo no encontrado';
   };
 
-  const getNombreJugador = (jugadorId) => {
+  const getNombreJugador = (jugadorId: string): string => {
     // En un caso real, esto vendría de una lista de jugadores cargada
     // Para este ejemplo, usamos un placeholder
     return `Jugador ${jugadorId.substring(0, 5)}`;

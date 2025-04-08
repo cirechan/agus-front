@@ -2,18 +2,61 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Button, Form, Alert } from 'react-bootstrap';
 import { getJugadores, getJugadoresPorEquipo, getEquipos, getTemporadas } from '../services/api';
 
+interface Equipo {
+  _id: string;
+  nombre: string;
+  categoria: string;
+}
+
+interface Jugador {
+  _id: string;
+  nombre: string;
+  apellidos: string;
+  posicion: string;
+  equipo: string;
+  edad?: number;
+  fechaNacimiento?: string;
+  asistencia?: string;
+  valoracionMedia?: string;
+}
+
+interface Temporada {
+  _id: string;
+  nombre: string;
+  activa: boolean;
+  fechaInicio: string;
+  fechaFin: string;
+}
+
+interface Usuario {
+  _id: string;
+  nombreUsuario: string;
+  rol: string;
+  equipo?: {
+    _id: string;
+    nombre: string;
+    categoria: string;
+  };
+}
+
+interface FiltrosJugadores {
+  equipo: string;
+  posicion: string;
+  temporada: string;
+}
+
 const Jugadores = () => {
-  const [jugadores, setJugadores] = useState([]);
-  const [equipos, setEquipos] = useState([]);
-  const [temporadas, setTemporadas] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [filtros, setFiltros] = useState({
+  const [jugadores, setJugadores] = useState<Jugador[]>([]);
+  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [temporadas, setTemporadas] = useState<Temporada[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
+  const [filtros, setFiltros] = useState<FiltrosJugadores>({
     equipo: '',
     posicion: '',
     temporada: ''
   });
-  const [usuario, setUsuario] = useState(null);
+  const [usuario, setUsuario] = useState<Usuario | null>(null);
 
   useEffect(() => {
     // Cargar usuario del localStorage
@@ -58,7 +101,7 @@ const Jugadores = () => {
       setTemporadas(resTemporadas.data);
       
       // Establecer temporada activa como predeterminada
-      const temporadaActiva = resTemporadas.data.find(t => t.activa);
+      const temporadaActiva = resTemporadas.data.find((t: Temporada) => t.activa);
       if (temporadaActiva) {
         setFiltros(prev => ({
           ...prev,
@@ -93,7 +136,7 @@ const Jugadores = () => {
       // Filtrar por posición si está seleccionada
       let jugadoresFiltrados = res.data;
       if (filtros.posicion) {
-        jugadoresFiltrados = jugadoresFiltrados.filter(j => j.posicion === filtros.posicion);
+        jugadoresFiltrados = jugadoresFiltrados.filter((j: Jugador) => j.posicion === filtros.posicion);
       }
       
       setJugadores(jugadoresFiltrados);
@@ -105,7 +148,7 @@ const Jugadores = () => {
     }
   };
 
-  const handleFiltroChange = (e) => {
+  const handleFiltroChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFiltros(prev => ({
       ...prev,
@@ -113,13 +156,13 @@ const Jugadores = () => {
     }));
   };
 
-  const getNombreEquipo = (equipoId) => {
+  const getNombreEquipo = (equipoId: string): string => {
     if (!equipoId || !equipos.length) return 'No asignado';
     const equipo = equipos.find(e => e._id === equipoId);
     return equipo ? equipo.nombre : 'Equipo no encontrado';
   };
 
-  const getTemporadaNombre = (temporadaId) => {
+  const getTemporadaNombre = (temporadaId: string): string => {
     if (!temporadaId || !temporadas.length) return 'Actual';
     const temporada = temporadas.find(t => t._id === temporadaId);
     return temporada ? temporada.nombre : 'Temporada no encontrada';
@@ -311,7 +354,7 @@ const Jugadores = () => {
 };
 
 // Función auxiliar para calcular edad a partir de fecha de nacimiento
-const calcularEdad = (fechaNacimiento) => {
+const calcularEdad = (fechaNacimiento?: string): string => {
   if (!fechaNacimiento) return 'N/A';
   
   const hoy = new Date();
@@ -323,7 +366,7 @@ const calcularEdad = (fechaNacimiento) => {
     edad--;
   }
   
-  return edad;
+  return edad.toString();
 };
 
 export default Jugadores;
