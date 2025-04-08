@@ -146,7 +146,7 @@ const Asistencias = () => {
       setAsistencias(asistenciasFiltradas);
       
       // Extraer jugadores únicos de las asistencias para el modo de registro
-      const jugadoresUnicos = [...new Set(asistenciasFiltradas.map((a: Asistencia) => a.jugador))];
+      const jugadoresUnicos = [...new Set(asistenciasFiltradas.map((a: Asistencia) => a.jugador))] as string[];
       setJugadores(jugadoresUnicos);
       
       // Preparar datos para el modo de registro
