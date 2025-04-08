@@ -35,7 +35,7 @@ const Jugadores = () => {
         setLoading(true);
         
         // Cargar jugadores
-        const jugadoresResponse = await axios.get('http://localhost:5000/api/jugadores');
+        const jugadoresResponse = await getJugadores();
         setJugadores(jugadoresResponse.data);
         
         // Cargar equipos para el formulario
