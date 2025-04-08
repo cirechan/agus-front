@@ -68,7 +68,7 @@ const Dashboard = () => {
   const cargarDatosEquipo = async (equipoId: string) => {
     try {
       // Cargar información del equipo
-      const equipoResponse = await axios.get(`http://localhost:5000/api/equipos/${equipoId}`);
+      const equipoResponse = await getEquipo(equipoId);
       setEquipo(equipoResponse.data);
       
       // Cargar jugadores del equipo
