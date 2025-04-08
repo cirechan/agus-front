@@ -22,7 +22,7 @@ const Login = () => {
       setError('');
       
       // En un MVP sin login complejo, simplemente verificamos si el usuario existe
-      const response = await axios.post('http://localhost:5000/api/usuarios/acceso', {
+        const response = await loginUsuario(nombreUsuario);
         nombreUsuario
       });
       
