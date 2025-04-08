@@ -1,152 +1,216 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Table, Button, Form, Modal, Row, Col, Alert } from 'react-bootstrap';
-import axios from 'axios';
-
-interface Jugador {
-  _id: string;
-  nombre: string;
-  apellidos: string;
-  fechaNacimiento: string;
-  posicion: string;
-  dorsal: number;
-  equipo: string;
-  observaciones: string;
-}
-
-interface Equipo {
-  _id: string;
-  nombre: string;
-  categoria: string;
-}
+import { Container, Row, Col, Card, Table, Button, Form, Alert } from 'react-bootstrap';
+import { getJugadores, getJugadoresPorEquipo, getEquipos, getTemporadas } from '../services/api';
 
 const Jugadores = () => {
-  const [jugadores, setJugadores] = useState<Jugador[]>([]);
-  const [equipos, setEquipos] = useState<Equipo[]>([]);
+  const [jugadores, setJugadores] = useState([]);
+  const [equipos, setEquipos] = useState([]);
+  const [temporadas, setTemporadas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [showModal, setShowModal] = useState(false);
-  const [currentJugador, setCurrentJugador] = useState<Partial<Jugador>>({});
-  const [isEditing, setIsEditing] = useState(false);
+  const [filtros, setFiltros] = useState({
+    equipo: '',
+    posicion: '',
+    temporada: ''
+  });
+  const [usuario, setUsuario] = useState(null);
 
-  // Cargar jugadores y equipos al montar el componente
   useEffect(() => {
-    const cargarDatos = async () => {
+    // Cargar usuario del localStorage
+    const usuarioGuardado = localStorage.getItem('usuario');
+    if (usuarioGuardado) {
       try {
-        setLoading(true);
+        const usuarioParsed = JSON.parse(usuarioGuardado);
+        setUsuario(usuarioParsed);
         
-        // Cargar jugadores
-        const jugadoresResponse = await getJugadores();
-        setJugadores(jugadoresResponse.data);
-        
-        // Cargar equipos para el formulario
-        const equiposResponse = await axios.get('http://localhost:5000/api/equipos');
-        setEquipos(equiposResponse.data);
-        
-        setLoading(false);
+        // Si el usuario es entrenador y tiene un equipo asignado, filtrar por ese equipo
+        if (usuarioParsed.rol === 'Entrenador' && usuarioParsed.equipo) {
+          setFiltros(prev => ({
+            ...prev,
+            equipo: usuarioParsed.equipo._id
+          }));
+        }
       } catch (err) {
-        console.error('Error al cargar datos:', err);
-        setError('Error al cargar los datos. Por favor, intenta de nuevo más tarde.');
-        setLoading(false);
+        console.error('Error al parsear usuario:', err);
       }
-    };
-    
+    }
+
+    // Cargar datos iniciales
     cargarDatos();
   }, []);
 
-  // Abrir modal para crear nuevo jugador
-  const handleNuevoJugador = () => {
-    setCurrentJugador({});
-    setIsEditing(false);
-    setShowModal(true);
-  };
+  // Efecto para recargar jugadores cuando cambian los filtros
+  useEffect(() => {
+    cargarJugadores();
+  }, [filtros]);
 
-  // Abrir modal para editar jugador existente
-  const handleEditarJugador = (jugador: Jugador) => {
-    setCurrentJugador({...jugador});
-    setIsEditing(true);
-    setShowModal(true);
-  };
-
-  // Guardar jugador (crear o actualizar)
-  const handleGuardarJugador = async () => {
+  const cargarDatos = async () => {
+    setLoading(true);
+    setError('');
+    
     try {
-      if (!currentJugador.nombre || !currentJugador.apellidos || !currentJugador.fechaNacimiento || !currentJugador.posicion || !currentJugador.equipo) {
-        setError('Por favor completa todos los campos obligatorios');
-        return;
+      // Cargar equipos
+      const resEquipos = await getEquipos();
+      setEquipos(resEquipos.data);
+      
+      // Cargar temporadas
+      const resTemporadas = await getTemporadas();
+      setTemporadas(resTemporadas.data);
+      
+      // Establecer temporada activa como predeterminada
+      const temporadaActiva = resTemporadas.data.find(t => t.activa);
+      if (temporadaActiva) {
+        setFiltros(prev => ({
+          ...prev,
+          temporada: temporadaActiva._id
+        }));
       }
       
-      if (isEditing && currentJugador._id) {
-        // Actualizar jugador existente
-        await axios.put(`http://localhost:5000/api/jugadores/${currentJugador._id}`, currentJugador);
-        
-        // Actualizar lista de jugadores
-        setJugadores(jugadores.map(j => j._id === currentJugador._id ? {...j, ...currentJugador} : j));
-      } else {
-        // Crear nuevo jugador
-        const response = await axios.post('http://localhost:5000/api/jugadores', currentJugador);
-        
-        // Añadir a la lista de jugadores
-        setJugadores([...jugadores, response.data]);
-      }
-      
-      // Cerrar modal
-      setShowModal(false);
-      setCurrentJugador({});
+      // Cargar jugadores (se hará en el efecto cuando cambien los filtros)
     } catch (err) {
-      console.error('Error al guardar jugador:', err);
-      setError('Error al guardar el jugador. Por favor, intenta de nuevo.');
+      console.error('Error al cargar datos iniciales:', err);
+      setError('Error al cargar datos. Por favor, intenta nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Eliminar jugador
-  const handleEliminarJugador = async (id: string) => {
-    if (window.confirm('¿Estás seguro de que deseas eliminar este jugador?')) {
-      try {
-        await axios.delete(`http://localhost:5000/api/jugadores/${id}`);
-        
-        // Actualizar lista de jugadores
-        setJugadores(jugadores.filter(j => j._id !== id));
-      } catch (err) {
-        console.error('Error al eliminar jugador:', err);
-        setError('Error al eliminar el jugador. Por favor, intenta de nuevo.');
+  const cargarJugadores = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      let res;
+      
+      // Si hay un equipo seleccionado, filtrar por equipo
+      if (filtros.equipo) {
+        res = await getJugadoresPorEquipo(filtros.equipo);
+      } else {
+        // Si no, obtener todos los jugadores
+        res = await getJugadores();
       }
+      
+      // Filtrar por posición si está seleccionada
+      let jugadoresFiltrados = res.data;
+      if (filtros.posicion) {
+        jugadoresFiltrados = jugadoresFiltrados.filter(j => j.posicion === filtros.posicion);
+      }
+      
+      setJugadores(jugadoresFiltrados);
+    } catch (err) {
+      console.error('Error al cargar jugadores:', err);
+      setError('Error al cargar jugadores. Por favor, intenta nuevamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Manejar cambios en el formulario
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleFiltroChange = (e) => {
     const { name, value } = e.target;
-    setCurrentJugador({
-      ...currentJugador,
+    setFiltros(prev => ({
+      ...prev,
       [name]: value
-    });
+    }));
   };
 
-  if (loading) {
-    return <div className="text-center p-5">Cargando jugadores...</div>;
+  const getNombreEquipo = (equipoId) => {
+    if (!equipoId || !equipos.length) return 'No asignado';
+    const equipo = equipos.find(e => e._id === equipoId);
+    return equipo ? equipo.nombre : 'Equipo no encontrado';
+  };
+
+  const getTemporadaNombre = (temporadaId) => {
+    if (!temporadaId || !temporadas.length) return 'Actual';
+    const temporada = temporadas.find(t => t._id === temporadaId);
+    return temporada ? temporada.nombre : 'Temporada no encontrada';
+  };
+
+  if (loading && !jugadores.length) {
+    return (
+      <Container className="mt-4">
+        <Alert variant="info">Cargando jugadores...</Alert>
+      </Container>
+    );
   }
 
   return (
-    <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2>Jugadores</h2>
-        <Button variant="primary" onClick={handleNuevoJugador}>
-          Nuevo Jugador
-        </Button>
-      </div>
-      
+    <Container fluid className="mt-4">
       {error && <Alert variant="danger">{error}</Alert>}
       
-      <Card>
+      <Card className="mb-4">
+        <Card.Header className="d-flex justify-content-between align-items-center">
+          <h5 className="mb-0">Gestión de Jugadores</h5>
+          <Button variant="primary" size="sm" href="/jugadores/nuevo">
+            Nuevo Jugador
+          </Button>
+        </Card.Header>
         <Card.Body>
+          {/* Filtros */}
+          <Row className="mb-4">
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Temporada</Form.Label>
+                <Form.Select 
+                  name="temporada"
+                  value={filtros.temporada}
+                  onChange={handleFiltroChange}
+                >
+                  <option value="">Todas las temporadas</option>
+                  {temporadas.map(temporada => (
+                    <option key={temporada._id} value={temporada._id}>
+                      {temporada.nombre}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Equipo</Form.Label>
+                <Form.Select 
+                  name="equipo"
+                  value={filtros.equipo}
+                  onChange={handleFiltroChange}
+                  disabled={usuario?.rol === 'Entrenador'} // Deshabilitar si es entrenador
+                >
+                  <option value="">Todos los equipos</option>
+                  {equipos.map(equipo => (
+                    <option key={equipo._id} value={equipo._id}>
+                      {equipo.nombre}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            </Col>
+            <Col md={4}>
+              <Form.Group>
+                <Form.Label>Posición</Form.Label>
+                <Form.Select 
+                  name="posicion"
+                  value={filtros.posicion}
+                  onChange={handleFiltroChange}
+                >
+                  <option value="">Todas las posiciones</option>
+                  <option value="Portero">Portero</option>
+                  <option value="Defensa">Defensa</option>
+                  <option value="Centrocampista">Centrocampista</option>
+                  <option value="Delantero">Delantero</option>
+                </Form.Select>
+              </Form.Group>
+            </Col>
+          </Row>
+          
+          {/* Tabla de jugadores */}
           {jugadores.length > 0 ? (
-            <Table responsive>
+            <Table responsive striped hover>
               <thead>
                 <tr>
                   <th>Nombre</th>
+                  <th>Equipo</th>
                   <th>Posición</th>
-                  <th>Dorsal</th>
-                  <th>Fecha Nacimiento</th>
+                  <th>Edad</th>
+                  <th>Asistencia</th>
+                  <th>Valoración</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -154,24 +218,27 @@ const Jugadores = () => {
                 {jugadores.map(jugador => (
                   <tr key={jugador._id}>
                     <td>{jugador.nombre} {jugador.apellidos}</td>
+                    <td>{getNombreEquipo(jugador.equipo)}</td>
                     <td>{jugador.posicion}</td>
-                    <td>{jugador.dorsal}</td>
-                    <td>{new Date(jugador.fechaNacimiento).toLocaleDateString()}</td>
+                    <td>{jugador.edad || calcularEdad(jugador.fechaNacimiento)}</td>
+                    <td>{jugador.asistencia || '90%'}</td>
+                    <td>{jugador.valoracionMedia || '7.5'}</td>
                     <td>
                       <Button 
-                        variant="outline-primary" 
+                        variant="link" 
                         size="sm" 
-                        className="me-2"
-                        onClick={() => handleEditarJugador(jugador)}
+                        className="p-0 me-2"
+                        href={`/jugadores/${jugador._id}`}
                       >
-                        Editar
+                        Ver
                       </Button>
                       <Button 
-                        variant="outline-danger" 
-                        size="sm"
-                        onClick={() => handleEliminarJugador(jugador._id)}
+                        variant="link" 
+                        size="sm" 
+                        className="p-0"
+                        href={`/jugadores/editar/${jugador._id}`}
                       >
-                        Eliminar
+                        Editar
                       </Button>
                     </td>
                   </tr>
@@ -179,132 +246,84 @@ const Jugadores = () => {
               </tbody>
             </Table>
           ) : (
-            <p className="text-center text-muted">No hay jugadores registrados</p>
+            <Alert variant="info">
+              No se encontraron jugadores con los filtros seleccionados.
+            </Alert>
           )}
         </Card.Body>
       </Card>
       
-      {/* Modal para crear/editar jugador */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{isEditing ? 'Editar Jugador' : 'Nuevo Jugador'}</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Nombre *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="nombre"
-                    value={currentJugador.nombre || ''}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Apellidos *</Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="apellidos"
-                    value={currentJugador.apellidos || ''}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Fecha Nacimiento *</Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="fechaNacimiento"
-                    value={currentJugador.fechaNacimiento ? new Date(currentJugador.fechaNacimiento).toISOString().split('T')[0] : ''}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Posición *</Form.Label>
-                  <Form.Select
-                    name="posicion"
-                    value={currentJugador.posicion || ''}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Seleccionar posición</option>
-                    <option value="Portero">Portero</option>
-                    <option value="Defensa">Defensa</option>
-                    <option value="Centrocampista">Centrocampista</option>
-                    <option value="Delantero">Delantero</option>
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Row>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Dorsal</Form.Label>
-                  <Form.Control
-                    type="number"
-                    name="dorsal"
-                    value={currentJugador.dorsal || ''}
-                    onChange={handleInputChange}
-                  />
-                </Form.Group>
-              </Col>
-              <Col md={6}>
-                <Form.Group className="mb-3">
-                  <Form.Label>Equipo *</Form.Label>
-                  <Form.Select
-                    name="equipo"
-                    value={currentJugador.equipo || ''}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    <option value="">Seleccionar equipo</option>
-                    {equipos.map(equipo => (
-                      <option key={equipo._id} value={equipo._id}>
-                        {equipo.nombre} ({equipo.categoria})
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-            </Row>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Observaciones</Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="observaciones"
-                value={currentJugador.observaciones || ''}
-                onChange={handleInputChange}
-              />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={handleGuardarJugador}>
-            Guardar
-          </Button>
-        </Modal.Footer>
-      </Modal>
-    </div>
+      {/* Estadísticas */}
+      <Row>
+        <Col md={6}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Distribución por Posición</h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex justify-content-between">
+                <div className="text-center">
+                  <h3>{jugadores.filter(j => j.posicion === 'Portero').length}</h3>
+                  <p className="text-muted">Porteros</p>
+                </div>
+                <div className="text-center">
+                  <h3>{jugadores.filter(j => j.posicion === 'Defensa').length}</h3>
+                  <p className="text-muted">Defensas</p>
+                </div>
+                <div className="text-center">
+                  <h3>{jugadores.filter(j => j.posicion === 'Centrocampista').length}</h3>
+                  <p className="text-muted">Centrocampistas</p>
+                </div>
+                <div className="text-center">
+                  <h3>{jugadores.filter(j => j.posicion === 'Delantero').length}</h3>
+                  <p className="text-muted">Delanteros</p>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Resumen</h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="d-flex justify-content-between">
+                <div className="text-center">
+                  <h3>{jugadores.length}</h3>
+                  <p className="text-muted">Total Jugadores</p>
+                </div>
+                <div className="text-center">
+                  <h3>{equipos.length}</h3>
+                  <p className="text-muted">Equipos</p>
+                </div>
+                <div className="text-center">
+                  <h3>{getTemporadaNombre(filtros.temporada)}</h3>
+                  <p className="text-muted">Temporada</p>
+                </div>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
+};
+
+// Función auxiliar para calcular edad a partir de fecha de nacimiento
+const calcularEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return 'N/A';
+  
+  const hoy = new Date();
+  const fechaNac = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - fechaNac.getFullYear();
+  const mes = hoy.getMonth() - fechaNac.getMonth();
+  
+  if (mes < 0 || (mes === 0 && hoy.getDate() < fechaNac.getDate())) {
+    edad--;
+  }
+  
+  return edad;
 };
 
 export default Jugadores;

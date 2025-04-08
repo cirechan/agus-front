@@ -1,198 +1,254 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Alert } from 'react-bootstrap';
-import axios from 'axios';
-
-interface Usuario {
-  _id: string;
-  nombreUsuario: string;
-  rol: string;
-  equipo: {
-    _id: string;
-    nombre: string;
-    categoria: string;
-  };
-}
-
-interface Equipo {
-  _id: string;
-  nombre: string;
-  categoria: string;
-  limiteJugadores: number;
-}
-
-interface Jugador {
-  _id: string;
-  nombre: string;
-  apellidos: string;
-  posicion: string;
-}
-
-interface EstadisticasDashboard {
-  totalJugadores: number;
-  asistenciaPromedio: number;
-  jugadoresDestacados: Jugador[];
-  proximosEventos: string[];
-}
+import { Container, Row, Col, Card, Button, Alert } from 'react-bootstrap';
+import { getEquipos, getJugadoresPorEquipo, getAsistenciasPorEquipo } from '../services/api';
 
 const Dashboard = () => {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [equipo, setEquipo] = useState<Equipo | null>(null);
-  const [estadisticas, setEstadisticas] = useState<EstadisticasDashboard>({
-    totalJugadores: 0,
-    asistenciaPromedio: 0,
-    jugadoresDestacados: [],
-    proximosEventos: []
-  });
+  const [equipos, setEquipos] = useState([]);
+  const [jugadores, setJugadores] = useState([]);
+  const [asistencias, setAsistencias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [usuario, setUsuario] = useState(null);
+  const [equipoSeleccionado, setEquipoSeleccionado] = useState(null);
+  const [temporadaActual, setTemporadaActual] = useState('2024-2025');
 
   useEffect(() => {
-    // Cargar información del usuario desde localStorage
+    // Cargar usuario del localStorage
     const usuarioGuardado = localStorage.getItem('usuario');
     if (usuarioGuardado) {
-      const usuarioParsed = JSON.parse(usuarioGuardado);
-      setUsuario(usuarioParsed);
-      
-      // Si el usuario tiene un equipo asignado, cargar datos del equipo
-      if (usuarioParsed.equipo) {
-        cargarDatosEquipo(usuarioParsed.equipo);
-      } else {
-        setLoading(false);
+      try {
+        const usuarioParsed = JSON.parse(usuarioGuardado);
+        setUsuario(usuarioParsed);
+        
+        // Si el usuario es entrenador y tiene un equipo asignado, seleccionarlo automáticamente
+        if (usuarioParsed.rol === 'Entrenador' && usuarioParsed.equipo) {
+          setEquipoSeleccionado(usuarioParsed.equipo._id);
+        }
+      } catch (err) {
+        console.error('Error al parsear usuario:', err);
       }
-    } else {
-      setLoading(false);
-      setError('No hay usuario logueado');
     }
+
+    // Cargar datos iniciales
+    cargarDatos();
   }, []);
 
-  const cargarDatosEquipo = async (equipoId: string) => {
+  // Efecto para cargar datos específicos del equipo cuando se selecciona uno
+  useEffect(() => {
+    if (equipoSeleccionado) {
+      cargarDatosEquipo(equipoSeleccionado);
+    }
+  }, [equipoSeleccionado]);
+
+  const cargarDatos = async () => {
+    setLoading(true);
+    setError('');
+    
     try {
-      // Cargar información del equipo
-      const equipoResponse = await getEquipo(equipoId);
-      setEquipo(equipoResponse.data);
+      // Cargar equipos
+      const resEquipos = await getEquipos();
+      setEquipos(resEquipos.data);
       
-      // Cargar jugadores del equipo
-      const jugadoresResponse = await axios.get(`http://localhost:5000/api/jugadores/equipo/${equipoId}`);
-      
-      // Cargar asistencias del equipo
-      const asistenciasResponse = await axios.get(`http://localhost:5000/api/asistencias/equipo/${equipoId}`);
-      
-      // Calcular estadísticas
-      const totalJugadores = jugadoresResponse.data.length;
-      
-      // Calcular asistencia promedio (simplificado para el MVP)
-      let asistenciaPromedio = 0;
-      if (asistenciasResponse.data.length > 0) {
-        const asistencias = asistenciasResponse.data.filter((a: any) => a.asistio).length;
-        asistenciaPromedio = Math.round((asistencias / asistenciasResponse.data.length) * 100);
+      // Si no hay equipo seleccionado y hay equipos disponibles, seleccionar el primero
+      if (!equipoSeleccionado && resEquipos.data.length > 0) {
+        setEquipoSeleccionado(resEquipos.data[0]._id);
       }
-      
-      // Jugadores destacados (simplificado para el MVP)
-      const jugadoresDestacados = jugadoresResponse.data.slice(0, 3).map((j: any) => ({
-        _id: j._id,
-        nombre: j.nombre,
-        apellidos: j.apellidos,
-        posicion: j.posicion
-      }));
-      
-      // Eventos próximos (datos de ejemplo para el MVP)
-      const proximosEventos = [
-        'Entrenamiento - Martes 18:00',
-        'Partido vs. CD Ebro - Sábado 10:00',
-        'Reunión técnica - Jueves 19:30'
-      ];
-      
-      setEstadisticas({
-        totalJugadores,
-        asistenciaPromedio,
-        jugadoresDestacados,
-        proximosEventos
-      });
-      
-      setLoading(false);
     } catch (err) {
-      console.error('Error al cargar datos del equipo:', err);
-      setError('Error al cargar datos del equipo');
+      console.error('Error al cargar datos iniciales:', err);
+      setError('Error al cargar datos. Por favor, intenta nuevamente.');
+    } finally {
       setLoading(false);
     }
+  };
+
+  const cargarDatosEquipo = async (equipoId) => {
+    try {
+      // Cargar jugadores del equipo
+      const resJugadores = await getJugadoresPorEquipo(equipoId);
+      setJugadores(resJugadores.data);
+      
+      // Cargar asistencias del equipo
+      const resAsistencias = await getAsistenciasPorEquipo(equipoId);
+      setAsistencias(resAsistencias.data);
+    } catch (err) {
+      console.error('Error al cargar datos del equipo:', err);
+      setError('Error al cargar datos del equipo seleccionado.');
+    }
+  };
+
+  const cambiarEquipo = (equipoId) => {
+    setEquipoSeleccionado(equipoId);
+  };
+
+  const getNombreEquipo = () => {
+    if (!equipoSeleccionado || !equipos.length) return 'Cargando...';
+    const equipo = equipos.find(e => e._id === equipoSeleccionado);
+    return equipo ? equipo.nombre : 'Equipo no encontrado';
+  };
+
+  const calcularPorcentajeAsistencia = () => {
+    if (!jugadores.length || !asistencias.length) return 0;
+    
+    // Lógica simplificada para calcular porcentaje de asistencia
+    const totalAsistencias = asistencias.filter(a => a.presente).length;
+    const totalPosibles = asistencias.length;
+    
+    return totalPosibles > 0 ? Math.round((totalAsistencias / totalPosibles) * 100) : 0;
   };
 
   if (loading) {
-    return <div className="text-center p-5">Cargando...</div>;
-  }
-
-  if (error) {
-    return <Alert variant="danger">{error}</Alert>;
+    return (
+      <Container className="mt-4">
+        <Alert variant="info">Cargando datos del dashboard...</Alert>
+      </Container>
+    );
   }
 
   return (
-    <div>
-      <h2 className="mb-4">Dashboard</h2>
+    <Container fluid className="mt-4">
+      {error && <Alert variant="danger">{error}</Alert>}
       
-      {usuario && (
-        <Alert variant="info">
-          Bienvenido, <strong>{usuario.nombreUsuario}</strong> ({usuario.rol})
-          {equipo && <span> - Equipo: <strong>{equipo.nombre}</strong> ({equipo.categoria})</span>}
-        </Alert>
-      )}
+      {/* Selector de temporada y equipo */}
+      <Card className="mb-4">
+        <Card.Body>
+          <Row>
+            <Col md={6}>
+              <h5>Temporada Actual</h5>
+              <h3>{temporadaActual}</h3>
+            </Col>
+            <Col md={6}>
+              <h5>Equipo</h5>
+              <select 
+                className="form-select" 
+                value={equipoSeleccionado || ''}
+                onChange={(e) => cambiarEquipo(e.target.value)}
+              >
+                <option value="">Selecciona un equipo</option>
+                {equipos.map(equipo => (
+                  <option key={equipo._id} value={equipo._id}>
+                    {equipo.nombre}
+                  </option>
+                ))}
+              </select>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
       
-      <div className="dashboard-stats">
-        <div className="stat-card">
-          <h3>Jugadores</h3>
-          <div className="stat-value">{estadisticas.totalJugadores}</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Asistencia Promedio</h3>
-          <div className="stat-value">{estadisticas.asistenciaPromedio}%</div>
-        </div>
-        
-        <div className="stat-card">
-          <h3>Temporada</h3>
-          <div className="stat-value">2024-2025</div>
-        </div>
-      </div>
-      
-      <Row>
-        <Col md={6}>
-          <Card className="mb-4">
+      {/* Estadísticas principales */}
+      <Row className="mb-4">
+        <Col md={3}>
+          <Card className="text-center h-100">
             <Card.Body>
-              <Card.Title>Jugadores Destacados</Card.Title>
-              {estadisticas.jugadoresDestacados.length > 0 ? (
-                <ul className="list-group">
-                  {estadisticas.jugadoresDestacados.map(jugador => (
-                    <li key={jugador._id} className="list-group-item">
-                      {jugador.nombre} {jugador.apellidos} - {jugador.posicion}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted">No hay jugadores destacados</p>
-              )}
+              <h6 className="text-muted">Jugadores</h6>
+              <h2>{jugadores.length}</h2>
             </Card.Body>
           </Card>
         </Col>
-        
-        <Col md={6}>
-          <Card className="mb-4">
+        <Col md={3}>
+          <Card className="text-center h-100">
             <Card.Body>
-              <Card.Title>Próximos Eventos</Card.Title>
-              {estadisticas.proximosEventos.length > 0 ? (
-                <ul className="list-group">
-                  {estadisticas.proximosEventos.map((evento, index) => (
-                    <li key={index} className="list-group-item">
-                      {evento}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted">No hay eventos próximos</p>
-              )}
+              <h6 className="text-muted">Asistencia</h6>
+              <h2>{calcularPorcentajeAsistencia()}%</h2>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="text-center h-100">
+            <Card.Body>
+              <h6 className="text-muted">Próximo Entrenamiento</h6>
+              <h2>Hoy 18:00</h2>
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="text-center h-100">
+            <Card.Body>
+              <h6 className="text-muted">Valoración Media</h6>
+              <h2>7.8</h2>
             </Card.Body>
           </Card>
         </Col>
       </Row>
-    </div>
+      
+      {/* Accesos rápidos */}
+      <Row className="mb-4">
+        <Col>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Acciones Rápidas</h5>
+            </Card.Header>
+            <Card.Body>
+              <Row>
+                <Col md={4} className="mb-3">
+                  <Button variant="primary" className="w-100" href="/asistencias">
+                    Registrar Asistencia
+                  </Button>
+                </Col>
+                <Col md={4} className="mb-3">
+                  <Button variant="outline-primary" className="w-100" href="/jugadores">
+                    Ver Jugadores
+                  </Button>
+                </Col>
+                <Col md={4} className="mb-3">
+                  <Button variant="outline-primary" className="w-100" href="/valoraciones">
+                    Valorar Jugadores
+                  </Button>
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+      
+      {/* Últimas actividades */}
+      <Row>
+        <Col md={6}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Últimos Jugadores</h5>
+            </Card.Header>
+            <Card.Body>
+              {jugadores.length > 0 ? (
+                <ul className="list-group">
+                  {jugadores.slice(0, 5).map(jugador => (
+                    <li key={jugador._id} className="list-group-item d-flex justify-content-between align-items-center">
+                      {jugador.nombre} {jugador.apellidos}
+                      <span className="badge bg-primary rounded-pill">{jugador.posicion}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted">No hay jugadores registrados en este equipo.</p>
+              )}
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={6}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Actividad Reciente</h5>
+            </Card.Header>
+            <Card.Body>
+              <ul className="list-group">
+                <li className="list-group-item">
+                  <p className="mb-1"><strong>Registro de asistencia</strong></p>
+                  <p className="text-muted mb-0">Equipo: {getNombreEquipo()} - Fecha: {new Date().toLocaleDateString()}</p>
+                </li>
+                <li className="list-group-item">
+                  <p className="mb-1"><strong>Nueva valoración</strong></p>
+                  <p className="text-muted mb-0">Jugador: Carlos Martínez - Valoración: 8.5</p>
+                </li>
+                <li className="list-group-item">
+                  <p className="mb-1"><strong>Nuevo jugador registrado</strong></p>
+                  <p className="text-muted mb-0">Equipo: {getNombreEquipo()} - Jugador: Ana García</p>
+                </li>
+              </ul>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </Container>
   );
 };
 

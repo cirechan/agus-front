@@ -1,7 +1,8 @@
+// Corregir el archivo Login.tsx
 import React, { useState } from 'react';
 import { Form, Button, Card, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { loginUsuario } from '../services/api';
 
 const Login = () => {
   const [nombreUsuario, setNombreUsuario] = useState('');
@@ -22,9 +23,7 @@ const Login = () => {
       setError('');
       
       // En un MVP sin login complejo, simplemente verificamos si el usuario existe
-        const response = await loginUsuario(nombreUsuario);
-        nombreUsuario
-      });
+      const response = await loginUsuario(nombreUsuario);
       
       // Guardar información del usuario en localStorage
       localStorage.setItem('usuario', JSON.stringify(response.data.usuario));
