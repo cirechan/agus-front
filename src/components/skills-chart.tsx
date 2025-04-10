@@ -8,12 +8,13 @@ interface SkillsChartProps {
   data: {
     name: string;
     value: number;
-    fullMark: number;
+    fullMark?: number; // ✅ lo hacemos opcional
   }[];
   title?: string;
   description?: string;
   footer?: React.ReactNode;
 }
+
 
 export function SkillsChart({ 
   data, 
