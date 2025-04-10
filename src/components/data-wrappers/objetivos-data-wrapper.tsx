@@ -1,16 +1,45 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, ReactElement } from 'react'
 import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-export default function ObjetivosDataWrapper({ children, equipoId = null }) {
-  const { objetivos, isLoading, error, apiStatus } = useApi()
-  const [data, setData] = useState([])
+interface ApiStatus {
+  status: string;
+  message: string;
+  environment?: string;
+  timestamp?: string;
+}
+
+interface ObjetivosDataWrapperProps {
+  children: ReactElement;
+  equipoId?: string | null;
+}
+
+interface Objetivo {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  progreso: number;
+  fechaCreacion: string;
+  fechaLimite: string;
+  prioridad: string;
+  estado: string;
+  equipo: string;
+}
+
+export default function ObjetivosDataWrapper({ children, equipoId = null }: ObjetivosDataWrapperProps) {
+  const { objetivos, isLoading, error, apiStatus } = useApi() as {
+    objetivos: any;
+    isLoading: boolean;
+    error: any;
+    apiStatus: ApiStatus;
+  }
+  const [data, setData] = useState<Objetivo[]>([])
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,7 +48,7 @@ export default function ObjetivosDataWrapper({ children, equipoId = null }) {
         // Si la API está offline, usar datos de ejemplo
         if (apiStatus.status === 'offline') {
           // Datos de ejemplo para modo offline
-          const mockData = [
+          const mockData: Objetivo[] = [
             { 
               id: "1", 
               titulo: "Mejorar posesión de balón", 
@@ -87,7 +116,7 @@ export default function ObjetivosDataWrapper({ children, equipoId = null }) {
           console.log('Datos obtenidos de la API:', result)
         }
         setErrorMsg(null)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al cargar objetivos:', err)
         setErrorMsg('No se pudieron cargar los objetivos. ' + err.message)
         // Usar datos de ejemplo en caso de error

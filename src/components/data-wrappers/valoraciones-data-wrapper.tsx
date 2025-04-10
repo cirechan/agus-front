@@ -1,16 +1,53 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, ReactElement } from 'react'
 import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-export default function ValoracionesDataWrapper({ children, equipoId = null, jugadorId = null }) {
-  const { valoraciones, isLoading, error, apiStatus } = useApi()
-  const [data, setData] = useState([])
+interface ApiStatus {
+  status: string;
+  message: string;
+  environment?: string;
+  timestamp?: string;
+}
+
+interface ValoracionesDataWrapperProps {
+  children: ReactElement;
+  equipoId?: string | null;
+  jugadorId?: string | null;
+}
+
+interface Jugador {
+  id: string;
+  nombre: string;
+  apellidos: string;
+}
+
+interface Valoracion {
+  id: string;
+  jugador: Jugador;
+  trimestre: string;
+  fecha: string;
+  tecnica: number;
+  tactica: number;
+  fisica: number;
+  mental: number;
+  valoracionMedia: number;
+  comentarios: string;
+}
+
+export default function ValoracionesDataWrapper({ children, equipoId = null, jugadorId = null }: ValoracionesDataWrapperProps) {
+  const { valoraciones, isLoading, error, apiStatus } = useApi() as {
+    valoraciones: any;
+    isLoading: boolean;
+    error: any;
+    apiStatus: ApiStatus;
+  }
+  const [data, setData] = useState<Valoracion[]>([])
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,7 +56,7 @@ export default function ValoracionesDataWrapper({ children, equipoId = null, jug
         // Si la API está offline, usar datos de ejemplo
         if (apiStatus.status === 'offline') {
           // Datos de ejemplo para modo offline
-          const mockData = [
+          const mockData: Valoracion[] = [
             { 
               id: "1", 
               jugador: { id: "1", nombre: "Juan", apellidos: "García López" },
@@ -98,7 +135,7 @@ export default function ValoracionesDataWrapper({ children, equipoId = null, jug
           console.log('Datos obtenidos de la API:', result)
         }
         setErrorMsg(null)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al cargar valoraciones:', err)
         setErrorMsg('No se pudieron cargar las valoraciones. ' + err.message)
         // Usar datos de ejemplo en caso de error

@@ -41,7 +41,13 @@ const trimestres = [
 ]
 
 // Componente para valoración con estrellas
-function StarRating({ value, onChange, readOnly = false }) {
+interface StarRatingProps {
+  value: number;
+  onChange: (value: number) => void;
+  readOnly?: boolean;
+}
+
+function StarRating({ value, onChange, readOnly = false }: StarRatingProps) {
   const stars = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
   
   return (
@@ -71,19 +77,19 @@ function StarRating({ value, onChange, readOnly = false }) {
   )
 }
 
+interface Valoracion {
+  jugadorId: string;
+  trimestreId: string;
+  aptitudes: Record<string, number>;
+  comentarios: string;
+}
+
 export default function ValoracionesPage() {
   const [trimestreActual, setTrimestreActual] = React.useState(trimestres[0].id)
   const [filtroJugadores, setFiltroJugadores] = React.useState("todos")
   const [filtroPosicion, setFiltroPosicion] = React.useState("todas")
   const [jugadorSeleccionado, setJugadorSeleccionado] = React.useState<string | null>(null)
-  const [valoraciones, setValoraciones] = React.useState<{
-    jugadorId: string;
-    trimestreId: string;
-    aptitudes: {
-      [key: string]: number;
-    };
-    comentarios: string;
-  }[]>([])
+  const [valoraciones, setValoraciones] = React.useState<Valoracion[]>([])
   
   // Filtrar jugadores según criterios
   const jugadoresFiltrados = React.useMemo(() => {
@@ -114,7 +120,7 @@ export default function ValoracionesPage() {
     ) || {
       jugadorId: jugadorSeleccionado,
       trimestreId: trimestreActual,
-      aptitudes: aptitudes.reduce((acc, apt) => ({ ...acc, [apt.id]: 0 }), {}),
+      aptitudes: aptitudes.reduce((acc, apt) => ({ ...acc, [apt.id]: 0 }), {} as Record<string, number>),
       comentarios: ""
     }
   }, [jugadorSeleccionado, trimestreActual, valoraciones])
@@ -185,7 +191,7 @@ export default function ValoracionesPage() {
   }
   
   // Calcular valoración media
-  const calcularMedia = (aptitudes: {[key: string]: number}) => {
+  const calcularMedia = (aptitudes: Record<string, number>) => {
     if (!aptitudes || Object.keys(aptitudes).length === 0) return 0
     
     const suma = Object.values(aptitudes).reduce((acc, val) => acc + val, 0)

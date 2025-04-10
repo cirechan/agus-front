@@ -1,16 +1,44 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, ReactElement } from 'react'
 import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-export default function EquiposDataWrapper({ children }) {
-  const { equipos, isLoading, error, apiStatus } = useApi()
-  const [data, setData] = useState([])
+interface ApiStatus {
+  status: string;
+  message: string;
+  environment?: string;
+  timestamp?: string;
+}
+
+interface EquiposDataWrapperProps {
+  children: ReactElement;
+}
+
+interface Equipo {
+  id: string;
+  nombre: string;
+  categoria: string;
+  players: number;
+  coach: string;
+  image: string | null;
+  asistenciaPromedio: string;
+  valoracionMedia: number;
+  objetivosCumplidos: string;
+}
+
+export default function EquiposDataWrapper({ children }: EquiposDataWrapperProps) {
+  const { equipos, isLoading, error, apiStatus } = useApi() as {
+    equipos: any;
+    isLoading: boolean;
+    error: any;
+    apiStatus: ApiStatus;
+  }
+  const [data, setData] = useState<Equipo[]>([])
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,7 +47,7 @@ export default function EquiposDataWrapper({ children }) {
         // Si la API está offline, usar datos de ejemplo
         if (apiStatus.status === 'offline') {
           // Datos de ejemplo para modo offline
-          const mockData = [
+          const mockData: Equipo[] = [
             {
               id: "1",
               nombre: "Alevín A",
@@ -53,7 +81,7 @@ export default function EquiposDataWrapper({ children }) {
           console.log('Datos obtenidos de la API:', result)
         }
         setErrorMsg(null)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al cargar equipos:', err)
         setErrorMsg('No se pudieron cargar los equipos. ' + err.message)
         // Usar datos de ejemplo en caso de error

@@ -6,8 +6,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
+interface ApiStatus {
+  status: string;
+  message: string;
+  environment?: string;
+  timestamp?: string;
+}
+
 export default function ApiStatusChecker() {
-  const { apiStatus, checkApiStatus, isLoading } = useApi()
+  const { apiStatus, checkApiStatus, isLoading } = useApi() as {
+    apiStatus: ApiStatus;
+    checkApiStatus: () => void;
+    isLoading: boolean;
+  }
   const [showStatus, setShowStatus] = useState(false)
 
   useEffect(() => {

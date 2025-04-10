@@ -34,11 +34,12 @@ export function AppSidebar({
   variant = "default",
 }: AppSidebarProps) {
   const pathname = usePathname()
-  const { expanded, setExpanded, setVariant } = useSidebar()
+  // Modificamos la desestructuración para usar las propiedades correctas del contexto
+  const { open: expanded, setOpen: setExpanded, setOpenMobile: setVariant } = useSidebar()
   const [teamsOpen, setTeamsOpen] = React.useState(true)
 
   React.useEffect(() => {
-    setVariant(variant)
+    setVariant(variant === "inset")
   }, [variant, setVariant])
 
   return (

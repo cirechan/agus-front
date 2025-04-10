@@ -241,10 +241,10 @@ export default function EquipoPage() {
           <CardContent className="h-[300px] flex items-center justify-center">
             <SkillsChart 
               data={[
-                { name: 'Técnica', value: 3.8 },
-                { name: 'Táctica', value: 3.5 },
-                { name: 'Física', value: 4.2 },
-                { name: 'Mental', value: 3.9 }
+                { name: 'Técnica', value: 3.8, fullMark: 5 },
+                { name: 'Táctica', value: 3.5, fullMark: 5 },
+                { name: 'Física', value: 4.2, fullMark: 5 },
+                { name: 'Mental', value: 3.9, fullMark: 5 }
               ]} 
             />
           </CardContent>
@@ -403,7 +403,7 @@ export default function EquipoPage() {
                           value={objetivo.progreso.toString()} 
                           onValueChange={(value) => handleUpdateProgreso(objetivo.id, parseInt(value))}
                         >
-                          <SelectTrigger className="w-[100px] h-7">
+                          <SelectTrigger className="w-[100px]">
                             <SelectValue placeholder="Progreso" />
                           </SelectTrigger>
                           <SelectContent>
@@ -415,7 +415,7 @@ export default function EquipoPage() {
                           </SelectContent>
                         </Select>
                       </div>
-                      <Progress value={objetivo.progreso} className="h-2" />
+                      <Progress value={objetivo.progreso} />
                     </div>
                   </div>
                 ))}

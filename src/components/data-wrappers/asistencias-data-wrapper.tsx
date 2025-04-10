@@ -1,16 +1,55 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, ReactElement } from 'react'
 import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-export default function AsistenciasDataWrapper({ children, equipoId = null, jugadorId = null }) {
-  const { asistencias, isLoading, error, apiStatus } = useApi()
-  const [data, setData] = useState([])
+interface ApiStatus {
+  status: string;
+  message: string;
+  environment?: string;
+  timestamp?: string;
+}
+
+interface AsistenciasDataWrapperProps {
+  children: ReactElement;
+  equipoId?: string | null;
+  jugadorId?: string | null;
+}
+
+interface Asistencia {
+  id: string;
+  fecha: string;
+  tipo: string;
+  asistencia: string;
+  jugadores: {
+    id: string;
+    nombre: string;
+    asistio: boolean;
+    motivo: string | null;
+  }[];
+}
+
+interface AsistenciaJugador {
+  id: string;
+  fecha: string;
+  tipo: string;
+  asistio: boolean;
+  motivo: string | null;
+}
+
+export default function AsistenciasDataWrapper({ children, equipoId = null, jugadorId = null }: AsistenciasDataWrapperProps) {
+  const { asistencias, isLoading, error, apiStatus } = useApi() as {
+    asistencias: any;
+    isLoading: boolean;
+    error: any;
+    apiStatus: ApiStatus;
+  }
+  const [data, setData] = useState<Asistencia[] | AsistenciaJugador[]>([])
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,7 +58,7 @@ export default function AsistenciasDataWrapper({ children, equipoId = null, juga
         // Si la API está offline, usar datos de ejemplo
         if (apiStatus.status === 'offline') {
           // Datos de ejemplo para modo offline
-          const mockData = [
+          const mockData: Asistencia[] = [
             { id: "1", fecha: "09/04/2025", tipo: "Entrenamiento regular", asistencia: "90%", jugadores: [
               { id: "1", nombre: "Juan García", asistio: true, motivo: null },
               { id: "2", nombre: "Miguel Fernández", asistio: true, motivo: null },
@@ -54,7 +93,7 @@ export default function AsistenciasDataWrapper({ children, equipoId = null, juga
           } else if (jugadorId) {
             // En un caso real, aquí filtrarías por jugador
             // Para el ejemplo, filtramos las asistencias para mostrar solo las del jugador 1
-            const asistenciasJugador = mockData.map(asistencia => {
+            const asistenciasJugador: AsistenciaJugador[] = mockData.map(asistencia => {
               const jugador = asistencia.jugadores.find(j => j.id === jugadorId)
               if (jugador) {
                 return {
@@ -66,7 +105,7 @@ export default function AsistenciasDataWrapper({ children, equipoId = null, juga
                 }
               }
               return null
-            }).filter(Boolean)
+            }).filter((item): item is AsistenciaJugador => item !== null)
             
             setData(asistenciasJugador)
           } else {
@@ -88,7 +127,7 @@ export default function AsistenciasDataWrapper({ children, equipoId = null, juga
           console.log('Datos obtenidos de la API:', result)
         }
         setErrorMsg(null)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al cargar asistencias:', err)
         setErrorMsg('No se pudieron cargar las asistencias. ' + err.message)
         // Usar datos de ejemplo en caso de error

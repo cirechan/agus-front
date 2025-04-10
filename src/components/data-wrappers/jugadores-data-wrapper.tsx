@@ -1,16 +1,42 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, ReactElement } from 'react'
 import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
 
-export default function JugadoresDataWrapper({ children, equipoId = null }) {
-  const { jugadores, isLoading, error, apiStatus } = useApi()
-  const [data, setData] = useState([])
+interface ApiStatus {
+  status: string;
+  message: string;
+  environment?: string;
+  timestamp?: string;
+}
+
+interface JugadoresDataWrapperProps {
+  children: ReactElement;
+  equipoId?: string | null;
+}
+
+interface Jugador {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  posicion: string;
+  dorsal: number;
+  asistencia: string;
+}
+
+export default function JugadoresDataWrapper({ children, equipoId = null }: JugadoresDataWrapperProps) {
+  const { jugadores, isLoading, error, apiStatus } = useApi() as {
+    jugadores: any;
+    isLoading: boolean;
+    error: any;
+    apiStatus: ApiStatus;
+  }
+  const [data, setData] = useState<Jugador[]>([])
   const [loading, setLoading] = useState(true)
-  const [errorMsg, setErrorMsg] = useState(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -19,7 +45,7 @@ export default function JugadoresDataWrapper({ children, equipoId = null }) {
         // Si la API está offline, usar datos de ejemplo
         if (apiStatus.status === 'offline') {
           // Datos de ejemplo para modo offline
-          const mockData = [
+          const mockData: Jugador[] = [
             { id: "1", nombre: "Juan", apellidos: "García López", posicion: "Delantero", dorsal: 9, asistencia: "95%" },
             { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", posicion: "Centrocampista", dorsal: 8, asistencia: "90%" },
             { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", posicion: "Defensa", dorsal: 4, asistencia: "85%" },
@@ -51,7 +77,7 @@ export default function JugadoresDataWrapper({ children, equipoId = null }) {
           console.log('Datos obtenidos de la API:', result)
         }
         setErrorMsg(null)
-      } catch (err) {
+      } catch (err: any) {
         console.error('Error al cargar jugadores:', err)
         setErrorMsg('No se pudieron cargar los jugadores. ' + err.message)
         // Usar datos de ejemplo en caso de error
