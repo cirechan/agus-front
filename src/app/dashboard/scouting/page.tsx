@@ -174,7 +174,13 @@ const equiposCDSA = [
 ]
 
 // Componente para valoración con estrellas
-function StarRating({ value, onChange, readOnly = false }) {
+type StarRatingProps = {
+  value: number;
+  onChange: (value: number) => void;
+  readOnly?: boolean;
+};
+
+function StarRating({ value, onChange, readOnly = false }: StarRatingProps) {
   return (
     <div className="flex items-center">
       {[1, 2, 3, 4, 5].map((star) => (
