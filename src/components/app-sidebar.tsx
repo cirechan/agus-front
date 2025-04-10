@@ -10,9 +10,11 @@ import {
   ClipboardCheckIcon, 
   HomeIcon, 
   LineChartIcon, 
+  Menu,
   SearchIcon, 
   ShieldIcon, 
-  UsersIcon 
+  UsersIcon,
+  X
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -24,6 +26,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 interface AppSidebarProps extends React.HTMLAttributes<HTMLDivElement> {
   variant?: "default" | "inset"
@@ -34,18 +37,165 @@ export function AppSidebar({
   variant = "default",
 }: AppSidebarProps) {
   const pathname = usePathname()
-  // Modificamos la desestructuración para usar las propiedades correctas del contexto
   const { open: expanded, setOpen: setExpanded, setOpenMobile: setVariant } = useSidebar()
   const [teamsOpen, setTeamsOpen] = React.useState(true)
+  const [mobileOpen, setMobileOpen] = React.useState(false)
 
   React.useEffect(() => {
     setVariant(variant === "inset")
   }, [variant, setVariant])
 
-  return (
+  // Sidebar para dispositivos móviles
+  const MobileSidebar = () => (
+    <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden fixed top-4 left-4 z-50">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Abrir menú</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="p-0 w-[280px]">
+        <div className="flex flex-col h-full">
+          <div className="flex h-16 items-center justify-between px-4 border-b">
+            <Link href="/" className="flex items-center gap-2">
+              <ShieldIcon className="h-6 w-6" />
+              <span className="font-semibold">Club San Agustín</span>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => setMobileOpen(false)}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Cerrar menú</span>
+            </Button>
+          </div>
+          
+          <div className="px-2 py-2">
+            <TeamSelector />
+          </div>
+          
+          <nav className="flex-1 overflow-auto py-4">
+            <div className="grid gap-1 px-2">
+              <NavLink
+                href="/dashboard"
+                icon={HomeIcon}
+                label="Dashboard"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+              
+              <Collapsible
+                open={teamsOpen}
+                onOpenChange={setTeamsOpen}
+              >
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="flex w-full justify-between px-3 py-2 text-sm font-medium"
+                  >
+                    <div className="flex items-center gap-2">
+                      <UsersIcon className="h-5 w-5" />
+                      <span>Equipos</span>
+                    </div>
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", teamsOpen && "rotate-180")} />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pl-6 pt-1">
+                  <div className="grid gap-1">
+                    <NavLink
+                      href="/dashboard/equipos"
+                      icon={UsersIcon}
+                      label="Todos los equipos"
+                      pathname={pathname}
+                      expanded={true}
+                      onClick={() => setMobileOpen(false)}
+                    />
+                    <NavLink
+                      href="/dashboard/equipos/nuevo"
+                      icon={UsersIcon}
+                      label="Nuevo equipo"
+                      pathname={pathname}
+                      expanded={true}
+                      onClick={() => setMobileOpen(false)}
+                    />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+              
+              <NavLink
+                href="/dashboard/jugadores"
+                icon={UsersIcon}
+                label="Jugadores"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/asistencias"
+                icon={ClipboardCheckIcon}
+                label="Asistencias"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/valoraciones"
+                icon={LineChartIcon}
+                label="Valoraciones"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/scouting"
+                icon={SearchIcon}
+                label="Scouting"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/objetivos"
+                icon={BarChartIcon}
+                label="Objetivos"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/reuniones"
+                icon={CalendarIcon}
+                label="Reuniones"
+                pathname={pathname}
+                expanded={true}
+                onClick={() => setMobileOpen(false)}
+              />
+            </div>
+          </nav>
+          <div className="mt-auto border-t p-4">
+            <div className="flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-muted" />
+              <div className="flex flex-col">
+                <span className="text-xs font-medium">Entrenador</span>
+                <span className="text-xs text-muted-foreground">
+                  Club San Agustín
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  )
+
+  // Sidebar para escritorio
+  const DesktopSidebar = () => (
     <div
       className={cn(
-        "fixed inset-y-0 z-10 flex flex-col border-r bg-background",
+        "hidden md:flex fixed inset-y-0 z-10 flex-col border-r bg-background",
         expanded ? "w-64" : "w-16",
         variant === "inset" && "w-16",
         className
@@ -130,6 +280,16 @@ export function AppSidebar({
             </CollapsibleContent>
           </Collapsible>
           
+          {!expanded && (
+            <NavLink
+              href="/dashboard/equipos"
+              icon={UsersIcon}
+              label="Equipos"
+              pathname={pathname}
+              expanded={expanded}
+            />
+          )}
+          
           <NavLink
             href="/dashboard/jugadores"
             icon={UsersIcon}
@@ -193,6 +353,13 @@ export function AppSidebar({
       </div>
     </div>
   )
+
+  return (
+    <>
+      <MobileSidebar />
+      <DesktopSidebar />
+    </>
+  )
 }
 
 interface NavLinkProps {
@@ -201,9 +368,10 @@ interface NavLinkProps {
   label: string
   pathname: string
   expanded: boolean
+  onClick?: () => void
 }
 
-function NavLink({ href, icon: Icon, label, pathname, expanded }: NavLinkProps) {
+function NavLink({ href, icon: Icon, label, pathname, expanded, onClick }: NavLinkProps) {
   const isActive = pathname === href || pathname.startsWith(`${href}/`)
 
   return (
@@ -215,6 +383,7 @@ function NavLink({ href, icon: Icon, label, pathname, expanded }: NavLinkProps) 
           ? "bg-primary text-primary-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground"
       )}
+      onClick={onClick}
     >
       <Icon className="h-5 w-5" />
       {expanded && <span>{label}</span>}
