@@ -1,120 +1,279 @@
 "use client"
 
-import React from 'react'
+import { SectionCards } from "@/components/section-cards"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, CheckCircle, Trophy, Target } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { CalendarIcon, ClipboardCheckIcon, StarIcon, UsersIcon } from "lucide-react"
 
 export default function DashboardPage() {
   return (
-    <div className="container mx-auto py-6">
-      <h1 className="text-3xl font-bold tracking-tight mb-6">Dashboard</h1>
-      
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Jugadores</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">45</div>
-            <p className="text-xs text-muted-foreground">
-              Total de jugadores
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Asistencia</CardTitle>
-            <CheckCircle className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">85%</div>
-            <p className="text-xs text-muted-foreground">
-              Promedio de asistencia
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Valoración</CardTitle>
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">3.8</div>
-            <p className="text-xs text-muted-foreground">
-              Valoración media
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Objetivos</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">65%</div>
-            <p className="text-xs text-muted-foreground">
-              Objetivos cumplidos
-            </p>
-          </CardContent>
-        </Card>
+    <>
+      <div className="flex items-center justify-between px-4 lg:px-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Bienvenido a la plataforma del Club San Agustín
+          </p>
+        </div>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="col-span-2">
-          <CardHeader>
-            <CardTitle>Equipos</CardTitle>
-            <CardDescription>
-              Listado de equipos del Club San Agustín
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              {[
-                { nombre: "Alevín A", categoria: "1ª Alevín", jugadores: 15 },
-                { nombre: "Infantil B", categoria: "2ª Infantil", jugadores: 18 },
-                { nombre: "Cadete A", categoria: "1ª Cadete", jugadores: 12 },
-                { nombre: "Juvenil A", categoria: "División de Honor", jugadores: 20 }
-              ].map((equipo, index) => (
-                <Card key={index} className="cursor-pointer hover:bg-muted/50">
-                  <CardHeader className="p-4">
-                    <CardTitle className="text-base">{equipo.nombre}</CardTitle>
-                    <CardDescription>{equipo.categoria}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="text-sm">{equipo.jugadores} jugadores</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      <SectionCards />
+      
+      <div className="grid grid-cols-1 gap-4 px-4 md:grid-cols-2 lg:px-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Próximos eventos</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Próximos Eventos</CardTitle>
             <CardDescription>
-              Calendario de eventos próximos
+              Calendario de entrenamientos y partidos
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[
-                { fecha: "12/04/2025", evento: "Partido Alevín A vs. CD Leganés", hora: "10:00" },
-                { fecha: "13/04/2025", evento: "Partido Infantil B vs. Rayo Vallecano", hora: "11:30" },
-                { fecha: "15/04/2025", evento: "Entrenamiento especial Cadete A", hora: "17:00" },
-                { fecha: "18/04/2025", evento: "Reunión técnica entrenadores", hora: "19:00" }
-              ].map((evento, index) => (
-                <div key={index} className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium">{evento.evento}</p>
-                    <p className="text-sm text-muted-foreground">{evento.fecha} - {evento.hora}</p>
-                  </div>
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
                 </div>
-              ))}
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Entrenamiento
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Martes 18:00 - Campo Municipal
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Partido vs. CD Ebro
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Sábado 10:00 - Campo Visitante
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <CalendarIcon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Reunión técnica
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Jueves 19:30 - Sala de reuniones
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Jugadores Destacados</CardTitle>
+            <CardDescription>
+              Mejor rendimiento en el último mes
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <UsersIcon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Carlos Martínez
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Delantero - 100% asistencia
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-1">
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <UsersIcon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Laura Sánchez
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Centrocampista - 95% asistencia
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-1">
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="rounded-md bg-primary/10 p-2">
+                  <UsersIcon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium leading-none">
+                    Miguel López
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Portero - 90% asistencia
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-1">
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 fill-primary text-primary" />
+                  <StarIcon className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    </div>
+      
+      <div className="px-4 lg:px-6">
+        <Tabs defaultValue="asistencias">
+          <div className="flex items-center justify-between">
+            <TabsList>
+              <TabsTrigger value="asistencias">Asistencias</TabsTrigger>
+              <TabsTrigger value="valoraciones">Valoraciones</TabsTrigger>
+              <TabsTrigger value="objetivos">Objetivos</TabsTrigger>
+            </TabsList>
+          </div>
+          <TabsContent value="asistencias" className="pt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Asistencias Recientes</CardTitle>
+                <CardDescription>
+                  Registro de asistencias de los últimos entrenamientos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <ClipboardCheckIcon className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">09/04/2025</p>
+                        <p className="text-xs text-muted-foreground">Entrenamiento regular</p>
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium">90% asistencia</div>
+                  </div>
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <ClipboardCheckIcon className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">07/04/2025</p>
+                        <p className="text-xs text-muted-foreground">Entrenamiento regular</p>
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium">85% asistencia</div>
+                  </div>
+                  <div className="flex items-center justify-between border-b pb-2">
+                    <div className="flex items-center gap-2">
+                      <ClipboardCheckIcon className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">04/04/2025</p>
+                        <p className="text-xs text-muted-foreground">Entrenamiento regular</p>
+                      </div>
+                    </div>
+                    <div className="text-sm font-medium">80% asistencia</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="valoraciones" className="pt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Valoraciones Trimestrales</CardTitle>
+                <CardDescription>
+                  Evolución de las valoraciones del equipo
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="rounded-lg border p-3">
+                      <div className="text-xs font-medium text-muted-foreground">Técnica</div>
+                      <div className="text-xl font-bold">3.8</div>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <div className="text-xs font-medium text-muted-foreground">Táctica</div>
+                      <div className="text-xl font-bold">3.5</div>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <div className="text-xs font-medium text-muted-foreground">Física</div>
+                      <div className="text-xl font-bold">4.2</div>
+                    </div>
+                    <div className="rounded-lg border p-3">
+                      <div className="text-xs font-medium text-muted-foreground">Mental</div>
+                      <div className="text-xl font-bold">3.9</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          <TabsContent value="objetivos" className="pt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Objetivos del Equipo</CardTitle>
+                <CardDescription>
+                  Progreso en los objetivos de la temporada
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">Mejorar posesión de balón</div>
+                      <div className="text-sm font-medium">75%</div>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-muted">
+                      <div className="h-full w-[75%] rounded-full bg-primary"></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">Reducir goles encajados</div>
+                      <div className="text-sm font-medium">60%</div>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-muted">
+                      <div className="h-full w-[60%] rounded-full bg-primary"></div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm font-medium">Aumentar efectividad en ataque</div>
+                      <div className="text-sm font-medium">50%</div>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-muted">
+                      <div className="h-full w-[50%] rounded-full bg-primary"></div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </>
   )
 }
