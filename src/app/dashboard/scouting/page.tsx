@@ -276,7 +276,7 @@ export default function ScoutingPage() {
   }, [jugadorSeleccionado])
   
   // Manejar cambio en el formulario
-  const handleFormChange = (field, value) => {
+  const handleFormChange = (field: keyof typeof formData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     
     // Si cambia nombre o apellido, buscar sugerencias
