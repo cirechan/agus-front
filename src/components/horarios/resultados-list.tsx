@@ -60,12 +60,12 @@ export function ResultadosList({ dateRange }: ResultadosListProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-      <Select value={equipoFilter} onValueChange={setEquipoFilter}>
+      <Select value={equipoFilter || "__todos__"} onValueChange={(val) => setEquipoFilter(val === "__todos__" ? "" : val)}>
   <SelectTrigger className="w-full md:w-48">
     <SelectValue placeholder="Filtrar por equipo" />
   </SelectTrigger>
   <SelectContent>
-    <SelectItem value="">Todos los equipos</SelectItem>
+    <SelectItem value="__todos__">Todos los equipos</SelectItem>
     {equiposOptions.map((option) => (
       <SelectItem key={option.value} value={option.value}>
         {option.label}
@@ -73,6 +73,7 @@ export function ResultadosList({ dateRange }: ResultadosListProps) {
     ))}
   </SelectContent>
 </Select>
+
 
       </div>
       
