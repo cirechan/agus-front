@@ -5,7 +5,7 @@ import { Partido } from "@/types/horarios"
 import { horariosService } from "@/lib/api/horarios"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Select } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { equiposOptions } from "@/types/horarios"
 import { Badge } from "@/components/ui/badge"
 import { ExternalLink } from "lucide-react"
@@ -60,16 +60,20 @@ export function ResultadosList({ dateRange }: ResultadosListProps) {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Select
-          placeholder="Filtrar por equipo"
-          options={[
-            { value: "", label: "Todos los equipos" },
-            ...equiposOptions
-          ]}
-          value={equipoFilter}
-          onValueChange={setEquipoFilter}
-          className="w-full md:w-64"
-        />
+      <Select value={equipoFilter} onValueChange={setEquipoFilter}>
+  <SelectTrigger className="w-full md:w-48">
+    <SelectValue placeholder="Filtrar por equipo" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="">Todos los equipos</SelectItem>
+    {equiposOptions.map((option) => (
+      <SelectItem key={option.value} value={option.value}>
+        {option.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
       </div>
       
       {loading ? (

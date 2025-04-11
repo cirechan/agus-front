@@ -4,7 +4,14 @@ import { useState, useEffect } from "react"
 import { Partido } from "@/types/horarios"
 import { horariosService } from "@/lib/api/horarios"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Select } from "@/components/ui/select"
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
+} from "@/components/ui/select"
+
 import { equiposOptions } from "@/types/horarios"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
@@ -94,16 +101,22 @@ export function EstadisticasView() {
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <Select
-          placeholder="Filtrar por equipo"
-          options={[
-            { value: "", label: "Todos los equipos" },
-            ...equiposOptions
-          ]}
-          value={equipoFilter}
-          onValueChange={setEquipoFilter}
-          className="w-full md:w-64"
-        />
+      <Select value={equipoFilter} onValueChange={setEquipoFilter}>
+  <SelectTrigger className="w-[200px]">
+    <SelectValue placeholder="Filtrar por equipo" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="">Todos los equipos</SelectItem>
+    {equiposOptions.map((option) => (
+      <SelectItem key={option.value} value={option.value}>
+        {option.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
+
+
       </div>
       
       {loading ? (

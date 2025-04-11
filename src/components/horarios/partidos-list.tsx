@@ -5,7 +5,7 @@ import { Partido } from "@/types/horarios"
 import { horariosService } from "@/lib/api/horarios"
 import { PartidoCard } from "@/components/horarios/partido-card"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { equiposOptions } from "@/types/horarios"
 import { Search } from "lucide-react"
 
@@ -85,28 +85,32 @@ export function PartidosList({ dateRange }: PartidosListProps) {
           />
         </div>
         
-        <Select
-          placeholder="Filtrar por equipo"
-          options={[
-            { value: "", label: "Todos los equipos" },
-            ...equiposOptions
-          ]}
-          value={equipoFilter}
-          onValueChange={setEquipoFilter}
-          className="w-full md:w-64"
-        />
+        <Select value={equipoFilter} onValueChange={setEquipoFilter}>
+  <SelectTrigger className="w-[200px]">
+    <SelectValue placeholder="Filtrar por equipo" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="">Todos los equipos</SelectItem>
+    {equiposOptions.map((option) => (
+      <SelectItem key={option.value} value={option.value}>
+        {option.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
         
-        <Select
-          placeholder="Filtrar por ubicación"
-          options={[
-            { value: "", label: "Todas las ubicaciones" },
-            { value: "casa", label: "Local" },
-            { value: "fuera", label: "Visitante" }
-          ]}
-          value={ubicacionFilter}
-          onValueChange={setUbicacionFilter}
-          className="w-full md:w-48"
-        />
+<Select value={ubicacionFilter} onValueChange={setUbicacionFilter}>
+  <SelectTrigger className="w-full md:w-48">
+    <SelectValue placeholder="Filtrar por ubicación" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="">Todas las ubicaciones</SelectItem>
+    <SelectItem value="casa">Local</SelectItem>
+    <SelectItem value="fuera">Visitante</SelectItem>
+  </SelectContent>
+</Select>
+
       </div>
       
       {loading ? (
