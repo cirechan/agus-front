@@ -46,7 +46,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="icon" className={className}>
-      <SidebarHeader>
+      <SidebarHeader className="overflow-visible">
         <div className="flex h-16 items-center justify-between px-4">
           {expanded ? (
            <Link href="/" className="flex items-center gap-2">
@@ -140,7 +140,7 @@ export function AppSidebar({
             
             <NavLink
               href="/dashboard/jugadores"
-              icon={UsersIcon}
+              icon={UserIcon}
               label="Jugadores"
               pathname={pathname}
               expanded={expanded}
@@ -166,20 +166,7 @@ export function AppSidebar({
               pathname={pathname}
               expanded={expanded}
             />
-            <NavLink
-              href="/dashboard/objetivos"
-              icon={BarChartIcon}
-              label="Objetivos"
-              pathname={pathname}
-              expanded={expanded}
-            />
-            <NavLink
-              href="/dashboard/reuniones"
-              icon={CalendarIcon}
-              label="Reuniones"
-              pathname={pathname}
-              expanded={expanded}
-            />
+          
           </div>
         </nav>
       </SidebarContent>
@@ -192,7 +179,7 @@ export function AppSidebar({
               <div className="flex flex-col">
                 <span className="text-xs font-medium">Entrenador</span>
                 <span className="text-xs text-muted-foreground">
-                  Club San Agustín
+                  CD San Agustín
                 </span>
               </div>
             </div>
