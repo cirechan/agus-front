@@ -167,6 +167,14 @@ export function AppSidebar({
               pathname={pathname}
               expanded={expanded}
             />
+            <NavLink
+  href="/dashboard/horarios"
+  icon={CalendarIcon}
+  label="Horarios"
+  pathname={pathname}
+  expanded={expanded}
+/>
+
           
           </div>
         </nav>
