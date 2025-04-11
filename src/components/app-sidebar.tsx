@@ -49,14 +49,16 @@ export function AppSidebar({
       <SidebarHeader>
         <div className="flex h-16 items-center justify-between px-4">
           {expanded ? (
-            <Link href="/" className="flex items-center gap-2">
-              <ShieldIcon className="h-6 w-6" />
-              <span className="font-semibold">Club San Agustín</span>
+           <Link href="/" className="flex items-center gap-2">
+              <img src="/images/escudo.png" alt="Escudo" className="h-6 w-6" />
+              <span className="font-semibold">CD San Agustín</span>
             </Link>
+
           ) : (
             <Link href="/" className="flex w-full items-center justify-center">
-              <ShieldIcon className="h-6 w-6" />
+                <img src="/images/escudo.png" alt="Escudo" className="h-6 w-6" />
             </Link>
+  
           )}
           <Button
             variant="ghost"
