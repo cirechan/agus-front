@@ -25,7 +25,7 @@ export default function HorariosPage() {
 
       const partidosDemo = [
         {
-          fecha: new Date().toISOString(),
+          fecha: new Date(),
           hora: "11:00",
           equipo: "Alevín A",
           rival: "CD Ebro",
@@ -36,7 +36,7 @@ export default function HorariosPage() {
           resultado: { golesLocal: 3, golesVisitante: 2 },
         },
         {
-          fecha: new Date(Date.now() + 86400000).toISOString(), // mañana
+          fecha: new Date(Date.now() + 86400000), // mañana
           hora: "17:30",
           equipo: "Infantil B",
           rival: "UD Montecarlo",
@@ -45,7 +45,7 @@ export default function HorariosPage() {
           equipacion: { color: "azul", tipo: "alternativa" },
         },
         {
-          fecha: new Date(Date.now() + 2 * 86400000).toISOString(), // pasado mañana
+          fecha: new Date(Date.now() + 2 * 86400000), // pasado mañana
           hora: "10:00",
           equipo: "Cadete A",
           rival: "Stadium Casablanca",
@@ -56,6 +56,7 @@ export default function HorariosPage() {
           resultado: { golesLocal: 0, golesVisitante: 0 },
         }
       ]
+      
 
       for (const partido of partidosDemo) {
         await horariosService.createPartido(partido)
