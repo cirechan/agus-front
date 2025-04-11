@@ -12,7 +12,8 @@ import {
   LineChartIcon, 
   SearchIcon, 
   ShieldIcon, 
-  UsersIcon
+  UsersIcon, 
+  UserIcon
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
