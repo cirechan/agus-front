@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
 import { TimePicker } from "@/components/ui/time-picker"
 import { horariosService } from "@/lib/api/horarios"
@@ -198,11 +198,19 @@ export default function EditarPartidoPage() {
                     <FormItem>
                       <FormLabel>Equipo</FormLabel>
                       <FormControl>
-                        <Select
-                          options={equiposOptions}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        />
+                      <Select value={field.value} onValueChange={field.onChange}>
+  <SelectTrigger>
+    <SelectValue placeholder="Selecciona equipo" />
+  </SelectTrigger>
+  <SelectContent>
+    {equiposOptions.map((equipo) => (
+      <SelectItem key={equipo.value} value={equipo.value}>
+        {equipo.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+
                       </FormControl>
                       <FormMessage />
                     </FormItem>
