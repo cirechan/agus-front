@@ -113,7 +113,7 @@ export default function JugadorDetallePage() {
           <Badge variant="outline" className="text-sm">
             {jugador.posicion}
           </Badge>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-primary-foreground">
             {jugador.dorsal}
           </div>
         </div>
