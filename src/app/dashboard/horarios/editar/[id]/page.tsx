@@ -238,14 +238,16 @@ export default function EditarPartidoPage() {
                     <FormItem>
                       <FormLabel>Ubicación</FormLabel>
                       <FormControl>
-                        <Select
-                          options={[
-                            { value: "casa", label: "En casa" },
-                            { value: "fuera", label: "Fuera" }
-                          ]}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        />
+                      <Select value={field.value} onValueChange={field.onChange}>
+  <SelectTrigger>
+    <SelectValue placeholder="Selecciona ubicación" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="casa">En casa</SelectItem>
+    <SelectItem value="fuera">Fuera</SelectItem>
+  </SelectContent>
+</Select>
+
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -261,11 +263,21 @@ export default function EditarPartidoPage() {
                         <FormItem>
                           <FormLabel>Vestuario local</FormLabel>
                           <FormControl>
-                            <Select
-                              options={vestuariosOptions}
-                              value={field.value?.toString()}
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                            />
+                          <Select
+          value={field.value?.toString()}
+          onValueChange={(value) => field.onChange(parseInt(value))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona vestuario local" />
+          </SelectTrigger>
+          <SelectContent>
+            {vestuariosOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value.toString()}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -279,11 +291,21 @@ export default function EditarPartidoPage() {
                         <FormItem>
                           <FormLabel>Vestuario visitante</FormLabel>
                           <FormControl>
-                            <Select
-                              options={vestuariosOptions}
-                              value={field.value?.toString()}
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                            />
+                          <Select
+          value={field.value?.toString()}
+          onValueChange={(value) => field.onChange(parseInt(value))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona vestuario visitante" />
+          </SelectTrigger>
+          <SelectContent>
+            {vestuariosOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value.toString()}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -313,11 +335,21 @@ export default function EditarPartidoPage() {
                     <FormItem>
                       <FormLabel>Color de equipación</FormLabel>
                       <FormControl>
-                        <Select
-                          options={equipacionOptions}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        />
+                      <Select
+          value={field.value}
+          onValueChange={field.onChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona color" />
+          </SelectTrigger>
+          <SelectContent>
+            {equipacionOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

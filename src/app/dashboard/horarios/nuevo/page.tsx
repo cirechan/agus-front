@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
 import { TimePicker } from "@/components/ui/time-picker"
 import { horariosService } from "@/lib/api/horarios"
@@ -142,11 +142,18 @@ export default function NuevoPartidoPage() {
                     <FormItem>
                       <FormLabel>Equipo</FormLabel>
                       <FormControl>
-                        <Select
-                          options={equiposOptions}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        />
+                      <Select value={field.value} onValueChange={field.onChange}>
+  <SelectTrigger>
+    <SelectValue placeholder="Selecciona equipo" />
+  </SelectTrigger>
+  <SelectContent>
+    {equiposOptions.map((equipo) => (
+      <SelectItem key={equipo.value} value={equipo.value}>
+        {equipo.label}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -174,14 +181,15 @@ export default function NuevoPartidoPage() {
                     <FormItem>
                       <FormLabel>Ubicación</FormLabel>
                       <FormControl>
-                        <Select
-                          options={[
-                            { value: "casa", label: "En casa" },
-                            { value: "fuera", label: "Fuera" }
-                          ]}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        />
+                      <Select value={field.value} onValueChange={field.onChange}>
+  <SelectTrigger>
+    <SelectValue placeholder="Selecciona ubicación" />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="casa">En casa</SelectItem>
+    <SelectItem value="fuera">Fuera</SelectItem>
+  </SelectContent>
+</Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -197,11 +205,21 @@ export default function NuevoPartidoPage() {
                         <FormItem>
                           <FormLabel>Vestuario local</FormLabel>
                           <FormControl>
-                            <Select
-                              options={vestuariosOptions}
-                              value={field.value?.toString()}
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                            />
+                          <Select
+          value={field.value?.toString()}
+          onValueChange={(value) => field.onChange(parseInt(value))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona vestuario" />
+          </SelectTrigger>
+          <SelectContent>
+            {vestuariosOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value.toString()}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -215,11 +233,21 @@ export default function NuevoPartidoPage() {
                         <FormItem>
                           <FormLabel>Vestuario visitante</FormLabel>
                           <FormControl>
-                            <Select
-                              options={vestuariosOptions}
-                              value={field.value?.toString()}
-                              onValueChange={(value) => field.onChange(parseInt(value))}
-                            />
+                          <Select
+          value={field.value?.toString()}
+          onValueChange={(value) => field.onChange(parseInt(value))}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona vestuario" />
+          </SelectTrigger>
+          <SelectContent>
+            {vestuariosOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value.toString()}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -249,11 +277,21 @@ export default function NuevoPartidoPage() {
                     <FormItem>
                       <FormLabel>Color de equipación</FormLabel>
                       <FormControl>
-                        <Select
-                          options={equipacionOptions}
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        />
+                      <Select
+          value={field.value}
+          onValueChange={field.onChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Selecciona color" />
+          </SelectTrigger>
+          <SelectContent>
+            {equipacionOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

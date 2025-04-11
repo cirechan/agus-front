@@ -76,7 +76,8 @@ export function CalendarView({ dateRange }: CalendarViewProps) {
             components={{
               DayContent: (props) => (
                 <div className="relative h-full w-full p-2">
-                  <div>{props.day.day}</div>
+                  <div>{props.day.getDate()}</div>
+
                   {renderPartidosDia(props.day.date)}
                 </div>
               )

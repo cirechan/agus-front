@@ -22,11 +22,17 @@ export default function HorariosPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold">Horarios de partidos</h1>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <DateRangePicker
-            value={dateRange}
-            onChange={setDateRange}
-            className="w-full sm:w-auto"
-          />
+        <DateRangePicker
+  onChange={(range) => {
+    if (range?.from && range?.to) {
+      setDateRange({ from: range.from, to: range.to })
+    }
+  }}
+  value={dateRange}
+/>
+
+
+
           <Link href="/dashboard/horarios/nuevo">
             <Button className="whitespace-nowrap">
               <PlusIcon className="h-4 w-4 mr-2" />
