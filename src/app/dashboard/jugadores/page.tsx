@@ -147,7 +147,7 @@ export default function JugadoresPage() {
                     <CardTitle className="text-lg">{jugador.nombre} {jugador.apellidos}</CardTitle>
                     <CardDescription>{jugador.equipo} - {jugador.categoria}</CardDescription>
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-primary-foreground">
                     {jugador.dorsal}
                   </div>
                 </div>
