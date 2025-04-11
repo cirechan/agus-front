@@ -10,9 +10,9 @@ export default function DashboardPage() {
     <>
       <div className="flex items-center justify-between px-4 lg:px-6">
         <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <h1 className="text-2xl font-semibold">Hola Míster!</h1>
           <p className="text-muted-foreground">
-            Bienvenido a la plataforma del Club San Agustín
+            Bienvenido a la plataforma del CD San Agustín
           </p>
         </div>
       </div>
