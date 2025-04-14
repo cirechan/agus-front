@@ -15,24 +15,29 @@ import Link from "next/link"
 import { Plus } from "lucide-react"
 import { DateRange } from "react-day-picker"
 
+interface SelectOption {
+  value: string
+  label: string
+}
+
 export default function HorariosPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
-    to: addDays(new Date(), 7)
+    to: addDays(new Date(), 7),
   })
-  
-  const [equipos, setEquipos] = useState([])
-  const [equipoSeleccionado, setEquipoSeleccionado] = useState("")
-  const [loading, setLoading] = useState(true)
-  
+
+  const [equipos, setEquipos] = useState<SelectOption[]>([])
+  const [equipoSeleccionado, setEquipoSeleccionado] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(true)
+
   useEffect(() => {
     const fetchEquipos = async () => {
       try {
         setLoading(true)
         const response = await equiposService.getAll()
-        setEquipos(response.map((equipo: { _id: any; nombre: any }) => ({
+        setEquipos(response.map((equipo: { _id: string; nombre: string }) => ({
           value: equipo._id,
-          label: equipo.nombre
+          label: equipo.nombre,
         })))
       } catch (error) {
         console.error("Error al cargar equipos:", error)
@@ -40,10 +45,10 @@ export default function HorariosPage() {
         setLoading(false)
       }
     }
-    
+
     fetchEquipos()
   }, [])
-  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -55,20 +60,17 @@ export default function HorariosPage() {
           </Link>
         </Button>
       </div>
-      
+
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center">
         <DateRangePicker
           value={dateRange}
           onChange={setDateRange}
           className="w-full md:w-auto"
         />
-        
+
         <div className="w-full md:w-64">
           <CustomSelect
-            options={[
-              { value: "", label: "Todos los equipos" },
-              ...equipos
-            ]}
+            options={[{ value: "", label: "Todos los equipos" }, ...equipos]}
             value={equipoSeleccionado}
             onValueChange={setEquipoSeleccionado}
             placeholder="Seleccionar equipo"
@@ -76,7 +78,7 @@ export default function HorariosPage() {
           />
         </div>
       </div>
-      
+
       <Tabs defaultValue="calendar" className="w-full">
         <TabsList className="w-full md:w-auto grid grid-cols-4 md:inline-flex">
           <TabsTrigger value="calendar">Calendario</TabsTrigger>
@@ -84,25 +86,25 @@ export default function HorariosPage() {
           <TabsTrigger value="results">Resultados</TabsTrigger>
           <TabsTrigger value="stats">Estadísticas</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="calendar" className="mt-6">
           <CalendarView dateRange={dateRange} />
         </TabsContent>
-        
+
         <TabsContent value="list" className="mt-6">
-          <PartidosList 
+          <PartidosList
             dateRange={dateRange}
             equipoId={equipoSeleccionado || undefined}
           />
         </TabsContent>
-        
+
         <TabsContent value="results" className="mt-6">
-          <ResultadosList 
+          <ResultadosList
             dateRange={dateRange}
             equipoId={equipoSeleccionado || undefined}
           />
         </TabsContent>
-        
+
         <TabsContent value="stats" className="mt-6">
           <EstadisticasView equipoId={equipoSeleccionado || undefined} />
         </TabsContent>
