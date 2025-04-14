@@ -92,17 +92,29 @@ export default function HorariosPage() {
         </TabsContent>
 
         <TabsContent value="list" className="mt-6">
-          <PartidosList
-            dateRange={dateRange}
-            equipoId={equipoSeleccionado || undefined}
-          />
+        <PartidosList
+  dateRange={
+    dateRange?.from && dateRange?.to
+      ? { from: dateRange.from, to: dateRange.to }
+      : null
+  }
+  equipoId={equipoSeleccionado || undefined}
+/>
+
+
         </TabsContent>
 
         <TabsContent value="results" className="mt-6">
-          <ResultadosList
-            dateRange={dateRange}
-            equipoId={equipoSeleccionado || undefined}
-          />
+        <PartidosList
+  dateRange={
+    dateRange?.from && dateRange?.to
+      ? { from: dateRange.from, to: dateRange.to }
+      : null
+  }
+  equipoId={equipoSeleccionado || undefined}
+/>
+
+
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6">
