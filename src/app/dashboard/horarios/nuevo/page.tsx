@@ -82,20 +82,20 @@ export default function NuevoPartidoPage() {
         
         // Cargar equipos
         const equiposResponse = await equiposService.getAll()
-        setEquipos(equiposResponse.map(equipo => ({
+        setEquipos(equiposResponse.map((equipo: { _id: any; nombre: any }) => ({
           value: equipo._id,
           label: equipo.nombre
         })))
         
         // Cargar temporadas
         const temporadasResponse = await temporadasService.getAll()
-        setTemporadas(temporadasResponse.map(temporada => ({
+        setTemporadas(temporadasResponse.map((temporada: { _id: any; nombre: any }) => ({
           value: temporada._id,
           label: temporada.nombre
         })))
         
         // Establecer temporada activa por defecto
-        const temporadaActiva = temporadasResponse.find(t => t.activa)
+        const temporadaActiva = temporadasResponse.find((t: { activa: any }) => t.activa)
         if (temporadaActiva) {
           form.setValue("temporada", temporadaActiva._id)
         }

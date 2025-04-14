@@ -29,7 +29,7 @@ export default function HorariosPage() {
       try {
         setLoading(true)
         const response = await equiposService.getAll()
-        setEquipos(response.map(equipo => ({
+        setEquipos(response.map((equipo: { _id: any; nombre: any }) => ({
           value: equipo._id,
           label: equipo.nombre
         })))
