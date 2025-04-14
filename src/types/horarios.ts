@@ -1,34 +1,57 @@
-import { apiClient } from '../client';
-import { Partido, PartidoFormData, ResultadoFormData } from '@/types/horarios';
+export interface Partido {
+  _id?: string;
+  equipo: string;
+  rival: string;
+  fecha: Date;
+  hora: string;
+  ubicacion: 'casa' | 'fuera';
+  temporada: string;
+  vestuarioLocal?: number;
+  vestuarioVisitante?: number;
+  equipacion: {
+    color: 'roja' | 'azul' | 'blanca' | 'negra';
+    tipo: 'principal' | 'alternativa';
+  };
+  campo?: string;
+  resultado?: {
+    golesLocal?: number;
+    golesVisitante?: number;
+    jugado: boolean;
+  };
+  observaciones?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
-export const horariosService = {
-  // Obtener todos los partidos
-  getPartidos: async (params = {}) => {
-    return await apiClient.get('/partidos', { params });
-  },
-  
-  // Obtener un partido por ID
-  getPartidoById: async (id: string) => {
-    return await apiClient.get(`/partidos/${id}`);
-  },
-  
-  // Crear un nuevo partido
-  createPartido: async (data: PartidoFormData) => {
-    return await apiClient.post('/partidos', data);
-  },
-  
-  // Actualizar un partido existente
-  updatePartido: async (id: string, data: PartidoFormData) => {
-    return await apiClient.put(`/partidos/${id}`, data);
-  },
-  
-  // Registrar resultado de un partido
-  registrarResultado: async (id: string, resultado: ResultadoFormData) => {
-    return await apiClient.patch(`/partidos/${id}/resultado`, resultado);
-  },
-  
-  // Eliminar un partido
-  deletePartido: async (id: string) => {
-    return await apiClient.delete(`/partidos/${id}`);
-  }
-};
+export interface EstadisticasEquipo {
+  equipo: string;
+  partidosJugados: number;
+  victorias: number;
+  empates: number;
+  derrotas: number;
+  golesFavor: number;
+  golesContra: number;
+  diferenciaGoles: number;
+}
+
+export interface PartidoFormData {
+  equipo: string;
+  rival: string;
+  fecha: Date;
+  hora: string;
+  ubicacion: 'casa' | 'fuera';
+  temporada: string;
+  vestuarioLocal?: number;
+  vestuarioVisitante?: number;
+  equipacion: {
+    color: 'roja' | 'azul' | 'blanca' | 'negra';
+    tipo: 'principal' | 'alternativa';
+  };
+  campo?: string;
+  observaciones?: string;
+}
+
+export interface ResultadoFormData {
+  golesLocal: number;
+  golesVisitante: number;
+}

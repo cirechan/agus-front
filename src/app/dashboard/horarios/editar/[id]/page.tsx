@@ -22,7 +22,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { equiposService } from "@/lib/api/services"
+import { equiposService, temporadasService } from "@/lib/api/services"
 import { partidosService } from "@/lib/api/partidos"
 import { PartidoFormData, Partido } from "@/types/horarios"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -85,15 +85,15 @@ export default function EditarPartidoPage() {
         setPartido(partidoResponse.data)
         
         // Cargar equipos
-        const equiposResponse = await equiposService.getEquipos()
-        setEquipos(equiposResponse.data.map(equipo => ({
+        const equiposResponse = await equiposService.getAll()
+        setEquipos(equiposResponse.map(equipo => ({
           value: equipo._id,
           label: equipo.nombre
         })))
         
         // Cargar temporadas
-        const temporadasResponse = await equiposService.getTemporadas()
-        setTemporadas(temporadasResponse.data.map(temporada => ({
+        const temporadasResponse = await temporadasService.getAll()
+        setTemporadas(temporadasResponse.map(temporada => ({
           value: temporada._id,
           label: temporada.nombre
         })))
