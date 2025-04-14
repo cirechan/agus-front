@@ -13,9 +13,10 @@ import { equiposService } from "@/lib/api/services"
 import { addDays } from "date-fns"
 import Link from "next/link"
 import { Plus } from "lucide-react"
+import { DateRange } from "react-day-picker"
 
 export default function HorariosPage() {
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(),
     to: addDays(new Date(), 7)
   })
