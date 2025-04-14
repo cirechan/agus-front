@@ -20,7 +20,6 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Si no hay rango de fechas, usar la semana actual
   const effectiveDateRange = dateRange || {
     from: new Date(),
     to: new Date(new Date().setDate(new Date().getDate() + 7))
@@ -30,23 +29,21 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
     const fetchPartidos = async () => {
       try {
         setLoading(true)
-        
-        let response;
+        let response
+
         if (equipoId) {
-          // Si hay un equipo seleccionado, filtrar por equipo y fechas
           response = await partidosService.getPartidos({
             equipo: equipoId,
             fechaInicio: effectiveDateRange.from.toISOString(),
             fechaFin: effectiveDateRange.to.toISOString()
-          });
+          })
         } else {
-          // Si no hay equipo seleccionado, filtrar solo por fechas
           response = await partidosService.getPartidosPorFechas(
             effectiveDateRange.from.toISOString(),
             effectiveDateRange.to.toISOString()
-          );
+          )
         }
-        
+
         setPartidos(response.data)
         setError(null)
       } catch (err) {
@@ -65,6 +62,7 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
       <CardHeader>
         <CardTitle>Lista de partidos</CardTitle>
       </CardHeader>
+
       <CardContent>
         {loading ? (
           <div className="space-y-4">
@@ -77,7 +75,7 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
         ) : partidos.length === 0 ? (
           <div className="text-center p-8 text-muted-foreground">
             No hay partidos programados en el rango de fechas seleccionado
-            {equipoId && " para este equipo"}
+            {equipoId && " para este equipo"}.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

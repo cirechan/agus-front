@@ -49,10 +49,13 @@ export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProp
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="text-center flex-1">
-            <p className="font-medium mb-2">{partido.equipo}</p>
+      <form
+        onSubmit={form.handleSubmit(handleSubmit)}
+        className="space-y-6"
+      >
+        <div className="flex items-center justify-center gap-6">
+          <div className="text-center space-y-2">
+            <p className="text-sm font-medium">{partido.equipo}</p>
             <FormField
               control={form.control}
               name="golesLocal"
@@ -62,8 +65,8 @@ export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProp
                     <Input
                       type="number"
                       min="0"
-                      className="w-16 text-center text-xl mx-auto"
                       {...field}
+                      className="w-16 text-center text-xl"
                     />
                   </FormControl>
                   <FormMessage />
@@ -71,11 +74,11 @@ export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProp
               )}
             />
           </div>
-          
-          <div className="text-xl font-bold">-</div>
-          
-          <div className="text-center flex-1">
-            <p className="font-medium mb-2">{partido.rival}</p>
+
+          <span className="text-xl font-bold">-</span>
+
+          <div className="text-center space-y-2">
+            <p className="text-sm font-medium">{partido.rival}</p>
             <FormField
               control={form.control}
               name="golesVisitante"
@@ -85,8 +88,8 @@ export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProp
                     <Input
                       type="number"
                       min="0"
-                      className="w-16 text-center text-xl mx-auto"
                       {...field}
+                      className="w-16 text-center text-xl"
                     />
                   </FormControl>
                   <FormMessage />
@@ -95,17 +98,17 @@ export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProp
             />
           </div>
         </div>
-        
+
         <div className="flex justify-end gap-2">
-          <Button 
-            type="button" 
-            variant="outline" 
+          <Button
+            type="button"
+            variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
             type="submit"
             disabled={isSubmitting}
           >

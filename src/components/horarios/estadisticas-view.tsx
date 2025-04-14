@@ -68,14 +68,13 @@ export function EstadisticasView({ equipoId }: EstadisticasViewProps) {
   if (!estadisticas) {
     return (
       <div className="text-center p-8 text-muted-foreground">
-        {equipoId 
-          ? "No hay estadísticas disponibles para este equipo" 
+        {equipoId
+          ? "No hay estadísticas disponibles para este equipo"
           : "Selecciona un equipo para ver sus estadísticas"}
       </div>
     )
   }
 
-  // Datos para el gráfico de barras
   const golesData = [
     {
       name: "Goles",
@@ -84,7 +83,6 @@ export function EstadisticasView({ equipoId }: EstadisticasViewProps) {
     }
   ]
 
-  // Datos para el gráfico circular
   const resultadosData = [
     { name: "Victorias", value: estadisticas.victorias },
     { name: "Empates", value: estadisticas.empates },
@@ -99,76 +97,65 @@ export function EstadisticasView({ equipoId }: EstadisticasViewProps) {
         <CardTitle>Estadísticas de {estadisticas.equipo}</CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="resumen">
-          <TabsList className="mb-4">
+        <Tabs defaultValue="resumen" className="w-full">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="resumen">Resumen</TabsTrigger>
             <TabsTrigger value="goles">Goles</TabsTrigger>
             <TabsTrigger value="resultados">Resultados</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="resumen" className="space-y-4">
+
+          <TabsContent value="resumen" className="space-y-4 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">Partidos jugados</p>
+                    <p className="text-sm text-muted-foreground">Partidos jugados</p>
                     <p className="text-3xl font-bold">{estadisticas.partidosJugados}</p>
                   </div>
                 </CardContent>
               </Card>
-              
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">Victorias</p>
+                    <p className="text-sm text-muted-foreground">Victorias</p>
                     <p className="text-3xl font-bold text-green-500">{estadisticas.victorias}</p>
                   </div>
                 </CardContent>
               </Card>
-              
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">Derrotas</p>
+                    <p className="text-sm text-muted-foreground">Derrotas</p>
                     <p className="text-3xl font-bold text-red-500">{estadisticas.derrotas}</p>
                   </div>
                 </CardContent>
               </Card>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">Goles a favor</p>
+                    <p className="text-sm text-muted-foreground">Goles a favor</p>
                     <p className="text-3xl font-bold">{estadisticas.golesFavor}</p>
                   </div>
                 </CardContent>
               </Card>
-              
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-sm font-medium text-muted-foreground">Goles en contra</p>
+                    <p className="text-sm text-muted-foreground">Goles en contra</p>
                     <p className="text-3xl font-bold">{estadisticas.golesContra}</p>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
-          
-          <TabsContent value="goles">
+
+          <TabsContent value="goles" className="pt-4">
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={golesData}
-                  margin={{
-                    top: 20,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
+                <BarChart data={golesData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
@@ -180,8 +167,8 @@ export function EstadisticasView({ equipoId }: EstadisticasViewProps) {
               </ResponsiveContainer>
             </div>
           </TabsContent>
-          
-          <TabsContent value="resultados">
+
+          <TabsContent value="resultados" className="pt-4">
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -189,10 +176,9 @@ export function EstadisticasView({ equipoId }: EstadisticasViewProps) {
                     data={resultadosData}
                     cx="50%"
                     cy="50%"
-                    labelLine={true}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     outerRadius={80}
-                    fill="#8884d8"
+                    labelLine
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     dataKey="value"
                   >
                     {resultadosData.map((entry, index) => (

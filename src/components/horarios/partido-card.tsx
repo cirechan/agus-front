@@ -13,43 +13,51 @@ interface PartidoCardProps {
 
 export function PartidoCard({ partido }: PartidoCardProps) {
   const esLocal = partido.ubicacion === "casa"
-  
+
   return (
     <Card className="h-full">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-center mb-2">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex justify-between items-center">
           <span className="text-sm font-medium">{partido.hora}</span>
           <Badge variant={esLocal ? "default" : "outline"}>
             {esLocal ? "Local" : "Visitante"}
           </Badge>
         </div>
-        
-        <div className="font-medium mb-2">{partido.equipo} vs {partido.rival}</div>
-        
-        {esLocal ? (
-          <div className="text-sm text-muted-foreground space-y-1">
-            <div>Vestuario local: {partido.vestuarioLocal}</div>
-            <div>Vestuario visitante: {partido.vestuarioVisitante}</div>
-            <div>Equipación: <span className="capitalize">{partido.equipacion.color}</span></div>
-          </div>
-        ) : (
-          <div className="text-sm text-muted-foreground space-y-1">
-            <div>Campo: {partido.campo}</div>
-            <div>Equipación: <span className="capitalize">{partido.equipacion.color}</span></div>
-          </div>
-        )}
-        
-        {partido.resultado && partido.resultado.jugado && (
-          <div className="mt-3 text-center font-bold">
+
+        <div className="text-base font-semibold">
+          {partido.equipo} vs {partido.rival}
+        </div>
+
+        <div className="text-sm text-muted-foreground space-y-1">
+          {esLocal ? (
+            <>
+              <div>Vestuario local: {partido.vestuarioLocal}</div>
+              <div>Vestuario visitante: {partido.vestuarioVisitante}</div>
+              <div>
+                Equipación: <span className="capitalize">{partido.equipacion.color}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>Campo: {partido.campo}</div>
+              <div>
+                Equipación: <span className="capitalize">{partido.equipacion.color}</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {partido.resultado?.jugado && (
+          <div className="mt-2 text-center text-lg font-bold">
             {partido.resultado.golesLocal} - {partido.resultado.golesVisitante}
           </div>
         )}
       </CardContent>
-      
-      <CardFooter className="p-4 pt-0 flex justify-end gap-2">
+
+      <CardFooter className="p-4 pt-0 flex justify-end">
         <Button size="sm" variant="ghost" asChild>
           <Link href={`/dashboard/horarios/${partido._id}`}>
-            <ExternalLink className="h-4 w-4 mr-2" />
+            <ExternalLink className="h-4 w-4 mr-1" />
             Detalles
           </Link>
         </Button>

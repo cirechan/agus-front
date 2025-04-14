@@ -25,7 +25,6 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
   const [error, setError] = useState<string | null>(null)
   const [editingPartidoId, setEditingPartidoId] = useState<string | null>(null)
 
-  // Si no hay rango de fechas, usar la semana actual
   const effectiveDateRange = dateRange || {
     from: new Date(),
     to: new Date(new Date().setDate(new Date().getDate() + 7))
@@ -35,18 +34,13 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
     const fetchPartidos = async () => {
       try {
         setLoading(true)
-        
-        // Construir parámetros de consulta
         const params: any = {
           fechaInicio: effectiveDateRange.from.toISOString(),
           fechaFin: effectiveDateRange.to.toISOString()
-        };
-        
-        if (equipoId) {
-          params.equipo = equipoId;
         }
-        
-        const response = await partidosService.getPartidos(params);
+        if (equipoId) params.equipo = equipoId
+
+        const response = await partidosService.getPartidos(params)
         setPartidos(response.data)
         setError(null)
       } catch (err) {
@@ -63,24 +57,20 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
   const handleResultadoSubmit = async (partidoId: string, data: { golesLocal: number; golesVisitante: number }) => {
     try {
       await partidosService.registrarResultado(partidoId, data)
-      
-      // Actualizar la lista de partidos
-      const updatedPartidos = partidos.map(partido => {
-        if (partido._id === partidoId) {
-          return {
-            ...partido,
-            resultado: {
-              golesLocal: data.golesLocal,
-              golesVisitante: data.golesVisitante,
-              jugado: true
+      const updated = partidos.map(partido =>
+        partido._id === partidoId
+          ? {
+              ...partido,
+              resultado: {
+                golesLocal: data.golesLocal,
+                golesVisitante: data.golesVisitante,
+                jugado: true
+              }
             }
-          };
-        }
-        return partido;
-      });
-      
-      setPartidos(updatedPartidos);
-      setEditingPartidoId(null);
+          : partido
+      )
+      setPartidos(updated)
+      setEditingPartidoId(null)
     } catch (err) {
       setError("Error al guardar el resultado")
       console.error(err)
@@ -110,14 +100,16 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
           <div className="space-y-4">
             {partidos
               .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
-              .map((partido) => (
+              .map(partido => (
                 <Card key={partido._id} className="overflow-hidden">
                   <CardContent className="p-0">
                     <div className="p-4 bg-muted/50">
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-medium">{new Date(partido.fecha).toLocaleDateString("es-ES")}</span>
+                            <span className="font-medium">
+                              {new Date(partido.fecha).toLocaleDateString("es-ES")}
+                            </span>
                             <span className="text-sm text-muted-foreground">{partido.hora}</span>
                             <Badge variant={partido.ubicacion === "casa" ? "default" : "outline"}>
                               {partido.ubicacion === "casa" ? "Local" : "Visitante"}
@@ -127,7 +119,7 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
                             {partido.equipo} vs {partido.rival}
                           </div>
                         </div>
-                        <Button size="sm" variant="ghost" asChild>
+                        <Button asChild variant="ghost" size="sm">
                           <Link href={`/dashboard/horarios/${partido._id}`}>
                             <ExternalLink className="h-4 w-4 mr-2" />
                             Detalles
@@ -135,15 +127,15 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
                         </Button>
                       </div>
                     </div>
-                    
+
                     <div className="p-4">
                       {editingPartidoId === partido._id ? (
-                        <ResultadoForm 
-                          partido={partido} 
-                          onSubmit={(data) => handleResultadoSubmit(partido._id as string, data)} 
-                          onCancel={() => setEditingPartidoId(null)} 
+                        <ResultadoForm
+                          partido={partido}
+                          onSubmit={(data) => handleResultadoSubmit(partido._id as string, data)}
+                          onCancel={() => setEditingPartidoId(null)}
                         />
-                      ) : partido.resultado && partido.resultado.jugado ? (
+                      ) : partido.resultado?.jugado ? (
                         <div className="flex flex-col items-center">
                           <div className="flex items-center justify-center gap-4 py-2">
                             <div className="text-center">
@@ -156,10 +148,10 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
                               <p className="text-3xl font-bold">{partido.resultado.golesVisitante}</p>
                             </div>
                           </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => setEditingPartidoId(partido._id as string)}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => partido._id && setEditingPartidoId(partido._id)}
                             className="mt-2"
                           >
                             Editar resultado
@@ -167,7 +159,8 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
                         </div>
                       ) : (
                         <div className="flex justify-center">
-                          <Button onClick={() => setEditingPartidoId(partido._id as string)}>
+                          <Button onClick={() => setEditingPartidoId(partido._id as string)}
+                          >
                             Registrar resultado
                           </Button>
                         </div>
