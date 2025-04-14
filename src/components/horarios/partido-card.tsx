@@ -39,7 +39,7 @@ export function PartidoCard({ partido }: PartidoCardProps) {
           </div>
         )}
         
-        {partido.resultado && (
+        {partido.resultado && partido.resultado.jugado && (
           <div className="mt-3 text-center font-bold">
             {partido.resultado.golesLocal} - {partido.resultado.golesVisitante}
           </div>
@@ -48,7 +48,7 @@ export function PartidoCard({ partido }: PartidoCardProps) {
       
       <CardFooter className="p-4 pt-0 flex justify-end gap-2">
         <Button size="sm" variant="ghost" asChild>
-          <Link href={`/dashboard/horarios/${partido.id}`}>
+          <Link href={`/dashboard/horarios/${partido._id}`}>
             <ExternalLink className="h-4 w-4 mr-2" />
             Detalles
           </Link>

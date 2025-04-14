@@ -7,10 +7,11 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ResultadoForm } from "@/components/horarios/resultado-form"
-import { horariosService } from "@/lib/api/horarios"
+import { partidosService } from "@/lib/api/partidos"
 import { Partido } from "@/types/horarios"
 import { ArrowLeft, Edit, Trash } from "lucide-react"
 import Link from "next/link"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function PartidoDetailPage() {
   const params = useParams()
@@ -24,7 +25,7 @@ export default function PartidoDetailPage() {
     const fetchPartido = async () => {
       try {
         setLoading(true)
-        const response = await horariosService.getPartidoById(params.id as string)
+        const response = await partidosService.getPartidoById(params.id as string)
         setPartido(response.data)
       } catch (err) {
         setError("Error al cargar el partido")
@@ -45,7 +46,7 @@ export default function PartidoDetailPage() {
     }
 
     try {
-      await horariosService.deletePartido(params.id as string)
+      await partidosService.deletePartido(params.id as string)
       router.push("/dashboard/horarios")
     } catch (err) {
       setError("Error al eliminar el partido")
@@ -55,9 +56,9 @@ export default function PartidoDetailPage() {
 
   const handleResultadoSubmit = async (data: { golesLocal: number; golesVisitante: number }) => {
     try {
-      await horariosService.registrarResultado(params.id as string, data)
+      await partidosService.registrarResultado(params.id as string, data)
       // Actualizar el partido con el nuevo resultado
-      const response = await horariosService.getPartidoById(params.id as string)
+      const response = await partidosService.getPartidoById(params.id as string)
       setPartido(response.data)
       setShowResultadoForm(false)
     } catch (err) {
@@ -67,7 +68,21 @@ export default function PartidoDetailPage() {
   }
 
   if (loading) {
-    return <div className="flex justify-center p-8">Cargando...</div>
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-10 rounded" />
+            <Skeleton className="h-8 w-48" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-10 w-10 rounded" />
+            <Skeleton className="h-10 w-10 rounded" />
+          </div>
+        </div>
+        <Skeleton className="h-[300px] w-full" />
+      </div>
+    )
   }
 
   if (error || !partido) {
@@ -94,7 +109,7 @@ export default function PartidoDetailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" asChild>
             <Link href="/dashboard/horarios">
@@ -105,7 +120,7 @@ export default function PartidoDetailPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" asChild>
-            <Link href={`/dashboard/horarios/editar/${partido.id}`}>
+            <Link href={`/dashboard/horarios/editar/${partido._id}`}>
               <Edit className="h-4 w-4" />
             </Link>
           </Button>
@@ -163,7 +178,7 @@ export default function PartidoDetailPage() {
 
           <Separator />
 
-          {partido.resultado ? (
+          {partido.resultado && partido.resultado.jugado ? (
             <div className="pt-2">
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Resultado</h3>
               <div className="flex items-center justify-center gap-4 py-2">
@@ -176,6 +191,11 @@ export default function PartidoDetailPage() {
                   <p className="font-medium">{partido.rival}</p>
                   <p className="text-3xl font-bold">{partido.resultado.golesVisitante}</p>
                 </div>
+              </div>
+              <div className="flex justify-center mt-4">
+                <Button variant="outline" onClick={() => setShowResultadoForm(true)}>
+                  Editar resultado
+                </Button>
               </div>
             </div>
           ) : (
@@ -195,6 +215,16 @@ export default function PartidoDetailPage() {
                 </Button>
               </div>
             )
+          )}
+          
+          {partido.observaciones && (
+            <>
+              <Separator />
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Observaciones</h3>
+                <p className="mt-1">{partido.observaciones}</p>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

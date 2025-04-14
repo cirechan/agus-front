@@ -1,65 +1,118 @@
 "use client"
 
 import { useState } from "react"
-import { Partido } from "@/types/horarios"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Partido, ResultadoFormData } from "@/types/horarios"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+
+const resultadoSchema = z.object({
+  golesLocal: z.coerce.number().min(0, "No puede ser negativo"),
+  golesVisitante: z.coerce.number().min(0, "No puede ser negativo"),
+})
 
 interface ResultadoFormProps {
   partido: Partido
-  onSubmit: (data: { golesLocal: number; golesVisitante: number }) => void
-  onCancel?: () => void
+  onSubmit: (data: ResultadoFormData) => void
+  onCancel: () => void
 }
 
 export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProps) {
-  const [golesLocal, setGolesLocal] = useState<number>(0)
-  const [golesVisitante, setGolesVisitante] = useState<number>(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSubmit({
-      golesLocal,
-      golesVisitante
-    })
+  const form = useForm<ResultadoFormData>({
+    resolver: zodResolver(resultadoSchema),
+    defaultValues: {
+      golesLocal: partido.resultado?.golesLocal || 0,
+      golesVisitante: partido.resultado?.golesVisitante || 0,
+    },
+  })
+
+  const handleSubmit = async (data: ResultadoFormData) => {
+    try {
+      setIsSubmitting(true)
+      await onSubmit(data)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="flex items-center justify-center gap-4">
-        <div className="text-center">
-          <p className="font-medium mb-2">{partido.equipo}</p>
-          <input
-            type="number"
-            min="0"
-            value={golesLocal}
-            onChange={(e) => setGolesLocal(parseInt(e.target.value) || 0)}
-            className="w-16 h-12 text-center text-xl border rounded-md"
-          />
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="text-center flex-1">
+            <p className="font-medium mb-2">{partido.equipo}</p>
+            <FormField
+              control={form.control}
+              name="golesLocal"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      className="w-16 text-center text-xl mx-auto"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          
+          <div className="text-xl font-bold">-</div>
+          
+          <div className="text-center flex-1">
+            <p className="font-medium mb-2">{partido.rival}</p>
+            <FormField
+              control={form.control}
+              name="golesVisitante"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      className="w-16 text-center text-xl mx-auto"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
         
-        <div className="text-xl font-bold">-</div>
-        
-        <div className="text-center">
-          <p className="font-medium mb-2">{partido.rival}</p>
-          <input
-            type="number"
-            min="0"
-            value={golesVisitante}
-            onChange={(e) => setGolesVisitante(parseInt(e.target.value) || 0)}
-            className="w-16 h-12 text-center text-xl border rounded-md"
-          />
-        </div>
-      </div>
-      
-      <div className="flex justify-end gap-2">
-        {onCancel && (
-          <Button type="button" variant="outline" onClick={onCancel}>
+        <div className="flex justify-end gap-2">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
             Cancelar
           </Button>
-        )}
-        <Button type="submit">
-          Guardar resultado
-        </Button>
-      </div>
-    </form>
+          <Button 
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Guardando..." : "Guardar resultado"}
+          </Button>
+        </div>
+      </form>
+    </Form>
   )
 }

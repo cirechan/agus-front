@@ -1,17 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Calendar } from "@/components/ui/calendar"
 import { PartidoCard } from "@/components/horarios/partido-card"
-import { horariosService } from "@/lib/api/horarios"
+import { partidosService } from "@/lib/api/partidos"
 import { Partido } from "@/types/horarios"
-import { useEffect } from "react"
+import { Skeleton } from "@/components/ui/skeleton"
+import { addDays } from "date-fns"
 
 interface CalendarViewProps {
   dateRange: {
     from: Date
     to: Date
-  }
+  } | null
 }
 
 export function CalendarView({ dateRange }: CalendarViewProps) {
@@ -19,15 +20,22 @@ export function CalendarView({ dateRange }: CalendarViewProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Si no hay rango de fechas, usar la semana actual
+  const effectiveDateRange = dateRange || {
+    from: new Date(),
+    to: addDays(new Date(), 7)
+  }
+
   useEffect(() => {
     const fetchPartidos = async () => {
       try {
         setLoading(true)
-        const response = await horariosService.getPartidos({
-          fechaInicio: dateRange.from.toISOString(),
-          fechaFin: dateRange.to.toISOString()
-        })
+        const response = await partidosService.getPartidosPorFechas(
+          effectiveDateRange.from.toISOString(),
+          effectiveDateRange.to.toISOString()
+        )
         setPartidos(response.data)
+        setError(null)
       } catch (err) {
         setError("Error al cargar los partidos")
         console.error(err)
@@ -37,7 +45,7 @@ export function CalendarView({ dateRange }: CalendarViewProps) {
     }
 
     fetchPartidos()
-  }, [dateRange])
+  }, [effectiveDateRange])
 
   // Agrupar partidos por fecha
   const partidosPorFecha = partidos.reduce((acc, partido) => {
@@ -69,16 +77,15 @@ export function CalendarView({ dateRange }: CalendarViewProps) {
           <Calendar 
             mode="range"
             selected={{
-              from: dateRange.from,
-              to: dateRange.to
+              from: effectiveDateRange.from,
+              to: effectiveDateRange.to
             }}
             className="rounded-md border"
             components={{
               DayContent: (props) => (
                 <div className="relative h-full w-full p-2">
                   <div>{props.date.getDate()}</div>
-{renderPartidosDia(props.date)}
-
+                  {renderPartidosDia(props.date)}
                 </div>
               )
             }}
@@ -90,7 +97,17 @@ export function CalendarView({ dateRange }: CalendarViewProps) {
             <h2 className="font-semibold mb-4">Partidos en el rango seleccionado</h2>
             
             {loading ? (
-              <div className="flex justify-center p-8">Cargando...</div>
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={index} className="space-y-2">
+                    <Skeleton className="h-6 w-48" />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Skeleton className="h-40 w-full" />
+                      <Skeleton className="h-40 w-full" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : error ? (
               <div className="text-red-500 p-4">{error}</div>
             ) : partidos.length === 0 ? (
@@ -115,7 +132,7 @@ export function CalendarView({ dateRange }: CalendarViewProps) {
                         {partidosDelDia
                           .sort((a, b) => a.hora.localeCompare(b.hora))
                           .map((partido) => (
-                            <PartidoCard key={partido.id} partido={partido} />
+                            <PartidoCard key={partido._id} partido={partido} />
                           ))}
                       </div>
                     </div>

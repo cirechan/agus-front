@@ -1,248 +1,212 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Partido } from "@/types/horarios"
-import { horariosService } from "@/lib/api/horarios"
+import { partidosService } from "@/lib/api/partidos"
+import { EstadisticasEquipo } from "@/types/horarios"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Skeleton } from "@/components/ui/skeleton"
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem
-} from "@/components/ui/select"
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from "recharts"
 
-import { equiposOptions } from "@/types/horarios"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+interface EstadisticasViewProps {
+  equipoId?: string
+}
 
-export function EstadisticasView() {
-  const [partidos, setPartidos] = useState<Partido[]>([])
+export function EstadisticasView({ equipoId }: EstadisticasViewProps) {
+  const [estadisticas, setEstadisticas] = useState<EstadisticasEquipo | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [equipoFilter, setEquipoFilter] = useState<string>("")
 
   useEffect(() => {
-    const fetchPartidos = async () => {
+    const fetchEstadisticas = async () => {
+      if (!equipoId) {
+        setLoading(false)
+        return
+      }
+
       try {
         setLoading(true)
-        // Obtener todos los partidos con resultados
-        const response = await horariosService.getPartidos({
-          conResultado: true
-        })
-        setPartidos(response.data)
+        const response = await partidosService.getEstadisticasPorEquipo(equipoId)
+        setEstadisticas(response.data)
+        setError(null)
       } catch (err) {
-        setError("Error al cargar los partidos")
+        setError("Error al cargar las estadísticas")
         console.error(err)
       } finally {
         setLoading(false)
       }
     }
 
-    fetchPartidos()
-  }, [])
+    fetchEstadisticas()
+  }, [equipoId])
 
-  // Filtrar partidos por equipo
-  const filteredPartidos = equipoFilter
-    ? partidos.filter(partido => partido.equipo === equipoFilter)
-    : partidos
-
-  // Partidos con resultados
-  const partidosConResultado = filteredPartidos.filter(partido => partido.resultado)
-
-  // Calcular estadísticas
-  const estadisticas = {
-    total: partidosConResultado.length,
-    victorias: partidosConResultado.filter(
-      partido => partido.resultado && partido.resultado.golesLocal > partido.resultado.golesVisitante
-    ).length,
-    empates: partidosConResultado.filter(
-      partido => partido.resultado && partido.resultado.golesLocal === partido.resultado.golesVisitante
-    ).length,
-    derrotas: partidosConResultado.filter(
-      partido => partido.resultado && partido.resultado.golesLocal < partido.resultado.golesVisitante
-    ).length,
-    golesMarcados: partidosConResultado.reduce(
-      (sum, partido) => sum + (partido.resultado ? partido.resultado.golesLocal : 0), 
-      0
-    ),
-    golesRecibidos: partidosConResultado.reduce(
-      (sum, partido) => sum + (partido.resultado ? partido.resultado.golesVisitante : 0), 
-      0
-    ),
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-[300px] w-full" />
+      </div>
+    )
   }
 
-  // Datos para el gráfico de resultados
-  const resultadosData = [
-    { name: 'Victorias', value: estadisticas.victorias, color: '#4ade80' },
-    { name: 'Empates', value: estadisticas.empates, color: '#facc15' },
-    { name: 'Derrotas', value: estadisticas.derrotas, color: '#f87171' },
-  ]
+  if (error) {
+    return <div className="text-red-500 p-4">{error}</div>
+  }
 
-  // Datos para el gráfico de goles
+  if (!estadisticas) {
+    return (
+      <div className="text-center p-8 text-muted-foreground">
+        {equipoId 
+          ? "No hay estadísticas disponibles para este equipo" 
+          : "Selecciona un equipo para ver sus estadísticas"}
+      </div>
+    )
+  }
+
+  // Datos para el gráfico de barras
   const golesData = [
-    { name: 'Marcados', value: estadisticas.golesMarcados, color: '#60a5fa' },
-    { name: 'Recibidos', value: estadisticas.golesRecibidos, color: '#f87171' },
+    {
+      name: "Goles",
+      "A favor": estadisticas.golesFavor,
+      "En contra": estadisticas.golesContra,
+    }
   ]
 
-  // Datos para el gráfico de partidos por ubicación
-  const partidosPorUbicacion = [
-    { 
-      name: 'Local', 
-      value: partidosConResultado.filter(partido => partido.ubicacion === 'casa').length,
-      color: '#60a5fa'
-    },
-    { 
-      name: 'Visitante', 
-      value: partidosConResultado.filter(partido => partido.ubicacion === 'fuera').length,
-      color: '#c084fc'
-    },
+  // Datos para el gráfico circular
+  const resultadosData = [
+    { name: "Victorias", value: estadisticas.victorias },
+    { name: "Empates", value: estadisticas.empates },
+    { name: "Derrotas", value: estadisticas.derrotas }
   ]
+
+  const COLORS = ["#4ade80", "#facc15", "#f87171"]
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-end">
-      <Select value={equipoFilter} onValueChange={setEquipoFilter}>
-  <SelectTrigger className="w-[200px]">
-    <SelectValue placeholder="Filtrar por equipo" />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="">Todos los equipos</SelectItem>
-    {equiposOptions.map((option) => (
-      <SelectItem key={option.value} value={option.value}>
-        {option.label}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
-
-
-
-      </div>
-      
-      {loading ? (
-        <div className="flex justify-center p-8">Cargando...</div>
-      ) : error ? (
-        <div className="text-red-500 p-4">{error}</div>
-      ) : partidosConResultado.length === 0 ? (
-        <div className="text-center p-8 text-muted-foreground">
-          No hay datos de resultados disponibles para generar estadísticas
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Partidos jugados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{estadisticas.total}</div>
-            </CardContent>
-          </Card>
+    <Card>
+      <CardHeader>
+        <CardTitle>Estadísticas de {estadisticas.equipo}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Tabs defaultValue="resumen">
+          <TabsList className="mb-4">
+            <TabsTrigger value="resumen">Resumen</TabsTrigger>
+            <TabsTrigger value="goles">Goles</TabsTrigger>
+            <TabsTrigger value="resultados">Resultados</TabsTrigger>
+          </TabsList>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Victorias</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-500">{estadisticas.victorias}</div>
-              <p className="text-xs text-muted-foreground">
-                {estadisticas.total > 0 
-                  ? `${Math.round((estadisticas.victorias / estadisticas.total) * 100)}%` 
-                  : '0%'}
-              </p>
-            </CardContent>
-          </Card>
+          <TabsContent value="resumen" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-muted-foreground">Partidos jugados</p>
+                    <p className="text-3xl font-bold">{estadisticas.partidosJugados}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-muted-foreground">Victorias</p>
+                    <p className="text-3xl font-bold text-green-500">{estadisticas.victorias}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-muted-foreground">Derrotas</p>
+                    <p className="text-3xl font-bold text-red-500">{estadisticas.derrotas}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-muted-foreground">Goles a favor</p>
+                    <p className="text-3xl font-bold">{estadisticas.golesFavor}</p>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-muted-foreground">Goles en contra</p>
+                    <p className="text-3xl font-bold">{estadisticas.golesContra}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Goles marcados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-500">{estadisticas.golesMarcados}</div>
-              <p className="text-xs text-muted-foreground">
-                {estadisticas.total > 0 
-                  ? `${(estadisticas.golesMarcados / estadisticas.total).toFixed(1)} por partido` 
-                  : '0 por partido'}
-              </p>
-            </CardContent>
-          </Card>
+          <TabsContent value="goles">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={golesData}
+                  margin={{
+                    top: 20,
+                    right: 30,
+                    left: 20,
+                    bottom: 5,
+                  }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="A favor" fill="#4ade80" />
+                  <Bar dataKey="En contra" fill="#f87171" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </TabsContent>
           
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Goles recibidos</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-500">{estadisticas.golesRecibidos}</div>
-              <p className="text-xs text-muted-foreground">
-                {estadisticas.total > 0 
-                  ? `${(estadisticas.golesRecibidos / estadisticas.total).toFixed(1)} por partido` 
-                  : '0 por partido'}
-              </p>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Resultados</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={resultadosData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {resultadosData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Goles</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={golesData}
-                    margin={{
-                      top: 5,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
+          <TabsContent value="resultados">
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={resultadosData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={true}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="value" name="Goles" fill="#8884d8">
-                      {golesData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
+                    {resultadosData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => [`${value} partidos`, ""]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </CardContent>
+    </Card>
   )
 }
