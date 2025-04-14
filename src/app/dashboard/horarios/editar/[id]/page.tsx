@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { DatePicker } from "@/components/ui/date-picker"
 import { TimePicker } from "@/components/ui/time-picker"
-import { Select } from "@/components/ui/select"
+import { CustomSelect } from "@/components/ui/custom-select"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft } from "lucide-react"
@@ -214,7 +214,7 @@ export default function EditarPartidoPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Equipo</FormLabel>
-                        <Select
+                        <CustomSelect
                           options={equipos}
                           value={field.value}
                           onValueChange={field.onChange}
@@ -275,7 +275,7 @@ export default function EditarPartidoPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Ubicación</FormLabel>
-                        <Select
+                        <CustomSelect
                           options={[
                             { value: "casa", label: "En casa" },
                             { value: "fuera", label: "Fuera" }
@@ -294,7 +294,7 @@ export default function EditarPartidoPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Temporada</FormLabel>
-                        <Select
+                        <CustomSelect
                           options={temporadas}
                           value={field.value}
                           onValueChange={field.onChange}
@@ -356,7 +356,7 @@ export default function EditarPartidoPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Color de equipación</FormLabel>
-                        <Select
+                        <CustomSelect
                           options={[
                             { value: "roja", label: "Roja" },
                             { value: "azul", label: "Azul" },
@@ -377,7 +377,7 @@ export default function EditarPartidoPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Tipo de equipación</FormLabel>
-                        <Select
+                        <CustomSelect
                           options={[
                             { value: "principal", label: "Principal" },
                             { value: "alternativa", label: "Alternativa" }

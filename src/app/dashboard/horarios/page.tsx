@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PartidosList } from "@/components/horarios/partidos-list"
 import { ResultadosList } from "@/components/horarios/resultados-list"
 import { EstadisticasView } from "@/components/horarios/estadisticas-view"
-import { Select } from "@/components/ui/select"
+import { CustomSelect } from "@/components/ui/custom-select"
 import { equiposService } from "@/lib/api/services"
 import { addDays } from "date-fns"
 import Link from "next/link"
@@ -63,7 +63,7 @@ export default function HorariosPage() {
         />
         
         <div className="w-full md:w-64">
-          <Select
+          <CustomSelect
             options={[
               { value: "", label: "Todos los equipos" },
               ...equipos
