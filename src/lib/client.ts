@@ -1,7 +1,8 @@
+// src/lib/api/client.ts
 import axios from "axios"
 
 export const apiClient = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000/api",
+  baseURL: "https://agus-back.onrender.com/api", // esto ya lo tienes bien
   headers: {
     "Content-Type": "application/json",
   },
