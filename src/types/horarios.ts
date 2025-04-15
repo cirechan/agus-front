@@ -1,23 +1,22 @@
 export interface Partido {
   _id?: string;
-  equipo: string | {
-    _id: string;
-    nombre: string;
-    categoria?: string;
-  };
+  equipo: 
+    | string 
+    | {
+        _id: string;
+        nombre: string;
+        categoria?: string;
+      };
   rival: string;
-  fecha: Date | string;
+  fecha: Date;
   hora: string;
-  ubicacion: 'casa' | 'fuera';
-  temporada: string | {
-    _id: string;
-    nombre: string;
-  };
+  ubicacion: "casa" | "fuera";
+  temporada: string | { _id: string; nombre: string };
   vestuarioLocal?: number;
   vestuarioVisitante?: number;
   equipacion: {
-    color: 'roja' | 'azul' | 'blanca' | 'negra';
-    tipo: 'principal' | 'alternativa';
+    color: "roja" | "azul" | "blanca" | "negra";
+    tipo: "principal" | "alternativa";
   };
   campo?: string;
   resultado?: {
@@ -26,9 +25,10 @@ export interface Partido {
     jugado: boolean;
   };
   observaciones?: string;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
+
 
 
 
