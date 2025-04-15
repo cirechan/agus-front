@@ -116,8 +116,9 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
                             </Badge>
                           </div>
                           <div className="text-lg font-semibold mt-1">
-                            {partido.equipo} vs {partido.rival}
-                          </div>
+  {typeof partido.equipo === "string" ? partido.equipo : partido.equipo.nombre} vs {partido.rival}
+</div>
+
                         </div>
                         <Button asChild variant="ghost" size="sm">
                           <Link href={`/dashboard/horarios/${partido._id}`}>
@@ -139,7 +140,7 @@ export function ResultadosList({ dateRange, equipoId }: ResultadosListProps) {
                         <div className="flex flex-col items-center">
                           <div className="flex items-center justify-center gap-4 py-2">
                             <div className="text-center">
-                              <p className="font-medium">{partido.equipo}</p>
+                              <p className="font-medium">{typeof partido.equipo === "string" ? partido.equipo : partido.equipo.nombre}</p>
                               <p className="text-3xl font-bold">{partido.resultado.golesLocal}</p>
                             </div>
                             <div className="text-xl font-bold">-</div>
