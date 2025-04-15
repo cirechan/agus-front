@@ -6,7 +6,7 @@ import { Partido } from "@/types/horarios"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PartidoCard } from "@/components/horarios/partido-card"
 import { Skeleton } from "@/components/ui/skeleton"
-
+import { startOfDay, endOfDay } from "date-fns"
 interface PartidosListProps {
   dateRange: {
     from: Date
@@ -25,30 +25,40 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
     to: new Date(new Date().setDate(new Date().getDate() + 7))
   }
 
+ 
+
   useEffect(() => {
     const fetchPartidos = async () => {
       try {
         setLoading(true)
   
-        const response = await partidosService.getPartidos({
-          fechaInicio: effectiveDateRange.from.toISOString(),
-          fechaFin: effectiveDateRange.to.toISOString(),
-          ...(equipoId && { equipo: equipoId })
-        })
+        const from = startOfDay(effectiveDateRange.from).toISOString()
+        const to = endOfDay(effectiveDateRange.to).toISOString()
   
-        console.log("🎯 Partidos recibidos:", response.data)
+        const params: any = {
+          fechaInicio: from,
+          fechaFin: to,
+        }
+  
+        if (equipoId) {
+          params.equipo = equipoId
+        }
+  
+        const response = await partidosService.getPartidos(params)
+        console.log("✅ Partidos recibidos:", response.data)
         setPartidos(response.data)
         setError(null)
       } catch (err) {
+        console.error("❌ Error al cargar partidos:", err)
         setError("Error al cargar los partidos")
-        console.error(err)
       } finally {
         setLoading(false)
       }
     }
   
     fetchPartidos()
-  }, [effectiveDateRange, equipoId])
+  }, [effectiveDateRange.from, effectiveDateRange.to, equipoId])
+  
   
 
   return (
