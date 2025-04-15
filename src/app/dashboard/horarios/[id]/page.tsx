@@ -134,7 +134,7 @@ export default function PartidoDetailPage() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>
-              {partido.equipo} vs {partido.rival}
+            {typeof partido.equipo === "string" ? partido.equipo : partido.equipo.nombre} vs {partido.rival}
             </CardTitle>
             <Badge variant={esLocal ? "default" : "outline"}>
               {esLocal ? "Local" : "Visitante"}
@@ -183,7 +183,7 @@ export default function PartidoDetailPage() {
               <h3 className="text-sm font-medium text-muted-foreground mb-2">Resultado</h3>
               <div className="flex items-center justify-center gap-4 py-2">
                 <div className="text-center">
-                  <p className="font-medium">{partido.equipo}</p>
+                  <p className="font-medium">{typeof partido.equipo === "string" ? partido.equipo : partido.equipo.nombre}</p>
                   <p className="text-3xl font-bold">{partido.resultado.golesLocal}</p>
                 </div>
                 <div className="text-xl font-bold">-</div>
