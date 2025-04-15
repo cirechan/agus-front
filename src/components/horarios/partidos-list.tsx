@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { startOfDay, endOfDay } from "date-fns"
 import { partidosService } from "@/lib/api/partidos"
 import { Partido } from "@/types/horarios"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PartidoCard } from "@/components/horarios/partido-card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { startOfDay, endOfDay } from "date-fns"
 
 interface PartidosListProps {
   dateRange: {
@@ -23,22 +23,23 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
 
   useEffect(() => {
     const fetchPartidos = async () => {
-      if (!dateRange?.from || !dateRange?.to) return
-
-      const from = startOfDay(dateRange.from).toISOString()
-      const to = endOfDay(dateRange.to).toISOString()
-
       try {
         setLoading(true)
+
+        const from = dateRange?.from ? startOfDay(dateRange.from).toISOString() : null
+        const to = dateRange?.to ? endOfDay(dateRange.to).toISOString() : null
+
         const response = await partidosService.getPartidos({
-          fechaInicio: from,
-          fechaFin: to,
+          ...(from && { fechaInicio: from }),
+          ...(to && { fechaFin: to }),
           ...(equipoId && { equipo: equipoId })
         })
+
+        console.log("✅ Partidos cargados:", response.data)
         setPartidos(response.data)
         setError(null)
       } catch (err) {
-        console.error("Error al cargar los partidos:", err)
+        console.error("❌ Error al cargar partidos:", err)
         setError("Error al cargar los partidos")
       } finally {
         setLoading(false)
@@ -53,11 +54,12 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
       <CardHeader>
         <CardTitle>Lista de partidos</CardTitle>
       </CardHeader>
+
       <CardContent>
         {loading ? (
           <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Skeleton key={i} className="h-40 w-full" />
+            {Array.from({ length: 3 }).map((_, index) => (
+              <Skeleton key={index} className="h-40 w-full" />
             ))}
           </div>
         ) : error ? (
@@ -69,9 +71,11 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {partidos.map((partido) => (
-              <PartidoCard key={partido._id} partido={partido} />
-            ))}
+            {partidos
+              .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+              .map((partido) => (
+                <PartidoCard key={partido._id} partido={partido} />
+              ))}
           </div>
         )}
       </CardContent>
