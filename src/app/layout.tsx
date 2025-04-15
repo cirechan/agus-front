@@ -5,8 +5,8 @@ import { Inter } from "next/font/google"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Club San Agustín - Plataforma Deportiva",
-  description: "Plataforma de gestión deportiva para el Club de Fútbol San Agustín",
+  title: "CD San Agustín - Plataforma Deportiva",
+  description: "Plataforma de gestión deportiva para el CD San Agustín",
 }
 
 export default function RootLayout({

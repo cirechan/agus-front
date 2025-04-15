@@ -55,7 +55,7 @@ export function ResultadoForm({ partido, onSubmit, onCancel }: ResultadoFormProp
       >
         <div className="flex items-center justify-center gap-6">
           <div className="text-center space-y-2">
-            <p className="text-sm font-medium">{partido.equipo}</p>
+            <p className="text-sm font-medium">{typeof partido.equipo === "string" ? partido.equipo : partido.equipo.nombre}</p>
             <FormField
               control={form.control}
               name="golesLocal"

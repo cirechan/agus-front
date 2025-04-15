@@ -51,13 +51,13 @@ export function AppSidebar({
         <div className="flex h-16 items-center justify-between px-4">
           {expanded ? (
            <Link href="/" className="flex items-center gap-2">
-              <img src="/images/escudo.png" alt="Escudo" className="h-6 w-6" />
+              <img src="/images/escudo.png" alt="Escudo" className="h-10 w-10" />
               <span className="font-semibold">CD San Agustín</span>
             </Link>
 
           ) : (
             <Link href="/" className="flex w-full items-center justify-center">
-                <img src="/images/escudo.png" alt="Escudo" className="h-6 w-6" />
+                <img src="/images/escudo.png" alt="Escudo" className="h-10 w-10" />
             </Link>
   
           )}

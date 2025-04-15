@@ -7,16 +7,13 @@ import { ChevronRight, PlusCircle, ShieldIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
+
+import { equiposService } from "@/lib/api/services" // 👈 asegúrate de que este import esté correcto
 
 interface Team {
   id: string
@@ -25,50 +22,36 @@ interface Team {
   icon?: React.ReactNode
 }
 
-// Datos de ejemplo - en producción vendrían de la API
-const teams: Team[] = [
-  {
-    id: "1",
-    name: "Alevín A",
-    category: "1ª Alevín",
-    icon: <ShieldIcon className="h-4 w-4" />,
-  },
-  {
-    id: "2",
-    name: "Benjamín B",
-    category: "2ª Benjamín",
-    icon: <ShieldIcon className="h-4 w-4" />,
-  },
-  {
-    id: "3",
-    name: "Infantil A",
-    category: "1ª Infantil",
-    icon: <ShieldIcon className="h-4 w-4" />,
-  },
-  {
-    id: "4",
-    name: "Cadete B",
-    category: "2ª Cadete",
-    icon: <ShieldIcon className="h-4 w-4" />,
-  },
-  {
-    id: "5",
-    name: "Juvenil A",
-    category: "1ª Juvenil",
-    icon: <ShieldIcon className="h-4 w-4" />,
-  },
-]
-
 export function TeamSelector() {
   const pathname = usePathname()
   const [open, setOpen] = React.useState(false)
+  const [teams, setTeams] = React.useState<Team[]>([])
   const [selectedTeam, setSelectedTeam] = React.useState<Team | null>(null)
 
-  // Seleccionar el primer equipo por defecto
+  // Cargar equipos desde la API
   React.useEffect(() => {
-    if (teams.length > 0 && !selectedTeam) {
-      setSelectedTeam(teams[0])
+    const fetchEquipos = async () => {
+      try {
+        const response = await equiposService.getAll()
+
+        const mapped: Team[] = response.map((equipo: any) => ({
+          id: equipo._id,
+          name: equipo.nombre,
+          category: equipo.categoria,
+          icon: <ShieldIcon className="h-4 w-4" />,
+        }))
+
+        setTeams(mapped)
+
+        if (!selectedTeam && mapped.length > 0) {
+          setSelectedTeam(mapped[0])
+        }
+      } catch (error) {
+        console.error("Error al cargar equipos:", error)
+      }
     }
+
+    fetchEquipos()
   }, [selectedTeam])
 
   return (
@@ -82,8 +65,12 @@ export function TeamSelector() {
           <div className="flex items-center gap-2">
             {selectedTeam?.icon || <ShieldIcon className="h-4 w-4" />}
             <div className="flex flex-col items-start text-sm">
-              <span className="font-medium">{selectedTeam?.name || "Seleccionar equipo"}</span>
-              <span className="text-xs text-muted-foreground">{selectedTeam?.category}</span>
+              <span className="font-medium">
+                {selectedTeam?.name || "Seleccionar equipo"}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {selectedTeam?.category || ""}
+              </span>
             </div>
           </div>
           <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
