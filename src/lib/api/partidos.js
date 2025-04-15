@@ -1,4 +1,14 @@
 import axios from 'axios';
+import { startOfDay, endOfDay } from "date-fns"
+
+const from = dateRange?.from ? startOfDay(dateRange.from).toISOString() : null
+const to = dateRange?.to ? endOfDay(dateRange.to).toISOString() : null
+
+if (from && to) {
+  const response = await partidosService.getPartidosPorFechas(from, to)
+  setPartidos(response.data)
+}
+
 
 // URL base de la API
 const API_URL = 'https://agus-back.onrender.com/api';
