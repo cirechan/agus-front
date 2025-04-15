@@ -101,9 +101,7 @@ export function TeamSelector() {
                   {team.category}
                 </span>
               </div>
-              <span className="ml-auto text-xs text-muted-foreground">
-                #{team.id}
-              </span>
+             
             </Button>
           ))}
         </div>
