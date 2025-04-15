@@ -5,7 +5,7 @@ import { Partido } from "@/types/horarios"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Edit, ExternalLink } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 
 interface PartidoCardProps {
   partido: Partido
@@ -25,7 +25,7 @@ export function PartidoCard({ partido }: PartidoCardProps) {
         </div>
 
         <div className="text-base font-semibold">
-          {partido.equipo} vs {partido.rival}
+          {typeof partido.equipo === "string" ? partido.equipo : partido.equipo.nombre} vs {partido.rival}
         </div>
 
         <div className="text-sm text-muted-foreground space-y-1">

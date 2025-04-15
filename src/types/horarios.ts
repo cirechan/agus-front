@@ -1,11 +1,18 @@
 export interface Partido {
   _id?: string;
-  equipo: string;
+  equipo: string | {
+    _id: string;
+    nombre: string;
+    categoria?: string;
+  };
   rival: string;
-  fecha: Date;
+  fecha: Date | string;
   hora: string;
   ubicacion: 'casa' | 'fuera';
-  temporada: string;
+  temporada: string | {
+    _id: string;
+    nombre: string;
+  };
   vestuarioLocal?: number;
   vestuarioVisitante?: number;
   equipacion: {
@@ -19,9 +26,11 @@ export interface Partido {
     jugado: boolean;
   };
   observaciones?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
+  createdAt?: Date | string;
+  updatedAt?: Date | string;
 }
+
+
 
 export interface EstadisticasEquipo {
   equipo: string;

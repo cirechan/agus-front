@@ -29,9 +29,14 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
     const fetchPartidos = async () => {
       try {
         setLoading(true)
-    
-        const response = await partidosService.getPartidos() // sin filtros
-        console.log("Partidos recibidos:", response.data) // 👈 esto te dirá si llegan
+  
+        const response = await partidosService.getPartidos({
+          fechaInicio: effectiveDateRange.from.toISOString(),
+          fechaFin: effectiveDateRange.to.toISOString(),
+          ...(equipoId && { equipo: equipoId })
+        })
+  
+        console.log("🎯 Partidos recibidos:", response.data)
         setPartidos(response.data)
         setError(null)
       } catch (err) {
@@ -41,10 +46,10 @@ export function PartidosList({ dateRange, equipoId }: PartidosListProps) {
         setLoading(false)
       }
     }
-    
-
+  
     fetchPartidos()
   }, [effectiveDateRange, equipoId])
+  
 
   return (
     <Card>
