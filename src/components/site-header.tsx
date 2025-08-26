@@ -13,8 +13,11 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { AppSidebar } from "@/components/app-sidebar"
+import temporadasData from "@/data/temporadas.json"
 
 export function SiteHeader() {
+  const temporadaActual = (temporadasData as any).temporadaActiva
+
   return (
     <header className="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6">
       <Sheet>
@@ -52,7 +55,7 @@ export function SiteHeader() {
             className="ml-auto gap-1 md:flex"
           >
             <span className="hidden md:inline-flex">Temporada</span>
-            <span className="font-semibold">2024-2025</span>
+            <span className="font-semibold">{temporadaActual}</span>
           </Button>
         </div>
       </div>
