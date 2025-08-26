@@ -11,3 +11,5 @@ node scripts/resetTemporada.mjs
 ```
 
 El script copiará los datos base desde `scripts/data` a `src/data` sobrescribiendo cualquier cambio previo.
+
+En entornos de despliegue como Vercel la escritura en disco es temporal. Los cambios realizados desde la aplicación se guardan en una carpeta temporal (`/tmp/data`) y se pierden al reiniciar la instancia.

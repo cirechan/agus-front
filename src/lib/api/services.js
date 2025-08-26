@@ -1,25 +1,35 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 
-const dataDir = path.join(process.cwd(), 'src', 'data');
+// During build the JSON lives under src/data, but Vercel's runtime is read-only.
+// Write operations fall back to a temporary folder so server actions don't crash.
+const projectDataDir = path.join(process.cwd(), 'src', 'data');
+const runtimeDataDir = path.join('/tmp', 'data');
 
 async function readJson(file) {
-  const filePath = path.join(dataDir, file);
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    if (file === 'temporadas.json') {
-      return { temporadaActiva: null, temporadas: [] };
+  const candidates = [runtimeDataDir, projectDataDir];
+  for (const dir of candidates) {
+    try {
+      const data = await fs.readFile(path.join(dir, file), 'utf8');
+      return JSON.parse(data);
+    } catch {
+      // try next directory
     }
-    return [];
   }
+  if (file === 'temporadas.json') {
+    return { temporadaActiva: null, temporadas: [] };
+  }
+  return [];
 }
 
 async function writeJson(file, data) {
-  const filePath = path.join(dataDir, file);
-  await fs.mkdir(dataDir, { recursive: true });
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+  try {
+    await fs.mkdir(runtimeDataDir, { recursive: true });
+    await fs.writeFile(path.join(runtimeDataDir, file), JSON.stringify(data, null, 2));
+  } catch {
+    await fs.mkdir(projectDataDir, { recursive: true });
+    await fs.writeFile(path.join(projectDataDir, file), JSON.stringify(data, null, 2));
+  }
 }
 
 // Servicios para equipos
