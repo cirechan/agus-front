@@ -1,438 +1,237 @@
-import axios from 'axios';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-// URL base de la API
-const API_URL = 'https://agus-back.onrender.com/api';
+const dataDir = path.join(process.cwd(), 'src', 'data');
 
-// Configuración por defecto para axios
-axios.defaults.headers.common['Content-Type'] = 'application/json';
+async function readJson(file) {
+  const filePath = path.join(dataDir, file);
+  const data = await fs.readFile(filePath, 'utf8');
+  return JSON.parse(data);
+}
+
+async function writeJson(file, data) {
+  const filePath = path.join(dataDir, file);
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+}
 
 // Servicios para equipos
 export const equiposService = {
-  // Obtener todos los equipos
   getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/equipos`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener equipos:', error);
-      throw error;
-    }
+    return await readJson('equipos.json');
   },
 
-  // Obtener un equipo por ID
   getById: async (id) => {
-    try {
-      const response = await axios.get(`${API_URL}/equipos/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener equipo con ID ${id}:`, error);
-      throw error;
-    }
+    const equipos = await equiposService.getAll();
+    return equipos.find((e) => e.id === id);
   },
 
-  // Obtener equipos por temporada
   getByTemporada: async (temporadaId) => {
-    try {
-      const response = await axios.get(`${API_URL}/equipos/temporada/${temporadaId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener equipos de la temporada ${temporadaId}:`, error);
-      throw error;
-    }
+    const equipos = await equiposService.getAll();
+    return equipos.filter((e) => e.temporadaId === temporadaId);
   },
 
-  // Crear un nuevo equipo
   create: async (equipoData) => {
-    try {
-      const response = await axios.post(`${API_URL}/equipos`, equipoData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al crear equipo:', error);
-      throw error;
-    }
+    const equipos = await equiposService.getAll();
+    const nuevo = { id: Date.now(), ...equipoData };
+    equipos.push(nuevo);
+    await writeJson('equipos.json', equipos);
+    return nuevo;
   },
 
-  // Actualizar un equipo existente
   update: async (id, equipoData) => {
-    try {
-      const response = await axios.put(`${API_URL}/equipos/${id}`, equipoData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar equipo con ID ${id}:`, error);
-      throw error;
-    }
+    const equipos = await equiposService.getAll();
+    const index = equipos.findIndex((e) => e.id === id);
+    if (index === -1) return null;
+    equipos[index] = { ...equipos[index], ...equipoData };
+    await writeJson('equipos.json', equipos);
+    return equipos[index];
   },
 
-  // Eliminar un equipo
   delete: async (id) => {
-    try {
-      const response = await axios.delete(`${API_URL}/equipos/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al eliminar equipo con ID ${id}:`, error);
-      throw error;
-    }
+    const equipos = await equiposService.getAll();
+    const filtrados = equipos.filter((e) => e.id !== id);
+    await writeJson('equipos.json', filtrados);
+    return true;
   }
 };
 
 // Servicios para jugadores
 export const jugadoresService = {
-  // Obtener todos los jugadores
   getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/jugadores`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener jugadores:', error);
-      throw error;
-    }
+    return await readJson('jugadores.json');
   },
 
-  // Obtener un jugador por ID
   getById: async (id) => {
-    try {
-      const response = await axios.get(`${API_URL}/jugadores/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener jugador con ID ${id}:`, error);
-      throw error;
-    }
+    const jugadores = await jugadoresService.getAll();
+    return jugadores.find((j) => j.id === id);
   },
 
-  // Obtener jugadores por equipo
   getByEquipo: async (equipoId) => {
-    try {
-      const response = await axios.get(`${API_URL}/jugadores/equipo/${equipoId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener jugadores del equipo ${equipoId}:`, error);
-      throw error;
-    }
+    const jugadores = await jugadoresService.getAll();
+    return jugadores.filter((j) => j.equipoId === equipoId);
   },
 
-  // Crear un nuevo jugador
   create: async (jugadorData) => {
-    try {
-      const response = await axios.post(`${API_URL}/jugadores`, jugadorData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al crear jugador:', error);
-      throw error;
-    }
+    const jugadores = await jugadoresService.getAll();
+    const nuevo = { id: Date.now(), ...jugadorData };
+    jugadores.push(nuevo);
+    await writeJson('jugadores.json', jugadores);
+    return nuevo;
   },
 
-  // Actualizar un jugador existente
   update: async (id, jugadorData) => {
-    try {
-      const response = await axios.put(`${API_URL}/jugadores/${id}`, jugadorData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar jugador con ID ${id}:`, error);
-      throw error;
-    }
+    const jugadores = await jugadoresService.getAll();
+    const index = jugadores.findIndex((j) => j.id === id);
+    if (index === -1) return null;
+    jugadores[index] = { ...jugadores[index], ...jugadorData };
+    await writeJson('jugadores.json', jugadores);
+    return jugadores[index];
   },
 
-  // Eliminar un jugador
   delete: async (id) => {
-    try {
-      const response = await axios.delete(`${API_URL}/jugadores/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al eliminar jugador con ID ${id}:`, error);
-      throw error;
-    }
+    const jugadores = await jugadoresService.getAll();
+    const filtrados = jugadores.filter((j) => j.id !== id);
+    await writeJson('jugadores.json', filtrados);
+    return true;
   }
 };
 
 // Servicios para asistencias
 export const asistenciasService = {
-  // Obtener todas las asistencias
   getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/asistencias`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener asistencias:', error);
-      throw error;
-    }
+    return await readJson('asistencias.json');
   },
 
-  // Obtener asistencias por equipo
   getByEquipo: async (equipoId) => {
-    try {
-      const response = await axios.get(`${API_URL}/asistencias/equipo/${equipoId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener asistencias del equipo ${equipoId}:`, error);
-      throw error;
-    }
+    const asistencias = await asistenciasService.getAll();
+    return asistencias.filter((a) => a.equipoId === equipoId);
   },
 
-  // Obtener asistencias por jugador
   getByJugador: async (jugadorId) => {
-    try {
-      const response = await axios.get(`${API_URL}/asistencias/jugador/${jugadorId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener asistencias del jugador ${jugadorId}:`, error);
-      throw error;
-    }
+    const asistencias = await asistenciasService.getAll();
+    return asistencias.filter((a) => a.jugadorId === jugadorId);
   },
 
-  // Registrar asistencias para un entrenamiento
-  registrar: async (asistenciasData) => {
-    try {
-      const response = await axios.post(`${API_URL}/asistencias`, asistenciasData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al registrar asistencias:', error);
-      throw error;
-    }
+  create: async (data) => {
+    const asistencias = await asistenciasService.getAll();
+    const nuevo = { id: Date.now(), ...data };
+    asistencias.push(nuevo);
+    await writeJson('asistencias.json', asistencias);
+    return nuevo;
   },
 
-  // Actualizar asistencia
-  update: async (id, asistenciaData) => {
-    try {
-      const response = await axios.put(`${API_URL}/asistencias/${id}`, asistenciaData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar asistencia con ID ${id}:`, error);
-      throw error;
-    }
+  update: async (id, data) => {
+    const asistencias = await asistenciasService.getAll();
+    const index = asistencias.findIndex((a) => a.id === id);
+    if (index === -1) return null;
+    asistencias[index] = { ...asistencias[index], ...data };
+    await writeJson('asistencias.json', asistencias);
+    return asistencias[index];
+  },
+
+  delete: async (id) => {
+    const asistencias = await asistenciasService.getAll();
+    const filtradas = asistencias.filter((a) => a.id !== id);
+    await writeJson('asistencias.json', filtradas);
+    return true;
   }
 };
 
 // Servicios para valoraciones
 export const valoracionesService = {
-  // Obtener todas las valoraciones
   getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/valoraciones`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener valoraciones:', error);
-      throw error;
-    }
+    return await readJson('valoraciones.json');
   },
 
-  // Obtener valoraciones por jugador
   getByJugador: async (jugadorId) => {
-    try {
-      const response = await axios.get(`${API_URL}/valoraciones/jugador/${jugadorId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener valoraciones del jugador ${jugadorId}:`, error);
-      throw error;
-    }
+    const valoraciones = await valoracionesService.getAll();
+    return valoraciones.filter((v) => v.jugadorId === jugadorId);
   },
 
-  // Obtener valoraciones por equipo
-  getByEquipo: async (equipoId) => {
-    try {
-      const response = await axios.get(`${API_URL}/valoraciones/equipo/${equipoId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener valoraciones del equipo ${equipoId}:`, error);
-      throw error;
-    }
+  create: async (data) => {
+    const valoraciones = await valoracionesService.getAll();
+    const nuevo = { id: Date.now(), ...data };
+    valoraciones.push(nuevo);
+    await writeJson('valoraciones.json', valoraciones);
+    return nuevo;
   },
 
-  // Crear una nueva valoración
-  create: async (valoracionData) => {
-    try {
-      const response = await axios.post(`${API_URL}/valoraciones`, valoracionData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al crear valoración:', error);
-      throw error;
-    }
+  update: async (id, data) => {
+    const valoraciones = await valoracionesService.getAll();
+    const index = valoraciones.findIndex((v) => v.id === id);
+    if (index === -1) return null;
+    valoraciones[index] = { ...valoraciones[index], ...data };
+    await writeJson('valoraciones.json', valoraciones);
+    return valoraciones[index];
   },
 
-  // Actualizar una valoración existente
-  update: async (id, valoracionData) => {
-    try {
-      const response = await axios.put(`${API_URL}/valoraciones/${id}`, valoracionData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar valoración con ID ${id}:`, error);
-      throw error;
-    }
-  }
-};
-
-// Servicios para scouting
-export const scoutingService = {
-  // Obtener todos los registros de scouting
-  getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/scouting`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener registros de scouting:', error);
-      throw error;
-    }
-  },
-
-  // Obtener un registro de scouting por ID
-  getById: async (id) => {
-    try {
-      const response = await axios.get(`${API_URL}/scouting/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener registro de scouting con ID ${id}:`, error);
-      throw error;
-    }
-  },
-
-  // Buscar jugadores scouteados por nombre
-  buscarPorNombre: async (nombre) => {
-    try {
-      const response = await axios.get(`${API_URL}/scouting/buscar?nombre=${nombre}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al buscar jugadores scouteados con nombre ${nombre}:`, error);
-      throw error;
-    }
-  },
-
-  // Crear un nuevo registro de scouting
-  create: async (scoutingData) => {
-    try {
-      const response = await axios.post(`${API_URL}/scouting`, scoutingData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al crear registro de scouting:', error);
-      throw error;
-    }
-  },
-
-  // Actualizar un registro de scouting existente
-  update: async (id, scoutingData) => {
-    try {
-      const response = await axios.put(`${API_URL}/scouting/${id}`, scoutingData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar registro de scouting con ID ${id}:`, error);
-      throw error;
-    }
+  delete: async (id) => {
+    const valoraciones = await valoracionesService.getAll();
+    const filtradas = valoraciones.filter((v) => v.id !== id);
+    await writeJson('valoraciones.json', filtradas);
+    return true;
   }
 };
 
 // Servicios para objetivos
 export const objetivosService = {
-  // Obtener todos los objetivos
   getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/objetivos`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener objetivos:', error);
-      throw error;
-    }
+    return await readJson('objetivos.json');
   },
 
-  // Obtener objetivos por equipo
   getByEquipo: async (equipoId) => {
-    try {
-      const response = await axios.get(`${API_URL}/objetivos/equipo/${equipoId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener objetivos del equipo ${equipoId}:`, error);
-      throw error;
-    }
+    const objetivos = await objetivosService.getAll();
+    return objetivos.filter((o) => o.equipoId === equipoId);
   },
 
-  // Crear un nuevo objetivo
-  create: async (objetivoData) => {
-    try {
-      const response = await axios.post(`${API_URL}/objetivos`, objetivoData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al crear objetivo:', error);
-      throw error;
-    }
+  create: async (data) => {
+    const objetivos = await objetivosService.getAll();
+    const nuevo = { id: Date.now(), progreso: 0, ...data };
+    objetivos.push(nuevo);
+    await writeJson('objetivos.json', objetivos);
+    return nuevo;
   },
 
-  // Actualizar un objetivo existente
-  update: async (id, objetivoData) => {
-    try {
-      const response = await axios.put(`${API_URL}/objetivos/${id}`, objetivoData);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar objetivo con ID ${id}:`, error);
-      throw error;
-    }
+  update: async (id, data) => {
+    const objetivos = await objetivosService.getAll();
+    const index = objetivos.findIndex((o) => o.id === id);
+    if (index === -1) return null;
+    objetivos[index] = { ...objetivos[index], ...data };
+    await writeJson('objetivos.json', objetivos);
+    return objetivos[index];
   },
 
-  // Actualizar el progreso de un objetivo
-  actualizarProgreso: async (id, progreso) => {
-    try {
-      const response = await axios.patch(`${API_URL}/objetivos/${id}/progreso`, { progreso });
-      return response.data;
-    } catch (error) {
-      console.error(`Error al actualizar progreso del objetivo con ID ${id}:`, error);
-      throw error;
-    }
+  delete: async (id) => {
+    const objetivos = await objetivosService.getAll();
+    const filtrados = objetivos.filter((o) => o.id !== id);
+    await writeJson('objetivos.json', filtrados);
+    return true;
   }
 };
 
 // Servicios para temporadas
 export const temporadasService = {
-  // Obtener todas las temporadas
   getAll: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/temporadas`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener temporadas:', error);
-      throw error;
-    }
+    const data = await readJson('temporadas.json');
+    return data.temporadas;
   },
 
-  // Obtener temporada actual
   getActual: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/temporadas/actual`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al obtener temporada actual:', error);
-      throw error;
-    }
+    const data = await readJson('temporadas.json');
+    return data.temporadas.find((t) => t.id === data.temporadaActiva);
   },
 
-  // Crear una nueva temporada
-  create: async (temporadaData) => {
-    try {
-      const response = await axios.post(`${API_URL}/temporadas`, temporadaData);
-      return response.data;
-    } catch (error) {
-      console.error('Error al crear temporada:', error);
-      throw error;
-    }
-  }
-};
+  setActual: async (id) => {
+    const data = await readJson('temporadas.json');
+    data.temporadaActiva = id;
+    await writeJson('temporadas.json', data);
+    return data.temporadas.find((t) => t.id === id);
+  },
 
-// Servicio para verificar el estado de la API
-export const apiService = {
-  checkStatus: async () => {
-    try {
-      const response = await axios.get(`${API_URL}/status`);
-      return response.data;
-    } catch (error) {
-      console.error('Error al verificar estado de la API:', error);
-      throw error;
-    }
+  create: async (temporada) => {
+    const data = await readJson('temporadas.json');
+    data.temporadas.push(temporada);
+    await writeJson('temporadas.json', data);
+    return temporada;
   }
-};
-
-// Exportar todos los servicios
-export default {
-  equipos: equiposService,
-  jugadores: jugadoresService,
-  asistencias: asistenciasService,
-  valoraciones: valoracionesService,
-  scouting: scoutingService,
-  objetivos: objetivosService,
-  temporadas: temporadasService,
-  api: apiService
 };
