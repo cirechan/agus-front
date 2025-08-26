@@ -5,6 +5,7 @@ import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import cadeteB from '@/data/cadete-b.json'
 
 interface ApiStatus {
   status: string;
@@ -55,44 +56,33 @@ export default function AsistenciasDataWrapper({ children, equipoId = null, juga
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Si la API está offline, usar datos de ejemplo
+        // Si la API está offline, usar datos del JSON
         if (apiStatus.status === 'offline') {
-          // Datos de ejemplo para modo offline
-          const mockData: Asistencia[] = [
-            { id: "1", fecha: "09/04/2025", tipo: "Entrenamiento regular", asistencia: "90%", jugadores: [
-              { id: "1", nombre: "Juan García", asistio: true, motivo: null },
-              { id: "2", nombre: "Miguel Fernández", asistio: true, motivo: null },
-              { id: "3", nombre: "Carlos Martínez", asistio: false, motivo: "Lesión" },
-              { id: "4", nombre: "David López", asistio: true, motivo: null },
-            ]},
-            { id: "2", fecha: "07/04/2025", tipo: "Entrenamiento regular", asistencia: "85%", jugadores: [
-              { id: "1", nombre: "Juan García", asistio: true, motivo: null },
-              { id: "2", nombre: "Miguel Fernández", asistio: false, motivo: "Estudios" },
-              { id: "3", nombre: "Carlos Martínez", asistio: false, motivo: "Lesión" },
-              { id: "4", nombre: "David López", asistio: true, motivo: null },
-            ]},
-            { id: "3", fecha: "04/04/2025", tipo: "Entrenamiento regular", asistencia: "80%", jugadores: [
-              { id: "1", nombre: "Juan García", asistio: true, motivo: null },
-              { id: "2", nombre: "Miguel Fernández", asistio: true, motivo: null },
-              { id: "3", nombre: "Carlos Martínez", asistio: false, motivo: "Lesión" },
-              { id: "4", nombre: "David López", asistio: false, motivo: "Viaje" },
-            ]},
-            { id: "4", fecha: "02/04/2025", tipo: "Entrenamiento regular", asistencia: "95%", jugadores: [
-              { id: "1", nombre: "Juan García", asistio: true, motivo: null },
-              { id: "2", nombre: "Miguel Fernández", asistio: true, motivo: null },
-              { id: "3", nombre: "Carlos Martínez", asistio: true, motivo: null },
-              { id: "4", nombre: "David López", asistio: true, motivo: null },
-            ]},
-          ]
-          
-          // Filtrar según los parámetros
+          const dates = Array.from(new Set(cadeteB.jugadores.flatMap(j => j.asistencias.map(a => a.fecha))))
+          const mockData: Asistencia[] = dates.map((fecha, idx) => {
+            const jugadoresData = cadeteB.jugadores.map(j => {
+              const asist = j.asistencias.find(a => a.fecha === fecha)
+              return {
+                id: j.id,
+                nombre: j.nombre + ' ' + j.apellidos.split(' ')[0],
+                asistio: asist ? asist.asistio : false,
+                motivo: asist?.motivo || null
+              }
+            })
+            const presentes = jugadoresData.filter(j => j.asistio).length
+            const asistencia = Math.round((presentes / jugadoresData.length) * 100) + '%'
+            return {
+              id: String(idx + 1),
+              fecha,
+              tipo: 'Entrenamiento',
+              asistencia,
+              jugadores: jugadoresData
+            }
+          })
+
           if (equipoId) {
-            // En un caso real, aquí filtrarías por equipo
-            // Para el ejemplo, simplemente devolvemos todos los datos
             setData(mockData)
           } else if (jugadorId) {
-            // En un caso real, aquí filtrarías por jugador
-            // Para el ejemplo, filtramos las asistencias para mostrar solo las del jugador 1
             const asistenciasJugador: AsistenciaJugador[] = mockData.map(asistencia => {
               const jugador = asistencia.jugadores.find(j => j.id === jugadorId)
               if (jugador) {
@@ -106,12 +96,12 @@ export default function AsistenciasDataWrapper({ children, equipoId = null, juga
               }
               return null
             }).filter((item): item is AsistenciaJugador => item !== null)
-            
+
             setData(asistenciasJugador)
           } else {
             setData(mockData)
           }
-          
+
           console.log('Usando datos de ejemplo en modo offline')
         } else {
           // Intentar obtener datos reales de la API

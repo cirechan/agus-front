@@ -5,6 +5,7 @@ import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import cadeteB from '@/data/cadete-b.json'
 
 interface ApiStatus {
   status: string;
@@ -45,64 +46,20 @@ export default function ObjetivosDataWrapper({ children, equipoId = null }: Obje
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Si la API está offline, usar datos de ejemplo
+        // Si la API está offline, usar datos del JSON
         if (apiStatus.status === 'offline') {
-          // Datos de ejemplo para modo offline
-          const mockData: Objetivo[] = [
-            { 
-              id: "1", 
-              titulo: "Mejorar posesión de balón", 
-              descripcion: "Aumentar el tiempo de posesión en partidos al 60%", 
-              progreso: 75, 
-              fechaCreacion: "2025-01-15",
-              fechaLimite: "2025-06-30",
-              prioridad: "Alta",
-              estado: "En progreso",
-              equipo: "1" // ID del equipo Alevín A
-            },
-            { 
-              id: "2", 
-              titulo: "Reducir goles encajados", 
-              descripcion: "Reducir en un 30% los goles encajados respecto a la temporada anterior", 
-              progreso: 60, 
-              fechaCreacion: "2025-01-15",
-              fechaLimite: "2025-06-30",
-              prioridad: "Alta",
-              estado: "En progreso",
-              equipo: "1" // ID del equipo Alevín A
-            },
-            { 
-              id: "3", 
-              titulo: "Mejorar técnica individual", 
-              descripcion: "Enfocarse en el control y pase del balón", 
-              progreso: 65, 
-              fechaCreacion: "2025-01-10",
-              fechaLimite: "2025-06-30",
-              prioridad: "Alta",
-              estado: "En progreso",
-              equipo: "2" // ID del equipo Benjamín B
-            },
-            { 
-              id: "4", 
-              titulo: "Desarrollar juego en equipo", 
-              descripcion: "Fomentar la comunicación y el juego colectivo", 
-              progreso: 70, 
-              fechaCreacion: "2025-01-10",
-              fechaLimite: "2025-06-30",
-              prioridad: "Alta",
-              estado: "En progreso",
-              equipo: "2" // ID del equipo Benjamín B
-            }
-          ]
-          
-          // Filtrar por equipo si es necesario
+          const mockData: Objetivo[] = cadeteB.objetivos.map(o => ({
+            ...o,
+            equipo: cadeteB.id
+          }))
+
           if (equipoId) {
             const objetivosEquipo = mockData.filter(obj => obj.equipo === equipoId)
             setData(objetivosEquipo)
           } else {
             setData(mockData)
           }
-          
+
           console.log('Usando datos de ejemplo en modo offline')
         } else {
           // Intentar obtener datos reales de la API

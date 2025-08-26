@@ -8,49 +8,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { SectionCards } from "@/components/section-cards"
+import cadeteB from "@/data/cadete-b.json"
 
-// Datos de ejemplo - en producción vendrían de la API
 const teams = [
   {
-    id: "1",
-    name: "Alevín A",
-    category: "1ª Alevín",
-    players: 15,
-    coach: "Carlos Martínez",
+    id: cadeteB.id,
+    name: cadeteB.nombre,
+    category: cadeteB.categoria,
+    players: cadeteB.jugadores.length,
+    coach: cadeteB.entrenador,
     image: null
-  },
-  {
-    id: "2",
-    name: "Benjamín B",
-    category: "2ª Benjamín",
-    players: 14,
-    coach: "Laura Sánchez",
-    image: null
-  },
-  {
-    id: "3",
-    name: "Infantil A",
-    category: "1ª Infantil",
-    players: 18,
-    coach: "Miguel López",
-    image: null
-  },
-  {
-    id: "4",
-    name: "Cadete B",
-    category: "2ª Cadete",
-    players: 16,
-    coach: "Ana García",
-    image: null
-  },
-  {
-    id: "5",
-    name: "Juvenil A",
-    category: "1ª Juvenil",
-    players: 18,
-    coach: "Pedro Rodríguez",
-    image: null
-  },
+  }
 ]
 
 export default function EquiposPage() {

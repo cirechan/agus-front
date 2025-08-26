@@ -5,6 +5,7 @@ import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import cadeteB from '@/data/cadete-b.json'
 
 interface ApiStatus {
   status: string;
@@ -53,74 +54,34 @@ export default function ValoracionesDataWrapper({ children, equipoId = null, jug
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Si la API está offline, usar datos de ejemplo
+        // Si la API está offline, usar datos del JSON
         if (apiStatus.status === 'offline') {
-          // Datos de ejemplo para modo offline
-          const mockData: Valoracion[] = [
-            { 
-              id: "1", 
-              jugador: { id: "1", nombre: "Juan", apellidos: "García López" },
-              trimestre: "1T 2024-2025",
-              fecha: "2024-12-15",
-              tecnica: 4,
-              tactica: 3.5,
-              fisica: 4.5,
-              mental: 4,
-              valoracionMedia: 4,
-              comentarios: "Buen rendimiento general. Destaca en aspectos físicos y técnicos."
-            },
-            { 
-              id: "2", 
-              jugador: { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz" },
-              trimestre: "1T 2024-2025",
-              fecha: "2024-12-15",
-              tecnica: 4.5,
-              tactica: 4,
-              fisica: 3.5,
-              mental: 4,
-              valoracionMedia: 4,
-              comentarios: "Excelente técnica y visión táctica. Debe mejorar su condición física."
-            },
-            { 
-              id: "3", 
-              jugador: { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz" },
-              trimestre: "1T 2024-2025",
-              fecha: "2024-12-15",
-              tecnica: 3.5,
-              tactica: 4,
-              fisica: 4,
-              mental: 3.5,
-              valoracionMedia: 3.75,
-              comentarios: "Buen posicionamiento táctico. Necesita mejorar técnica individual."
-            },
-            { 
-              id: "4", 
-              jugador: { id: "1", nombre: "Juan", apellidos: "García López" },
-              trimestre: "2T 2024-2025",
-              fecha: "2025-03-15",
-              tecnica: 4.5,
-              tactica: 4,
-              fisica: 4.5,
-              mental: 4.5,
-              valoracionMedia: 4.38,
-              comentarios: "Ha mejorado en todos los aspectos respecto al trimestre anterior."
-            },
-          ]
-          
-          // Filtrar según los parámetros
+          const mockData: Valoracion[] = cadeteB.jugadores.flatMap(j =>
+            (j.historialValoraciones || []).map((h, idx) => ({
+              id: `${j.id}-${idx}`,
+              jugador: { id: j.id, nombre: j.nombre, apellidos: j.apellidos },
+              trimestre: h.trimestre,
+              fecha: h.fecha,
+              tecnica: h.aptitudes[0].value,
+              tactica: h.aptitudes[1].value,
+              fisica: h.aptitudes[2].value,
+              mental: h.aptitudes[3].value,
+              valoracionMedia: h.aptitudes.reduce((s,a)=>s+a.value,0)/h.aptitudes.length,
+              comentarios: h.comentarios
+            }))
+          )
+
           if (equipoId) {
-            // En un caso real, aquí filtrarías por equipo
-            // Para el ejemplo, simplemente devolvemos todos los datos
             setData(mockData)
           } else if (jugadorId) {
-            // En un caso real, aquí filtrarías por jugador
             const valoracionesJugador = mockData.filter(v => v.jugador.id === jugadorId)
             setData(valoracionesJugador)
           } else {
             setData(mockData)
           }
-          
+
           console.log('Usando datos de ejemplo en modo offline')
+        } else {
         } else {
           // Intentar obtener datos reales de la API
           let result

@@ -12,17 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import cadeteB from "@/data/cadete-b.json"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A" },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A" },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A" },
-]
+const jugadores = cadeteB.jugadores.map(j => ({
+  id: j.id,
+  nombre: j.nombre,
+  apellidos: j.apellidos,
+  dorsal: j.dorsal,
+  equipo: j.equipo
+}))
 
 // Motivos de ausencia predefinidos
 const motivosAusencia = [

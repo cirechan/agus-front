@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { SkillsChart } from "@/components/skills-chart"
 import { CalendarIcon, CheckCircle, Clock, Edit, Plus, Target, Trophy, Users } from "lucide-react"
+import cadeteB from "@/data/cadete-b.json"
 
 // Definir interfaces para los tipos
 interface Objetivo {
@@ -36,40 +37,9 @@ interface NuevoObjetivo {
 export default function EquipoPage() {
   const params = useParams()
   const equipoId = params.id as string
-  
+
   // Estado para los objetivos
-  const [objetivos, setObjetivos] = useState<Objetivo[]>([
-    { 
-      id: "1", 
-      titulo: "Mejorar posesión de balón", 
-      descripcion: "Aumentar el tiempo de posesión en partidos al 60%", 
-      progreso: 75, 
-      fechaCreacion: "2025-01-15",
-      fechaLimite: "2025-06-30",
-      prioridad: "Alta",
-      estado: "En progreso"
-    },
-    { 
-      id: "2", 
-      titulo: "Reducir goles encajados", 
-      descripcion: "Reducir en un 30% los goles encajados respecto a la temporada anterior", 
-      progreso: 60, 
-      fechaCreacion: "2025-01-15",
-      fechaLimite: "2025-06-30",
-      prioridad: "Alta",
-      estado: "En progreso"
-    },
-    { 
-      id: "3", 
-      titulo: "Mejorar técnica individual", 
-      descripcion: "Enfocarse en el control y pase del balón", 
-      progreso: 65, 
-      fechaCreacion: "2025-01-10",
-      fechaLimite: "2025-06-30",
-      prioridad: "Media",
-      estado: "En progreso"
-    }
-  ])
+  const [objetivos, setObjetivos] = useState<Objetivo[]>(cadeteB.objetivos as Objetivo[])
   
   // Estado para el diálogo de nuevo objetivo
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -80,22 +50,8 @@ export default function EquipoPage() {
     prioridad: "Media"
   })
   
-  // Datos del equipo (simulados)
-  const equipo = {
-    id: equipoId,
-    nombre: "Alevín A",
-    categoria: "1ª Alevín",
-    temporada: "2024-2025",
-    entrenador: "Carlos Martínez",
-    jugadores: 15,
-    asistenciaPromedio: "85%",
-    valoracionMedia: 3.8,
-    objetivosCumplidos: "65%",
-    diasEntrenamiento: "Lunes, Miércoles, Viernes",
-    horarioEntrenamiento: "17:30 - 19:00",
-    proximoPartido: "12/04/2025 vs. CD Leganés",
-    ultimoResultado: "Victoria 3-1 vs. Rayo Vallecano"
-  }
+  // Datos del equipo
+  const equipo = cadeteB.id === equipoId ? cadeteB : cadeteB
   
   // Función para añadir un nuevo objetivo
   const handleAddObjetivo = () => {
