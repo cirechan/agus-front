@@ -23,6 +23,7 @@ export default async function JugadorPage({ params }: { params: { id: string } }
     const posicion = formData.get("posicion") as string
     await jugadoresService.update(id, { nombre, posicion })
     revalidatePath(`/dashboard/jugadores/${id}`)
+    revalidatePath('/dashboard/jugadores')
   }
 
   async function registrarAsistencia(formData: FormData) {
@@ -32,6 +33,7 @@ export default async function JugadorPage({ params }: { params: { id: string } }
     const fecha = new Date().toISOString().slice(0, 10)
     await asistenciasService.create({ jugadorId: id, equipoId: jugador.equipoId, fecha, asistio: presente, motivo })
     revalidatePath(`/dashboard/jugadores/${id}`)
+    revalidatePath('/dashboard/jugadores')
   }
 
   async function registrarValoracion(formData: FormData) {
@@ -44,6 +46,7 @@ export default async function JugadorPage({ params }: { params: { id: string } }
     const fecha = new Date().toISOString()
     await valoracionesService.create({ jugadorId: id, fecha, aptitudes: { tecnica, tactica, fisica, mental }, comentarios })
     revalidatePath(`/dashboard/jugadores/${id}`)
+    revalidatePath('/dashboard/jugadores')
   }
 
   return (

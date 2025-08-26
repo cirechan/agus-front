@@ -5,12 +5,20 @@ const dataDir = path.join(process.cwd(), 'src', 'data');
 
 async function readJson(file) {
   const filePath = path.join(dataDir, file);
-  const data = await fs.readFile(filePath, 'utf8');
-  return JSON.parse(data);
+  try {
+    const data = await fs.readFile(filePath, 'utf8');
+    return JSON.parse(data);
+  } catch {
+    if (file === 'temporadas.json') {
+      return { temporadaActiva: null, temporadas: [] };
+    }
+    return [];
+  }
 }
 
 async function writeJson(file, data) {
   const filePath = path.join(dataDir, file);
+  await fs.mkdir(dataDir, { recursive: true });
   await fs.writeFile(filePath, JSON.stringify(data, null, 2));
 }
 

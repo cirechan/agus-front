@@ -1,6 +1,3 @@
-"use client"
-
-import * as React from "react"
 import { TrendingUpIcon, UsersIcon, ClipboardCheckIcon, StarIcon } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -10,30 +7,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import equiposData from "@/data/equipos.json"
-import jugadoresData from "@/data/jugadores.json"
-import asistenciasData from "@/data/asistencias.json"
-import valoracionesData from "@/data/valoraciones.json"
-import objetivosData from "@/data/objetivos.json"
-import temporadasData from "@/data/temporadas.json"
+import {
+  equiposService,
+  jugadoresService,
+  asistenciasService,
+  valoracionesService,
+  objetivosService,
+  temporadasService,
+} from "@/lib/api/services"
 
-export function SectionCards() {
-  const temporadaActual = (temporadasData as any).temporadaActiva
-  const equipos = (equiposData as any[]).filter(
-    (e) => e.temporadaId === temporadaActual
-  )
-  const jugadores = (jugadoresData as any[]).filter((j) =>
-    equipos.some((e) => e.id === j.equipoId)
-  )
-  const asistencias = (asistenciasData as any[]).filter((a) =>
-    equipos.some((e) => e.id === a.equipoId)
-  )
-  const valoraciones = (valoracionesData as any[]).filter((v) =>
-    jugadores.some((j) => j.id === v.jugadorId)
-  )
-  const objetivos = (objetivosData as any[]).filter((o) =>
-    equipos.some((e) => e.id === o.equipoId)
-  )
+export async function SectionCards() {
+  const temporada = await temporadasService.getActual()
+  const equipos = await equiposService.getByTemporada(temporada.id)
+  const jugadores = (
+    await Promise.all(equipos.map((e: any) => jugadoresService.getByEquipo(e.id)))
+  ).flat()
+  const asistencias = (
+    await Promise.all(equipos.map((e: any) => asistenciasService.getByEquipo(e.id)))
+  ).flat()
+  const valoraciones = (
+    await Promise.all(jugadores.map((j: any) => valoracionesService.getByJugador(j.id)))
+  ).flat()
+  const objetivos = (
+    await Promise.all(equipos.map((e: any) => objetivosService.getByEquipo(e.id)))
+  ).flat()
 
   const asistenciaPromedio =
     asistencias.length > 0
@@ -78,7 +75,7 @@ export function SectionCards() {
           <div className="line-clamp-1 flex gap-2 font-medium">
             Plantilla completa <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">Temporada {temporadaActual}</div>
+          <div className="text-muted-foreground">Temporada {temporada.id}</div>
         </CardFooter>
       </Card>
       <Card className="@container/card">
@@ -98,7 +95,7 @@ export function SectionCards() {
           <div className="line-clamp-1 flex gap-2 font-medium">
             Registro de asistencias <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">Temporada {temporadaActual}</div>
+          <div className="text-muted-foreground">Temporada {temporada.id}</div>
         </CardFooter>
       </Card>
       <Card className="@container/card">
@@ -118,7 +115,7 @@ export function SectionCards() {
           <div className="line-clamp-1 flex gap-2 font-medium">
             Evaluaciones registradas <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">Temporada {temporadaActual}</div>
+          <div className="text-muted-foreground">Temporada {temporada.id}</div>
         </CardFooter>
       </Card>
       <Card className="@container/card">
@@ -138,7 +135,7 @@ export function SectionCards() {
           <div className="line-clamp-1 flex gap-2 font-medium">
             Seguimiento de objetivos <TrendingUpIcon className="size-4" />
           </div>
-          <div className="text-muted-foreground">Temporada {temporadaActual}</div>
+          <div className="text-muted-foreground">Temporada {temporada.id}</div>
         </CardFooter>
       </Card>
     </div>
