@@ -1,0 +1,213 @@
+{
+  "id": "cadete-b",
+  "nombre": "Cadete B",
+  "categoria": "2ª Cadete",
+  "temporada": "2024-2025",
+  "entrenador": "Ana García",
+  "asistenciaPromedio": "85%",
+  "valoracionMedia": 3.8,
+  "objetivosCumplidos": "65%",
+  "diasEntrenamiento": "Lunes, Miércoles, Viernes",
+  "horarioEntrenamiento": "17:30 - 19:00",
+  "proximoPartido": "12/04/2025 vs. CD Leganés",
+  "ultimoResultado": "Victoria 3-1 vs. Rayo Vallecano",
+  "jugadores": [
+    {
+      "id": "1",
+      "nombre": "Juan",
+      "apellidos": "García López",
+      "apodo": "Juanito",
+      "posicion": "Delantero",
+      "dorsal": 9,
+      "equipo": "Cadete B",
+      "categoria": "2ª Cadete",
+      "fechaNacimiento": "2014-05-12",
+      "asistencia": "95%",
+      "valoracionMedia": 4.2,
+      "ultimaValoracion": "2025-03-15",
+      "imagen": "/placeholder.svg?height=80&width=80",
+      "aptitudes": [
+        { "name": "Técnica", "value": 4.5, "fullMark": 5 },
+        { "name": "Táctica", "value": 3.8, "fullMark": 5 },
+        { "name": "Física", "value": 4.2, "fullMark": 5 },
+        { "name": "Mental", "value": 4.3, "fullMark": 5 }
+      ],
+      "historialEquipos": [
+        { "temporada": "2024-2025", "equipo": "Cadete B", "categoria": "2ª Cadete" },
+        { "temporada": "2023-2024", "equipo": "Infantil A", "categoria": "1ª Infantil" },
+        { "temporada": "2022-2023", "equipo": "Alevín A", "categoria": "1ª Alevín" }
+      ],
+      "historialValoraciones": [
+        {
+          "fecha": "2025-03-15",
+          "trimestre": "1T 2025",
+          "aptitudes": [
+            { "name": "Técnica", "value": 4.5, "fullMark": 5 },
+            { "name": "Táctica", "value": 3.8, "fullMark": 5 },
+            { "name": "Física", "value": 4.2, "fullMark": 5 },
+            { "name": "Mental", "value": 4.3, "fullMark": 5 }
+          ],
+          "comentarios": "Excelente progresión en aspectos técnicos. Debe mejorar posicionamiento táctico."
+        },
+        {
+          "fecha": "2024-12-10",
+          "trimestre": "4T 2024",
+          "aptitudes": [
+            { "name": "Técnica", "value": 4.3, "fullMark": 5 },
+            { "name": "Táctica", "value": 3.5, "fullMark": 5 },
+            { "name": "Física", "value": 4.0, "fullMark": 5 },
+            { "name": "Mental", "value": 4.1, "fullMark": 5 }
+          ],
+          "comentarios": "Buena actitud en los entrenamientos. Ha mejorado su capacidad de finalización."
+        },
+        {
+          "fecha": "2024-09-20",
+          "trimestre": "3T 2024",
+          "aptitudes": [
+            { "name": "Técnica", "value": 4.0, "fullMark": 5 },
+            { "name": "Táctica", "value": 3.2, "fullMark": 5 },
+            { "name": "Física", "value": 3.8, "fullMark": 5 },
+            { "name": "Mental", "value": 3.9, "fullMark": 5 }
+          ],
+          "comentarios": "Buen inicio de temporada. Necesita mejorar en aspectos tácticos."
+        }
+      ],
+      "asistencias": [
+        { "fecha": "2025-04-09", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-07", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-04", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-02", "tipo": "Entrenamiento", "asistio": false, "motivo": "Enfermedad" },
+        { "fecha": "2025-03-31", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-03-28", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-03-26", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-03-24", "tipo": "Entrenamiento", "asistio": true }
+      ],
+      "goles": 10,
+      "asistenciasGol": 5
+    },
+    {
+      "id": "2",
+      "nombre": "Miguel",
+      "apellidos": "Fernández Ruiz",
+      "apodo": "Migue",
+      "posicion": "Centrocampista",
+      "dorsal": 8,
+      "equipo": "Cadete B",
+      "categoria": "2ª Cadete",
+      "fechaNacimiento": "2014-03-22",
+      "asistencia": "90%",
+      "valoracionMedia": 3.8,
+      "ultimaValoracion": "2025-03-15",
+      "imagen": "/placeholder.svg?height=80&width=80",
+      "aptitudes": [
+        { "name": "Técnica", "value": 4.0, "fullMark": 5 },
+        { "name": "Táctica", "value": 3.9, "fullMark": 5 },
+        { "name": "Física", "value": 4.1, "fullMark": 5 },
+        { "name": "Mental", "value": 4.0, "fullMark": 5 }
+      ],
+      "historialEquipos": [
+        { "temporada": "2024-2025", "equipo": "Cadete B", "categoria": "2ª Cadete" },
+        { "temporada": "2023-2024", "equipo": "Infantil A", "categoria": "1ª Infantil" },
+        { "temporada": "2022-2023", "equipo": "Alevín B", "categoria": "2ª Alevín" }
+      ],
+      "historialValoraciones": [
+        {
+          "fecha": "2025-03-15",
+          "trimestre": "1T 2025",
+          "aptitudes": [
+            { "name": "Técnica", "value": 4.0, "fullMark": 5 },
+            { "name": "Táctica", "value": 3.9, "fullMark": 5 },
+            { "name": "Física", "value": 4.1, "fullMark": 5 },
+            { "name": "Mental", "value": 4.0, "fullMark": 5 }
+          ],
+          "comentarios": "Jugador constante, debe mejorar la resistencia física."
+        }
+      ],
+      "asistencias": [
+        { "fecha": "2025-04-09", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-07", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-04", "tipo": "Entrenamiento", "asistio": false, "motivo": "Lesión" },
+        { "fecha": "2025-04-02", "tipo": "Entrenamiento", "asistio": true }
+      ],
+      "goles": 3,
+      "asistenciasGol": 7
+    },
+    {
+      "id": "3",
+      "nombre": "Carlos",
+      "apellidos": "Martínez Sanz",
+      "apodo": "Carlitos",
+      "posicion": "Defensa",
+      "dorsal": 4,
+      "equipo": "Cadete B",
+      "categoria": "2ª Cadete",
+      "fechaNacimiento": "2014-07-15",
+      "asistencia": "85%",
+      "valoracionMedia": 3.5,
+      "ultimaValoracion": "2025-02-20",
+      "imagen": "/placeholder.svg?height=80&width=80",
+      "aptitudes": [
+        { "name": "Técnica", "value": 3.5, "fullMark": 5 },
+        { "name": "Táctica", "value": 3.8, "fullMark": 5 },
+        { "name": "Física", "value": 3.9, "fullMark": 5 },
+        { "name": "Mental", "value": 3.7, "fullMark": 5 }
+      ],
+      "historialEquipos": [
+        { "temporada": "2024-2025", "equipo": "Cadete B", "categoria": "2ª Cadete" },
+        { "temporada": "2023-2024", "equipo": "Infantil B", "categoria": "2ª Infantil" }
+      ],
+      "historialValoraciones": [
+        {
+          "fecha": "2025-02-20",
+          "trimestre": "1T 2025",
+          "aptitudes": [
+            { "name": "Técnica", "value": 3.5, "fullMark": 5 },
+            { "name": "Táctica", "value": 3.8, "fullMark": 5 },
+            { "name": "Física", "value": 3.9, "fullMark": 5 },
+            { "name": "Mental", "value": 3.7, "fullMark": 5 }
+          ],
+          "comentarios": "Defensa seguro, debe mejorar salida de balón."
+        }
+      ],
+      "asistencias": [
+        { "fecha": "2025-04-09", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-07", "tipo": "Entrenamiento", "asistio": true },
+        { "fecha": "2025-04-04", "tipo": "Entrenamiento", "asistio": true }
+      ],
+      "goles": 1,
+      "asistenciasGol": 2
+    }
+  ],
+  "objetivos": [
+    {
+      "id": "1",
+      "titulo": "Mejorar posesión de balón",
+      "descripcion": "Aumentar el tiempo de posesión en partidos al 60%",
+      "progreso": 75,
+      "fechaCreacion": "2025-01-15",
+      "fechaLimite": "2025-06-30",
+      "prioridad": "Alta",
+      "estado": "En progreso"
+    },
+    {
+      "id": "2",
+      "titulo": "Reducir goles encajados",
+      "descripcion": "Reducir en un 30% los goles encajados respecto a la temporada anterior",
+      "progreso": 60,
+      "fechaCreacion": "2025-01-15",
+      "fechaLimite": "2025-06-30",
+      "prioridad": "Alta",
+      "estado": "En progreso"
+    },
+    {
+      "id": "3",
+      "titulo": "Mejorar técnica individual",
+      "descripcion": "Enfocarse en el control y pase del balón",
+      "progreso": 65,
+      "fechaCreacion": "2025-01-10",
+      "fechaLimite": "2025-06-30",
+      "prioridad": "Media",
+      "estado": "En progreso"
+    }
+  ]
+}

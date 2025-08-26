@@ -11,79 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { SkillsChart } from "@/components/skills-chart"
 import { Separator } from "@/components/ui/separator"
+import cadeteB from "@/data/cadete-b.json"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  {
-    id: "1",
-    nombre: "Juan",
-    apellidos: "García López",
-    posicion: "Delantero",
-    dorsal: 9,
-    equipo: "Alevín A",
-    categoria: "1ª Alevín",
-    fechaNacimiento: "2014-05-12",
-    asistencia: "95%",
-    valoracionMedia: 4.2,
-    aptitudes: [
-      { name: "Técnica", value: 4.5, fullMark: 5 },
-      { name: "Táctica", value: 3.8, fullMark: 5 },
-      { name: "Física", value: 4.2, fullMark: 5 },
-      { name: "Mental", value: 4.3, fullMark: 5 }
-    ],
-    historialEquipos: [
-      { temporada: "2024-2025", equipo: "Alevín A", categoria: "1ª Alevín" },
-      { temporada: "2023-2024", equipo: "Benjamín A", categoria: "1ª Benjamín" },
-      { temporada: "2022-2023", equipo: "Prebenjamín B", categoria: "2ª Prebenjamín" }
-    ],
-    historialValoraciones: [
-      { 
-        fecha: "2025-03-15", 
-        trimestre: "1T 2025",
-        aptitudes: [
-          { name: "Técnica", value: 4.5, fullMark: 5 },
-          { name: "Táctica", value: 3.8, fullMark: 5 },
-          { name: "Física", value: 4.2, fullMark: 5 },
-          { name: "Mental", value: 4.3, fullMark: 5 }
-        ],
-        comentarios: "Excelente progresión en aspectos técnicos. Debe mejorar posicionamiento táctico."
-      },
-      { 
-        fecha: "2024-12-10", 
-        trimestre: "4T 2024",
-        aptitudes: [
-          { name: "Técnica", value: 4.3, fullMark: 5 },
-          { name: "Táctica", value: 3.5, fullMark: 5 },
-          { name: "Física", value: 4.0, fullMark: 5 },
-          { name: "Mental", value: 4.1, fullMark: 5 }
-        ],
-        comentarios: "Buena actitud en los entrenamientos. Ha mejorado su capacidad de finalización."
-      },
-      { 
-        fecha: "2024-09-20", 
-        trimestre: "3T 2024",
-        aptitudes: [
-          { name: "Técnica", value: 4.0, fullMark: 5 },
-          { name: "Táctica", value: 3.2, fullMark: 5 },
-          { name: "Física", value: 3.8, fullMark: 5 },
-          { name: "Mental", value: 3.9, fullMark: 5 }
-        ],
-        comentarios: "Buen inicio de temporada. Necesita mejorar en aspectos tácticos."
-      }
-    ],
-    asistencias: [
-      { fecha: "2025-04-09", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-04-07", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-04-04", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-04-02", tipo: "Entrenamiento", asistio: false, motivo: "Enfermedad" },
-      { fecha: "2025-03-31", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-03-28", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-03-26", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-03-24", tipo: "Entrenamiento", asistio: true }
-    ]
-  },
-  // Otros jugadores...
-]
+const jugadores = cadeteB.jugadores
 
 export default function JugadorDetallePage() {
   const params = useParams()

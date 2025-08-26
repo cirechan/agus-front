@@ -8,94 +8,9 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import cadeteB from "@/data/cadete-b.json"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  {
-    id: "1",
-    nombre: "Juan",
-    apellidos: "García López",
-    posicion: "Delantero",
-    dorsal: 9,
-    equipo: "Alevín A",
-    categoria: "1ª Alevín",
-    fechaNacimiento: "2014-05-12",
-    asistencia: "95%",
-    valoracionMedia: 4.2
-  },
-  {
-    id: "2",
-    nombre: "Miguel",
-    apellidos: "Fernández Ruiz",
-    posicion: "Centrocampista",
-    dorsal: 8,
-    equipo: "Alevín A",
-    categoria: "1ª Alevín",
-    fechaNacimiento: "2014-03-22",
-    asistencia: "90%",
-    valoracionMedia: 3.8
-  },
-  {
-    id: "3",
-    nombre: "Carlos",
-    apellidos: "Martínez Sanz",
-    posicion: "Defensa",
-    dorsal: 4,
-    equipo: "Benjamín B",
-    categoria: "2ª Benjamín",
-    fechaNacimiento: "2015-07-15",
-    asistencia: "85%",
-    valoracionMedia: 3.5
-  },
-  {
-    id: "4",
-    nombre: "David",
-    apellidos: "López Gómez",
-    posicion: "Portero",
-    dorsal: 1,
-    equipo: "Infantil A",
-    categoria: "1ª Infantil",
-    fechaNacimiento: "2012-11-30",
-    asistencia: "100%",
-    valoracionMedia: 4.5
-  },
-  {
-    id: "5",
-    nombre: "Javier",
-    apellidos: "Sánchez Pérez",
-    posicion: "Defensa",
-    dorsal: 2,
-    equipo: "Cadete B",
-    categoria: "2ª Cadete",
-    fechaNacimiento: "2010-02-18",
-    asistencia: "80%",
-    valoracionMedia: 3.7
-  },
-  {
-    id: "6",
-    nombre: "Alejandro",
-    apellidos: "González Díaz",
-    posicion: "Centrocampista",
-    dorsal: 6,
-    equipo: "Juvenil A",
-    categoria: "1ª Juvenil",
-    fechaNacimiento: "2008-09-05",
-    asistencia: "85%",
-    valoracionMedia: 4.0
-  },
-  {
-    id: "7",
-    nombre: "Daniel",
-    apellidos: "Pérez Martín",
-    posicion: "Delantero",
-    dorsal: 11,
-    equipo: "Juvenil A",
-    categoria: "1ª Juvenil",
-    fechaNacimiento: "2008-12-20",
-    asistencia: "90%",
-    valoracionMedia: 4.3
-  },
-]
+const jugadores = cadeteB.jugadores
 
 export default function JugadoresPage() {
   const [searchQuery, setSearchQuery] = React.useState("")

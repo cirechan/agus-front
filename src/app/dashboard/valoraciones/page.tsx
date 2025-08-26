@@ -12,17 +12,9 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import cadeteB from "@/data/cadete-b.json"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A", posicion: "Delantero", ultimaValoracion: "2025-03-15" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A", posicion: "Centrocampista", ultimaValoracion: "2025-03-15" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A", posicion: "Defensa", ultimaValoracion: "2025-02-20" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A", posicion: "Portero", ultimaValoracion: "2025-02-20" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A", posicion: "Defensa", ultimaValoracion: null },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A", posicion: "Centrocampista", ultimaValoracion: null },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A", posicion: "Delantero", ultimaValoracion: null },
-]
+const jugadores = cadeteB.jugadores
 
 // Aptitudes a valorar
 const aptitudes = [

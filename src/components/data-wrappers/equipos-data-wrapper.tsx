@@ -5,6 +5,7 @@ import { useApi } from '@/lib/api/context'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { AlertCircle } from 'lucide-react'
+import cadeteB from '@/data/cadete-b.json'
 
 interface ApiStatus {
   status: string;
@@ -44,33 +45,20 @@ export default function EquiposDataWrapper({ children }: EquiposDataWrapperProps
     const fetchData = async () => {
       try {
         setLoading(true)
-        // Si la API está offline, usar datos de ejemplo
+        // Si la API está offline, usar datos del JSON
         if (apiStatus.status === 'offline') {
-          // Datos de ejemplo para modo offline
           const mockData: Equipo[] = [
             {
-              id: "1",
-              nombre: "Alevín A",
-              categoria: "1ª Alevín",
-              players: 15,
-              coach: "Carlos Martínez",
+              id: cadeteB.id,
+              nombre: cadeteB.nombre,
+              categoria: cadeteB.categoria,
+              players: cadeteB.jugadores.length,
+              coach: cadeteB.entrenador,
               image: null,
-              asistenciaPromedio: "85%",
-              valoracionMedia: 3.8,
-              objetivosCumplidos: "65%"
-            },
-            {
-              id: "2",
-              nombre: "Benjamín B",
-              categoria: "2ª Benjamín",
-              players: 14,
-              coach: "Laura Sánchez",
-              image: null,
-              asistenciaPromedio: "80%",
-              valoracionMedia: 3.5,
-              objetivosCumplidos: "60%"
-            },
-            // Más datos de ejemplo...
+              asistenciaPromedio: cadeteB.asistenciaPromedio,
+              valoracionMedia: cadeteB.valoracionMedia,
+              objetivosCumplidos: cadeteB.objetivosCumplidos
+            }
           ]
           setData(mockData)
           console.log('Usando datos de ejemplo en modo offline')
