@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { CalendarIcon, ChevronLeft, ChevronRight, FilterIcon, PlusCircle, Star, StarHalf } from "lucide-react"
-import { format, addMonths, subMonths, parseISO } from "date-fns"
+import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle, Star, StarHalf } from "lucide-react"
+import { format, addMonths, subMonths } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
@@ -13,16 +13,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A", posicion: "Delantero", ultimaValoracion: "2025-03-15" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A", posicion: "Centrocampista", ultimaValoracion: "2025-03-15" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A", posicion: "Defensa", ultimaValoracion: "2025-02-20" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A", posicion: "Portero", ultimaValoracion: "2025-02-20" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A", posicion: "Defensa", ultimaValoracion: null },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A", posicion: "Centrocampista", ultimaValoracion: null },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A", posicion: "Delantero", ultimaValoracion: null },
-]
+import jugadoresData from "@/data/jugadores.json"
+import equiposData from "@/data/equipos.json"
+
+const equipo = (equiposData as any[])[0]
+const jugadores = (jugadoresData as any[]).filter(
+  (j) => j.equipoId === equipo.id
+).map((j, index) => ({
+  id: String(j.id),
+  nombre: j.nombre,
+  apellidos: "",
+  dorsal: index + 1,
+  equipo: equipo.nombre,
+  posicion: j.posicion,
+  ultimaValoracion: null,
+}))
 
 // Aptitudes a valorar
 const aptitudes = [
@@ -268,15 +273,15 @@ export default function ValoracionesPage() {
                       className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50 ${jugadorSeleccionado === jugador.id ? 'bg-muted' : ''}`}
                       onClick={() => setJugadorSeleccionado(jugador.id)}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                          {jugador.dorsal}
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            {jugador.dorsal}
+                          </div>
+                          <div>
+                            <p className="font-medium">{jugador.nombre}</p>
+                            <p className="text-sm text-muted-foreground">{jugador.posicion}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{jugador.nombre} {jugador.apellidos}</p>
-                          <p className="text-sm text-muted-foreground">{jugador.posicion}</p>
-                        </div>
-                      </div>
                       {jugador.ultimaValoracion && new Date(jugador.ultimaValoracion) >= new Date(trimestres.find(t => t.id === trimestreActual)?.fechaInicio || "") ? (
                         <Badge variant="outline" className="bg-green-50 text-green-700">
                           Valorado
@@ -303,7 +308,7 @@ export default function ValoracionesPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {jugadores.find(j => j.id === jugadorSeleccionado)?.nombre} {jugadores.find(j => j.id === jugadorSeleccionado)?.apellidos}
+                  {jugadores.find(j => j.id === jugadorSeleccionado)?.nombre}
                 </CardTitle>
                 <CardDescription>
                   {jugadores.find(j => j.id === jugadorSeleccionado)?.posicion} - Dorsal {jugadores.find(j => j.id === jugadorSeleccionado)?.dorsal}

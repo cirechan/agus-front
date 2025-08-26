@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle } from "lucide-react"
-import { format, addDays, subDays, isToday, parseISO } from "date-fns"
+import { format, addDays, subDays, isToday } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
@@ -13,16 +13,19 @@ import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A" },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A" },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A" },
-]
+import jugadoresData from "@/data/jugadores.json"
+import equiposData from "@/data/equipos.json"
+import temporadasData from "@/data/temporadas.json"
+
+const equipo = (equiposData as any[])[0]
+const temporadaActual = (temporadasData as any).temporadaActiva
+const jugadores = (jugadoresData as any[]).filter(
+  (j) => j.equipoId === equipo.id
+).map((j, index) => ({
+  id: String(j.id),
+  nombre: j.nombre,
+  dorsal: index + 1,
+}))
 
 // Motivos de ausencia predefinidos
 const motivosAusencia = [
@@ -119,7 +122,7 @@ export default function AsistenciasPage() {
             <CardHeader>
               <CardTitle>Horarios de Entrenamiento</CardTitle>
               <CardDescription>
-                Alevín A - Temporada 2024-2025
+                {equipo.nombre} - Temporada {temporadaActual}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -201,7 +204,7 @@ export default function AsistenciasPage() {
                       const registro = registros.find(r => r.jugadorId === jugador.id)
                       return (
                         <tr key={jugador.id} className="border-b">
-                          <td className="p-2">{jugador.nombre} {jugador.apellidos}</td>
+                          <td className="p-2">{jugador.nombre}</td>
                           <td className="p-2">{jugador.dorsal}</td>
                           <td className="p-2">
                             <Switch
