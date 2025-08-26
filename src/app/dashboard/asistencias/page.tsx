@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
@@ -35,10 +36,11 @@ const motivosAusencia = [
   { value: "estudios", label: "Estudios" },
   { value: "viaje", label: "Viaje" },
   { value: "no_justificado", label: "No justificado" },
+  { value: "otro", label: "Otro" },
 ]
 
 // Horarios de entrenamiento predefinidos
-const horariosEntrenamiento = [
+const horariosIniciales = [
   { dia: "Lunes", hora: "18:00", duracion: "90 min" },
   { dia: "Miércoles", hora: "18:00", duracion: "90 min" },
   { dia: "Viernes", hora: "17:30", duracion: "90 min" },
@@ -50,7 +52,13 @@ export default function AsistenciasPage() {
     jugadorId: string;
     asistio: boolean;
     motivo?: string;
+    motivoPersonalizado?: string;
   }[]>([])
+  const [horarios, setHorarios] = React.useState(horariosIniciales)
+
+  const handleAddHorario = () => {
+    setHorarios(prev => [...prev, { dia: "Nuevo", hora: "18:00", duracion: "90 min" }])
+  }
   
   // Inicializar registros con todos los jugadores asistiendo por defecto
   React.useEffect(() => {
@@ -66,7 +74,7 @@ export default function AsistenciasPage() {
     setRegistros(prev => 
       prev.map(registro => 
         registro.jugadorId === jugadorId 
-          ? { ...registro, asistio, motivo: asistio ? undefined : registro.motivo } 
+          ? { ...registro, asistio, motivo: asistio ? undefined : registro.motivo, motivoPersonalizado: asistio ? undefined : registro.motivoPersonalizado }
           : registro
       )
     )
@@ -74,10 +82,20 @@ export default function AsistenciasPage() {
   
   // Manejar cambio de motivo de ausencia
   const handleMotivoChange = (jugadorId: string, motivo: string) => {
-    setRegistros(prev => 
-      prev.map(registro => 
-        registro.jugadorId === jugadorId 
-          ? { ...registro, motivo } 
+    setRegistros(prev =>
+      prev.map(registro =>
+        registro.jugadorId === jugadorId
+          ? { ...registro, motivo }
+          : registro
+      )
+    )
+  }
+
+  const handleMotivoPersonalizadoChange = (jugadorId: string, motivoPersonalizado: string) => {
+    setRegistros(prev =>
+      prev.map(registro =>
+        registro.jugadorId === jugadorId
+          ? { ...registro, motivoPersonalizado }
           : registro
       )
     )
@@ -95,10 +113,13 @@ export default function AsistenciasPage() {
   
   // Guardar registros de asistencia
   const handleGuardarAsistencias = () => {
-    // Aquí se enviarían los datos al backend
+    const registrosFinales = registros.map(r => ({
+      ...r,
+      motivo: r.motivo === 'otro' ? r.motivoPersonalizado : r.motivo
+    }))
     console.log("Guardando asistencias:", {
       fecha: format(fecha, "yyyy-MM-dd"),
-      registros
+      registros: registrosFinales
     })
     
     // Mostrar mensaje de éxito (en una implementación real)
@@ -127,7 +148,7 @@ export default function AsistenciasPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {horariosEntrenamiento.map((horario, index) => (
+                {horarios.map((horario, index) => (
                   <div key={index} className="flex items-center justify-between rounded-lg border p-3">
                     <div>
                       <p className="font-medium">{horario.dia}</p>
@@ -141,7 +162,7 @@ export default function AsistenciasPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={handleAddHorario}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Añadir horario
               </Button>
@@ -214,21 +235,30 @@ export default function AsistenciasPage() {
                           </td>
                           <td className="p-2">
                             {registro && !registro.asistio && (
-                              <Select
-                                value={registro.motivo}
-                                onValueChange={(value) => handleMotivoChange(jugador.id, value)}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Seleccionar motivo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {motivosAusencia.map((motivo) => (
-                                    <SelectItem key={motivo.value} value={motivo.value}>
-                                      {motivo.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="space-y-2">
+                                <Select
+                                  value={registro.motivo}
+                                  onValueChange={(value) => handleMotivoChange(jugador.id, value)}
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Seleccionar motivo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {motivosAusencia.map((motivo) => (
+                                      <SelectItem key={motivo.value} value={motivo.value}>
+                                        {motivo.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {registro.motivo === 'otro' && (
+                                  <Input
+                                    value={registro.motivoPersonalizado || ''}
+                                    onChange={(e) => handleMotivoPersonalizadoChange(jugador.id, e.target.value)}
+                                    placeholder="Motivo"
+                                  />
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
