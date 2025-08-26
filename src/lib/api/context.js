@@ -7,7 +7,7 @@ import axios from 'axios'
 const API_URL = 'https://agus-back.onrender.com/api'
 
 // Crear el contexto
-const ApiContext = createContext(null)
+export const ApiContext = createContext(null)
 
 // Hook personalizado para usar el contexto
 export const useApi = () => {

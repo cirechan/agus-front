@@ -14,6 +14,7 @@ interface ApiStatus {
 }
 
 export default function ApiStatusChecker() {
+  if (process.env.NEXT_PUBLIC_DATA_SOURCE === 'local') return null
   const { apiStatus, checkApiStatus, isLoading } = useApi() as {
     apiStatus: ApiStatus;
     checkApiStatus: () => void;
