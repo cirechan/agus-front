@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 
-import { equiposService } from "@/lib/api/services" // 👈 asegúrate de que este import esté correcto
+import equiposData from "@/data/equipos.json"
 
 interface Team {
   id: string
@@ -28,30 +28,20 @@ export function TeamSelector() {
   const [teams, setTeams] = React.useState<Team[]>([])
   const [selectedTeam, setSelectedTeam] = React.useState<Team | null>(null)
 
-  // Cargar equipos desde la API
+  // Cargar equipos desde el JSON local
   React.useEffect(() => {
-    const fetchEquipos = async () => {
-      try {
-        const response = await equiposService.getAll()
+    const mapped: Team[] = (equiposData as any[]).map((equipo: any) => ({
+      id: String(equipo.id ?? equipo._id),
+      name: equipo.nombre,
+      category: equipo.categoria,
+      icon: <ShieldIcon className="h-4 w-4" />,
+    }))
 
-        const mapped: Team[] = response.map((equipo: any) => ({
-          id: equipo._id,
-          name: equipo.nombre,
-          category: equipo.categoria,
-          icon: <ShieldIcon className="h-4 w-4" />,
-        }))
+    setTeams(mapped)
 
-        setTeams(mapped)
-
-        if (!selectedTeam && mapped.length > 0) {
-          setSelectedTeam(mapped[0])
-        }
-      } catch (error) {
-        console.error("Error al cargar equipos:", error)
-      }
+    if (!selectedTeam && mapped.length > 0) {
+      setSelectedTeam(mapped[0])
     }
-
-    fetchEquipos()
   }, [selectedTeam])
 
   return (

@@ -22,10 +22,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { equiposService, temporadasService } from "@/lib/api/services"
+import equiposData from "@/data/equipos.json"
+import temporadasData from "@/data/temporadas.json"
 import { partidosService } from "@/lib/api/partidos"
 import { PartidoFormData, Partido } from "@/types/horarios"
 import { Skeleton } from "@/components/ui/skeleton"
+
+interface SelectOption {
+  value: string
+  label: string
+}
 
 const partidoSchema = z.object({
   equipo: z.string().min(1, "Selecciona un equipo"),
@@ -56,8 +62,8 @@ export default function EditarPartidoPage() {
   const router = useRouter()
   const params = useParams()
   const [partido, setPartido] = useState<Partido | null>(null)
-  const [equipos, setEquipos] = useState([])
-  const [temporadas, setTemporadas] = useState([])
+  const [equipos, setEquipos] = useState<SelectOption[]>([])
+  const [temporadas, setTemporadas] = useState<SelectOption[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -84,19 +90,23 @@ export default function EditarPartidoPage() {
         const partidoResponse = await partidosService.getPartidoById(params.id as string)
         setPartido(partidoResponse.data)
         
-        // Cargar equipos
-        const equiposResponse = await equiposService.getAll()
-        setEquipos(equiposResponse.map((equipo: { _id: any; nombre: any }) => ({
-          value: equipo._id,
-          label: equipo.nombre
-        })))
-        
-        // Cargar temporadas
-        const temporadasResponse = await temporadasService.getAll()
-        setTemporadas(temporadasResponse.map((temporada: { _id: any; nombre: any }) => ({
-          value: temporada._id,
-          label: temporada.nombre
-        })))
+        // Cargar equipos desde JSON
+        const equiposResponse = equiposData as any[]
+        setEquipos(
+          equiposResponse.map((equipo: any) => ({
+            value: String(equipo.id ?? equipo._id),
+            label: equipo.nombre,
+          }))
+        )
+
+        // Cargar temporadas desde JSON
+        const temporadasResponse = (temporadasData as any).temporadas || []
+        setTemporadas(
+          temporadasResponse.map((temporada: any) => ({
+            value: String(temporada.id ?? temporada._id),
+            label: temporada.nombre,
+          }))
+        )
         
         // Establecer valores del formulario
         const partidoData = partidoResponse.data

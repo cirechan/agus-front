@@ -9,7 +9,7 @@ import { PartidosList } from "@/components/horarios/partidos-list"
 import { ResultadosList } from "@/components/horarios/resultados-list"
 import { EstadisticasView } from "@/components/horarios/estadisticas-view"
 import { CustomSelect } from "@/components/ui/custom-select"
-import { equiposService } from "@/lib/api/services"
+import equiposData from "@/data/equipos.json"
 import { addDays } from "date-fns"
 import Link from "next/link"
 import { Plus } from "lucide-react"
@@ -31,22 +31,13 @@ export default function HorariosPage() {
   const [loading, setLoading] = useState<boolean>(true)
 
   useEffect(() => {
-    const fetchEquipos = async () => {
-      try {
-        setLoading(true)
-        const response = await equiposService.getAll()
-        setEquipos(response.map((equipo: { _id: string; nombre: string }) => ({
-          value: equipo._id,
-          label: equipo.nombre,
-        })))
-      } catch (error) {
-        console.error("Error al cargar equipos:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchEquipos()
+    setLoading(true)
+    const mapped = (equiposData as any[]).map((equipo: any) => ({
+      value: String(equipo.id ?? equipo._id),
+      label: equipo.nombre,
+    }))
+    setEquipos(mapped)
+    setLoading(false)
   }, [])
 
   return (

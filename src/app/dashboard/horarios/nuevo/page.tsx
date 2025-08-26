@@ -23,11 +23,17 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { equiposService, temporadasService } from "@/lib/api/services"
+import equiposData from "@/data/equipos.json"
+import temporadasData from "@/data/temporadas.json"
 import { partidosService } from "@/lib/api/partidos"
 import { useEffect } from "react"
 import { PartidoFormData } from "@/types/horarios"
 import { Skeleton } from "@/components/ui/skeleton"
+
+interface SelectOption {
+  value: string
+  label: string
+}
 
 const partidoSchema = z.object({
   equipo: z.string().min(1, "Selecciona un equipo"),
@@ -56,8 +62,8 @@ const partidoSchema = z.object({
 
 export default function NuevoPartidoPage() {
   const router = useRouter()
-  const [equipos, setEquipos] = useState([])
-  const [temporadas, setTemporadas] = useState([])
+  const [equipos, setEquipos] = useState<SelectOption[]>([])
+  const [temporadas, setTemporadas] = useState<SelectOption[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -76,39 +82,33 @@ export default function NuevoPartidoPage() {
   const ubicacion = form.watch("ubicacion")
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true)
-        
-        // Cargar equipos
-        const equiposResponse = await equiposService.getAll()
-        setEquipos(equiposResponse.map((equipo: { _id: any; nombre: any }) => ({
-          value: equipo._id,
-          label: equipo.nombre
-        })))
-        
-        // Cargar temporadas
-        const temporadasResponse = await temporadasService.getAll()
-        setTemporadas(temporadasResponse.map((temporada: { _id: any; nombre: any }) => ({
-          value: temporada._id,
-          label: temporada.nombre
-        })))
-        
-        // Establecer temporada activa por defecto
-        const temporadaActiva = temporadasResponse.find((t: { activa: any }) => t.activa)
-        if (temporadaActiva) {
-          form.setValue("temporada", temporadaActiva._id)
-        }
-        
-      } catch (err) {
-        console.error("Error al cargar datos:", err)
-        setError("Error al cargar los datos necesarios")
-      } finally {
-        setLoading(false)
-      }
+    setLoading(true)
+
+    // Cargar equipos desde JSON
+    const equiposResponse = equiposData as any[]
+    setEquipos(
+      equiposResponse.map((equipo: any) => ({
+        value: String(equipo.id ?? equipo._id),
+        label: equipo.nombre,
+      }))
+    )
+
+    // Cargar temporadas desde JSON
+    const temporadasResponse = (temporadasData as any).temporadas || []
+    setTemporadas(
+      temporadasResponse.map((temporada: any) => ({
+        value: String(temporada.id ?? temporada._id),
+        label: temporada.nombre,
+      }))
+    )
+
+    // Establecer temporada activa por defecto
+    const temporadaActiva = (temporadasData as any).temporadaActiva
+    if (temporadaActiva) {
+      form.setValue("temporada", temporadaActiva)
     }
-    
-    fetchData()
+
+    setLoading(false)
   }, [form])
 
   const onSubmit = async (data: PartidoFormData) => {
