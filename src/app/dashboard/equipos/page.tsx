@@ -9,54 +9,42 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from "@/components/ui/input"
 import { SectionCards } from "@/components/section-cards"
 
-// Datos de ejemplo - en producción vendrían de la API
-const teams = [
-  {
-    id: "1",
-    name: "Alevín A",
-    category: "1ª Alevín",
-    players: 15,
-    coach: "Carlos Martínez",
-    image: null
-  },
-  {
-    id: "2",
-    name: "Benjamín B",
-    category: "2ª Benjamín",
-    players: 14,
-    coach: "Laura Sánchez",
-    image: null
-  },
-  {
-    id: "3",
-    name: "Infantil A",
-    category: "1ª Infantil",
-    players: 18,
-    coach: "Miguel López",
-    image: null
-  },
-  {
-    id: "4",
-    name: "Cadete B",
-    category: "2ª Cadete",
-    players: 16,
-    coach: "Ana García",
-    image: null
-  },
-  {
-    id: "5",
-    name: "Juvenil A",
-    category: "1ª Juvenil",
-    players: 18,
-    coach: "Pedro Rodríguez",
-    image: null
-  },
-]
+interface Team {
+  id: string
+  name: string
+  category: string
+  players: number
+  coach: string
+  image: string | null
+}
 
 export default function EquiposPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
-  
-  const filteredTeams = teams.filter(team => 
+  const [teams, setTeams] = React.useState<Team[]>([])
+
+  React.useEffect(() => {
+    const fetchEquipos = async () => {
+      try {
+        const res = await fetch('/api/equipos')
+        if (!res.ok) throw new Error('Error al obtener equipos')
+        const data = await res.json()
+        const mapped: Team[] = data.map((equipo: any) => ({
+          id: equipo._id,
+          name: equipo.nombre,
+          category: equipo.categoria,
+          players: equipo.jugadores?.length ?? equipo.jugadores ?? 0,
+          coach: equipo.entrenador || '',
+          image: null,
+        }))
+        setTeams(mapped)
+      } catch (error) {
+        console.error('Error al cargar equipos:', error)
+      }
+    }
+    fetchEquipos()
+  }, [])
+
+  const filteredTeams = teams.filter(team =>
     team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     team.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
     team.coach.toLowerCase().includes(searchQuery.toLowerCase())

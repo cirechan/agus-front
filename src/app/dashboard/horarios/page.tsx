@@ -9,7 +9,7 @@ import { PartidosList } from "@/components/horarios/partidos-list"
 import { ResultadosList } from "@/components/horarios/resultados-list"
 import { EstadisticasView } from "@/components/horarios/estadisticas-view"
 import { CustomSelect } from "@/components/ui/custom-select"
-import { equiposService } from "@/lib/api/services"
+// Los equipos se obtienen desde la API del proyecto
 import { addDays } from "date-fns"
 import Link from "next/link"
 import { Plus } from "lucide-react"
@@ -34,11 +34,15 @@ export default function HorariosPage() {
     const fetchEquipos = async () => {
       try {
         setLoading(true)
-        const response = await equiposService.getAll()
-        setEquipos(response.map((equipo: { _id: string; nombre: string }) => ({
-          value: equipo._id,
-          label: equipo.nombre,
-        })))
+        const res = await fetch('/api/equipos')
+        if (!res.ok) throw new Error('Error al obtener equipos')
+        const data = await res.json()
+        setEquipos(
+          data.map((equipo: { _id: string; nombre: string }) => ({
+            value: equipo._id,
+            label: equipo.nombre,
+          }))
+        )
       } catch (error) {
         console.error("Error al cargar equipos:", error)
       } finally {

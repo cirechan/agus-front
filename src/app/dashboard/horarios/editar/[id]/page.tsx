@@ -22,7 +22,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { equiposService, temporadasService } from "@/lib/api/services"
+// Los equipos y temporadas se obtienen desde la API del proyecto
 import { partidosService } from "@/lib/api/partidos"
 import { PartidoFormData, Partido } from "@/types/horarios"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -83,20 +83,28 @@ export default function EditarPartidoPage() {
         // Cargar partido
         const partidoResponse = await partidosService.getPartidoById(params.id as string)
         setPartido(partidoResponse.data)
-        
+
         // Cargar equipos
-        const equiposResponse = await equiposService.getAll()
-        setEquipos(equiposResponse.map((equipo: { _id: any; nombre: any }) => ({
-          value: equipo._id,
-          label: equipo.nombre
-        })))
-        
+        const equiposRes = await fetch('/api/equipos')
+        if (!equiposRes.ok) throw new Error('Error al obtener equipos')
+        const equiposData = await equiposRes.json()
+        setEquipos(
+          equiposData.map((equipo: { _id: any; nombre: any }) => ({
+            value: equipo._id,
+            label: equipo.nombre
+          }))
+        )
+
         // Cargar temporadas
-        const temporadasResponse = await temporadasService.getAll()
-        setTemporadas(temporadasResponse.map((temporada: { _id: any; nombre: any }) => ({
-          value: temporada._id,
-          label: temporada.nombre
-        })))
+        const temporadasRes = await fetch('/api/temporadas')
+        if (!temporadasRes.ok) throw new Error('Error al obtener temporadas')
+        const temporadasData = await temporadasRes.json()
+        setTemporadas(
+          temporadasData.map((temporada: { _id: any; nombre: any }) => ({
+            value: temporada._id,
+            label: temporada.nombre
+          }))
+        )
         
         // Establecer valores del formulario
         const partidoData = partidoResponse.data

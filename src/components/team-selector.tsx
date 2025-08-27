@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 
-import { equiposService } from "@/lib/api/services" // 👈 asegúrate de que este import esté correcto
+// Los datos de los equipos ahora se obtienen mediante fetch a la ruta API
 
 interface Team {
   id: string
@@ -32,9 +32,11 @@ export function TeamSelector() {
   React.useEffect(() => {
     const fetchEquipos = async () => {
       try {
-        const response = await equiposService.getAll()
+        const res = await fetch('/api/equipos')
+        if (!res.ok) throw new Error('Error al obtener equipos')
+        const data = await res.json()
 
-        const mapped: Team[] = response.map((equipo: any) => ({
+        const mapped: Team[] = data.map((equipo: any) => ({
           id: equipo._id,
           name: equipo.nombre,
           category: equipo.categoria,

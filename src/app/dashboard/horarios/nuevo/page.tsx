@@ -23,7 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
-import { equiposService, temporadasService } from "@/lib/api/services"
+// Los datos se obtienen mediante llamadas a las rutas de la API del proyecto
 import { partidosService } from "@/lib/api/partidos"
 import { useEffect } from "react"
 import { PartidoFormData } from "@/types/horarios"
@@ -81,21 +81,29 @@ export default function NuevoPartidoPage() {
         setLoading(true)
         
         // Cargar equipos
-        const equiposResponse = await equiposService.getAll()
-        setEquipos(equiposResponse.map((equipo: { _id: any; nombre: any }) => ({
-          value: equipo._id,
-          label: equipo.nombre
-        })))
-        
+        const equiposRes = await fetch('/api/equipos')
+        if (!equiposRes.ok) throw new Error('Error al obtener equipos')
+        const equiposData = await equiposRes.json()
+        setEquipos(
+          equiposData.map((equipo: { _id: any; nombre: any }) => ({
+            value: equipo._id,
+            label: equipo.nombre
+          }))
+        )
+
         // Cargar temporadas
-        const temporadasResponse = await temporadasService.getAll()
-        setTemporadas(temporadasResponse.map((temporada: { _id: any; nombre: any }) => ({
-          value: temporada._id,
-          label: temporada.nombre
-        })))
-        
+        const temporadasRes = await fetch('/api/temporadas')
+        if (!temporadasRes.ok) throw new Error('Error al obtener temporadas')
+        const temporadasData = await temporadasRes.json()
+        setTemporadas(
+          temporadasData.map((temporada: { _id: any; nombre: any }) => ({
+            value: temporada._id,
+            label: temporada.nombre
+          }))
+        )
+
         // Establecer temporada activa por defecto
-        const temporadaActiva = temporadasResponse.find((t: { activa: any }) => t.activa)
+        const temporadaActiva = temporadasData.find((t: { activa: any }) => t.activa)
         if (temporadaActiva) {
           form.setValue("temporada", temporadaActiva._id)
         }
