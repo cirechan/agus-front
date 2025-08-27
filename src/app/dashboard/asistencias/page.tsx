@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle } from "lucide-react"
-import { format, addDays, subDays, isToday, parseISO } from "date-fns"
+import { format, addDays, subDays, isToday } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
@@ -12,17 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A" },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A" },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A" },
-]
+import { equiposService, jugadoresService } from "@/lib/api/services"
 
 // Motivos de ausencia predefinidos
 const motivosAusencia = [
@@ -43,20 +33,40 @@ const horariosEntrenamiento = [
 
 export default function AsistenciasPage() {
   const [fecha, setFecha] = React.useState<Date>(new Date())
+  const [equipo, setEquipo] = React.useState<any | null>(null)
+  const [jugadores, setJugadores] = React.useState<any[]>([])
   const [registros, setRegistros] = React.useState<{
     jugadorId: string;
     asistio: boolean;
     motivo?: string;
   }[]>([])
-  
+
+  // Obtener equipo y jugadores
+  React.useEffect(() => {
+    const fetchDatos = async () => {
+      try {
+        const equipos = await equiposService.getByTemporada("1")
+        if (equipos && equipos.length > 0) {
+          const equipoActual = equipos[0]
+          setEquipo(equipoActual)
+          const jugadoresEquipo = await jugadoresService.getByEquipo(equipoActual._id || equipoActual.id)
+          setJugadores(jugadoresEquipo)
+        }
+      } catch (err) {
+        console.error('Error al cargar equipo o jugadores:', err)
+      }
+    }
+    fetchDatos()
+  }, [])
+
   // Inicializar registros con todos los jugadores asistiendo por defecto
   React.useEffect(() => {
-    const registrosIniciales = jugadores.map(jugador => ({
-      jugadorId: jugador.id,
+    const registrosIniciales = jugadores.map((jugador: any) => ({
+      jugadorId: jugador.id || jugador._id,
       asistio: true
     }))
     setRegistros(registrosIniciales)
-  }, [])
+  }, [jugadores])
   
   // Manejar cambio de asistencia
   const handleAsistenciaChange = (jugadorId: string, asistio: boolean) => {
@@ -119,7 +129,7 @@ export default function AsistenciasPage() {
             <CardHeader>
               <CardTitle>Horarios de Entrenamiento</CardTitle>
               <CardDescription>
-                Alevín A - Temporada 2024-2025
+                {equipo ? `${equipo.nombre} - ${equipo?.temporada?.nombre ?? ''}` : 'Cargando...'}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -198,22 +208,23 @@ export default function AsistenciasPage() {
                   </thead>
                   <tbody>
                     {jugadores.map((jugador) => {
-                      const registro = registros.find(r => r.jugadorId === jugador.id)
+                      const jugadorId = jugador.id || jugador._id
+                      const registro = registros.find(r => r.jugadorId === jugadorId)
                       return (
-                        <tr key={jugador.id} className="border-b">
+                        <tr key={jugadorId} className="border-b">
                           <td className="p-2">{jugador.nombre} {jugador.apellidos}</td>
                           <td className="p-2">{jugador.dorsal}</td>
                           <td className="p-2">
                             <Switch
                               checked={registro?.asistio ?? true}
-                              onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
+                              onCheckedChange={(checked) => handleAsistenciaChange(jugadorId, checked)}
                             />
                           </td>
                           <td className="p-2">
                             {registro && !registro.asistio && (
                               <Select
                                 value={registro.motivo}
-                                onValueChange={(value) => handleMotivoChange(jugador.id, value)}
+                                onValueChange={(value) => handleMotivoChange(jugadorId, value)}
                               >
                                 <SelectTrigger className="w-full">
                                   <SelectValue placeholder="Seleccionar motivo" />
