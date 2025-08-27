@@ -17,6 +17,47 @@ export default async function JugadorPage({ params }: { params: { id: string } }
   const asistencias = await asistenciasService.getByJugador(id)
   const valoraciones = await valoracionesService.getByJugador(id)
 
+  // resumen de asistencias
+  const totalSesiones = asistencias.length
+  const presentes = asistencias.filter((a: any) => a.asistio).length
+  const porcentajeAsistencia = totalSesiones
+    ? ((presentes / totalSesiones) * 100).toFixed(1)
+    : "0"
+
+  // medias de valoraciones
+  const promedios = valoraciones.length
+    ? {
+        tecnica:
+          (
+            valoraciones.reduce(
+              (sum: number, v: any) => sum + (v.aptitudes.tecnica || 0),
+              0
+            ) / valoraciones.length
+          ).toFixed(1),
+        tactica:
+          (
+            valoraciones.reduce(
+              (sum: number, v: any) => sum + (v.aptitudes.tactica || 0),
+              0
+            ) / valoraciones.length
+          ).toFixed(1),
+        fisica:
+          (
+            valoraciones.reduce(
+              (sum: number, v: any) => sum + (v.aptitudes.fisica || 0),
+              0
+            ) / valoraciones.length
+          ).toFixed(1),
+        mental:
+          (
+            valoraciones.reduce(
+              (sum: number, v: any) => sum + (v.aptitudes.mental || 0),
+              0
+            ) / valoraciones.length
+          ).toFixed(1),
+      }
+    : null
+
   async function actualizarJugador(formData: FormData) {
     "use server"
     const nombre = formData.get("nombre") as string
@@ -78,6 +119,32 @@ export default async function JugadorPage({ params }: { params: { id: string } }
 
       <Card>
         <CardHeader>
+          <CardTitle>Resumen</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-2 text-sm">
+          <div className="font-medium">Sesiones registradas:</div>
+          <div>{totalSesiones}</div>
+          <div className="font-medium">Asistencias:</div>
+          <div>
+            {presentes} ({porcentajeAsistencia}%)
+          </div>
+          {promedios && (
+            <>
+              <div className="font-medium">Prom. Técnica:</div>
+              <div>{promedios.tecnica}</div>
+              <div className="font-medium">Prom. Táctica:</div>
+              <div>{promedios.tactica}</div>
+              <div className="font-medium">Prom. Física:</div>
+              <div>{promedios.fisica}</div>
+              <div className="font-medium">Prom. Mental:</div>
+              <div>{promedios.mental}</div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Asistencias</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -102,7 +169,12 @@ export default async function JugadorPage({ params }: { params: { id: string } }
         <CardContent className="space-y-4">
           <ul className="space-y-1 text-sm">
             {valoraciones.map((v: any) => (
-              <li key={v.id}>{new Date(v.fecha).toLocaleDateString()}: {((v.aptitudes.tecnica + v.aptitudes.tactica + v.aptitudes.fisica + v.aptitudes.mental)/4).toFixed(1)}/5</li>
+              <li key={v.id}>
+                {new Date(v.fecha).toLocaleDateString()}: Técnica {v.aptitudes.tecnica}, Táctica {v.aptitudes.tactica}, Física {v.aptitudes.fisica}, Mental {v.aptitudes.mental}
+                {v.comentarios && (
+                  <span> – {v.comentarios}</span>
+                )}
+              </li>
             ))}
             {valoraciones.length === 0 && <li>No hay valoraciones</li>}
           </ul>

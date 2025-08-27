@@ -112,18 +112,21 @@ export default function AsistenciasPage() {
   }
   
   // Guardar registros de asistencia
-  const handleGuardarAsistencias = () => {
+  const handleGuardarAsistencias = async () => {
     const registrosFinales = registros.map(r => ({
       ...r,
       motivo: r.motivo === 'otro' ? r.motivoPersonalizado : r.motivo
     }))
-    console.log("Guardando asistencias:", {
-      fecha: format(fecha, "yyyy-MM-dd"),
-      registros: registrosFinales
+    await fetch('/api/asistencias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha: format(fecha, 'yyyy-MM-dd'),
+        registros: registrosFinales,
+        equipoId: equipo.id,
+      })
     })
-    
-    // Mostrar mensaje de éxito (en una implementación real)
-    alert("Asistencias guardadas correctamente")
+    alert('Asistencias guardadas correctamente')
   }
   
   return (
