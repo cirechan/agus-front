@@ -35,6 +35,10 @@ db.serialize(() => {
     aptitudes TEXT,
     comentarios TEXT
   )`);
+  db.run(`CREATE TABLE IF NOT EXISTS scouting (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data TEXT
+  )`);
 });
 
 export const run = (sql: string, params: any[] = []): Promise<{ id: number; changes: number }> =>

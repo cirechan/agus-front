@@ -252,6 +252,34 @@ export const valoracionesService = {
   }
 };
 
+// Servicios para scouting
+export const scoutingService = {
+  getAll: async () => {
+    const rows = await all('SELECT * FROM scouting');
+    return rows.map((r) => ({ id: r.id, ...JSON.parse(r.data) }));
+  },
+
+  getById: async (id) => {
+    const row = await get('SELECT * FROM scouting WHERE id = ?', [id]);
+    return row ? { id: row.id, ...JSON.parse(row.data) } : null;
+  },
+
+  create: async (data) => {
+    const result = await run('INSERT INTO scouting (data) VALUES (?)', [JSON.stringify(data)]);
+    return { id: result.id, ...data };
+  },
+
+  update: async (id, data) => {
+    await run('UPDATE scouting SET data = ? WHERE id = ?', [JSON.stringify(data), id]);
+    return { id, ...data };
+  },
+
+  delete: async (id) => {
+    await run('DELETE FROM scouting WHERE id = ?', [id]);
+    return true;
+  }
+};
+
 // Servicios para objetivos
 export const objetivosService = {
   getAll: async () => {

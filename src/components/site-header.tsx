@@ -5,10 +5,13 @@ import { BellIcon, MenuIcon, SearchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useSidebar } from "@/components/ui/sidebar"
-import temporadasData from "@/data/temporadas.json"
-
 export function SiteHeader() {
-  const temporadaActual = (temporadasData as any).temporadaActiva
+  const [temporadaActual, setTemporadaActual] = React.useState<string>('')
+  React.useEffect(() => {
+    fetch('/api/temporadas?actual=1')
+      .then(res => res.json())
+      .then(data => setTemporadaActual(data?.id || ''))
+  }, [])
   const { toggleSidebar } = useSidebar()
 
   return (
