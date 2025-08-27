@@ -1,0 +1,5 @@
+[
+  { "id": 1, "equipoId": 1, "dia": "Lunes", "hora": "18:00", "duracion": "90 min" },
+  { "id": 2, "equipoId": 1, "dia": "Miércoles", "hora": "18:00", "duracion": "90 min" },
+  { "id": 3, "equipoId": 1, "dia": "Viernes", "hora": "17:30", "duracion": "90 min" }
+]

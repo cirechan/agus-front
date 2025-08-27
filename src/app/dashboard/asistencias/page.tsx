@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle } from "lucide-react"
+import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle, X } from "lucide-react"
 import { format, addDays, subDays, isToday } from "date-fns"
 import { es } from "date-fns/locale"
 
@@ -40,34 +40,80 @@ const motivosAusencia = [
 ]
 
 // Horarios de entrenamiento predefinidos
-const horariosIniciales = [
-  { dia: "Lunes", hora: "18:00", duracion: "90 min" },
-  { dia: "Miércoles", hora: "18:00", duracion: "90 min" },
-  { dia: "Viernes", hora: "17:30", duracion: "90 min" },
-]
+interface Horario {
+  id?: number
+  dia: string
+  hora: string
+  duracion: string
+}
 
 export default function AsistenciasPage() {
   const [fecha, setFecha] = React.useState<Date>(new Date())
   const [registros, setRegistros] = React.useState<{
+    id?: number;
     jugadorId: string;
     asistio: boolean;
     motivo?: string;
     motivoPersonalizado?: string;
   }[]>([])
-  const [horarios, setHorarios] = React.useState(horariosIniciales)
+  const [horarios, setHorarios] = React.useState<Horario[]>([])
 
   const handleAddHorario = () => {
-    setHorarios(prev => [...prev, { dia: "Nuevo", hora: "18:00", duracion: "90 min" }])
+    setHorarios(prev => [...prev, { dia: "", hora: "", duracion: "" }])
+  }
+
+  const handleDeleteHorario = async (id?: number) => {
+    if (id) {
+      await fetch(`/api/horarios?id=${id}`, { method: 'DELETE' })
+    }
+    setHorarios(prev => prev.filter(h => h.id !== id))
+  }
+
+  const handleHorarioChange = (index: number, field: keyof Horario, value: string) => {
+    setHorarios(prev =>
+      prev.map((h, i) => (i === index ? { ...h, [field]: value } : h))
+    )
+  }
+
+  const handleGuardarHorarios = async () => {
+    await fetch('/api/horarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ equipoId: equipo.id, horarios }),
+    })
+    alert('Horarios actualizados')
   }
   
   // Inicializar registros con todos los jugadores asistiendo por defecto
   React.useEffect(() => {
-    const registrosIniciales = jugadores.map(jugador => ({
-      jugadorId: jugador.id,
-      asistio: true
-    }))
-    setRegistros(registrosIniciales)
+    fetch(`/api/horarios?equipoId=${equipo.id}`)
+      .then(res => res.json())
+      .then(data => setHorarios(data))
   }, [])
+
+  React.useEffect(() => {
+    const cargar = async () => {
+      const res = await fetch(`/api/asistencias?fecha=${format(fecha, 'yyyy-MM-dd')}&equipoId=${equipo.id}`)
+      const data = await res.json()
+      if (data.length > 0) {
+        setRegistros(
+          data.map((r: any) => ({
+            id: r.id,
+            jugadorId: String(r.jugadorId),
+            asistio: r.asistio,
+            motivo: r.motivo,
+          }))
+        )
+      } else {
+        const registrosIniciales = jugadores.map(jugador => ({
+          jugadorId: jugador.id,
+          asistio: true,
+        }))
+        setRegistros(registrosIniciales)
+      }
+    }
+    cargar()
+  }, [fecha])
   
   // Manejar cambio de asistencia
   const handleAsistenciaChange = (jugadorId: string, asistio: boolean) => {
@@ -114,7 +160,8 @@ export default function AsistenciasPage() {
   // Guardar registros de asistencia
   const handleGuardarAsistencias = async () => {
     const registrosFinales = registros.map(r => ({
-      ...r,
+      jugadorId: Number(r.jugadorId),
+      asistio: r.asistio,
       motivo: r.motivo === 'otro' ? r.motivoPersonalizado : r.motivo
     }))
     await fetch('/api/asistencias', {
@@ -127,6 +174,18 @@ export default function AsistenciasPage() {
       })
     })
     alert('Asistencias guardadas correctamente')
+  }
+
+  const handleEliminarAsistencias = async () => {
+    await fetch(`/api/asistencias?fecha=${format(fecha, 'yyyy-MM-dd')}&equipoId=${equipo.id}`, {
+      method: 'DELETE'
+    })
+    const registrosIniciales = jugadores.map(jugador => ({
+      jugadorId: jugador.id,
+      asistio: true,
+    }))
+    setRegistros(registrosIniciales)
+    alert('Registros eliminados')
   }
   
   return (
@@ -152,23 +211,37 @@ export default function AsistenciasPage() {
             <CardContent>
               <div className="space-y-4">
                 {horarios.map((horario, index) => (
-                  <div key={index} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="font-medium">{horario.dia}</p>
-                      <p className="text-sm text-muted-foreground">{horario.hora} ({horario.duracion})</p>
-                    </div>
-                    <Button variant="ghost" size="icon">
-                      <PlusCircle className="h-4 w-4" />
+                  <div key={horario.id ?? index} className="flex items-center gap-2 rounded-lg border p-3">
+                    <Input
+                      value={horario.dia}
+                      onChange={(e) => handleHorarioChange(index, 'dia', e.target.value)}
+                      placeholder="Día"
+                    />
+                    <Input
+                      value={horario.hora}
+                      onChange={(e) => handleHorarioChange(index, 'hora', e.target.value)}
+                      placeholder="Hora"
+                      className="w-[90px]"
+                    />
+                    <Input
+                      value={horario.duracion}
+                      onChange={(e) => handleHorarioChange(index, 'duracion', e.target.value)}
+                      placeholder="Duración"
+                      className="w-[90px]"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteHorario(horario.id)}>
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="w-full" onClick={handleAddHorario}>
+            <CardFooter className="flex flex-col gap-2">
+              <Button variant="outline" onClick={handleAddHorario}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Añadir horario
               </Button>
+              <Button onClick={handleGuardarHorarios}>Guardar horarios</Button>
             </CardFooter>
           </Card>
         </div>
@@ -271,7 +344,10 @@ export default function AsistenciasPage() {
                 </table>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex gap-2">
+              <Button variant="destructive" className="w-full" onClick={handleEliminarAsistencias}>
+                Eliminar Registros
+              </Button>
               <Button className="w-full" onClick={handleGuardarAsistencias}>
                 Guardar Asistencias
               </Button>

@@ -130,6 +130,44 @@ export const asistenciasService = {
     return asistencias.filter((a) => a.jugadorId === jugadorId);
   },
 
+  getByFecha: async (equipoId, fecha) => {
+    const asistencias = await asistenciasService.getAll();
+    return asistencias.filter(
+      (a) => a.equipoId === equipoId && a.fecha === fecha
+    );
+  },
+
+  setForFecha: async (equipoId, fecha, registros) => {
+    const asistencias = await asistenciasService.getAll();
+    const filtradas = asistencias.filter(
+      (a) => !(a.equipoId === equipoId && a.fecha === fecha)
+    );
+    const nuevos = registros.map((r) => ({
+      id: Date.now() + Math.random(),
+      equipoId,
+      fecha,
+      ...r,
+    }));
+    await writeJson('asistencias.json', [...filtradas, ...nuevos]);
+    return nuevos;
+  },
+
+  deleteByFecha: async (equipoId, fecha) => {
+    const asistencias = await asistenciasService.getAll();
+    const filtradas = asistencias.filter(
+      (a) => !(a.equipoId === equipoId && a.fecha === fecha)
+    );
+    await writeJson('asistencias.json', filtradas);
+    return true;
+  },
+
+  delete: async (id) => {
+    const asistencias = await asistenciasService.getAll();
+    const filtradas = asistencias.filter((a) => a.id !== id);
+    await writeJson('asistencias.json', filtradas);
+    return true;
+  },
+
   create: async (data) => {
     const asistencias = await asistenciasService.getAll();
     const nuevo = { id: Date.now(), ...data };
@@ -145,13 +183,6 @@ export const asistenciasService = {
     asistencias[index] = { ...asistencias[index], ...data };
     await writeJson('asistencias.json', asistencias);
     return asistencias[index];
-  },
-
-  delete: async (id) => {
-    const asistencias = await asistenciasService.getAll();
-    const filtradas = asistencias.filter((a) => a.id !== id);
-    await writeJson('asistencias.json', filtradas);
-    return true;
   }
 };
 
@@ -223,6 +254,39 @@ export const objetivosService = {
     const objetivos = await objetivosService.getAll();
     const filtrados = objetivos.filter((o) => o.id !== id);
     await writeJson('objetivos.json', filtrados);
+    return true;
+  }
+};
+
+// Servicios para horarios de entrenamiento
+export const horariosService = {
+  getAll: async () => {
+    return await readJson('horarios.json');
+  },
+
+  getByEquipo: async (equipoId) => {
+    const horarios = await horariosService.getAll();
+    return horarios.filter((h) => h.equipoId === equipoId);
+  },
+
+  setForEquipo: async (equipoId, horarios) => {
+    const todos = await horariosService.getAll();
+    const restantes = todos.filter((h) => h.equipoId !== equipoId);
+    const conIds = horarios.map((h) => ({
+      id: h.id || Date.now() + Math.random(),
+      equipoId,
+      dia: h.dia,
+      hora: h.hora,
+      duracion: h.duracion,
+    }));
+    await writeJson('horarios.json', [...restantes, ...conIds]);
+    return conIds;
+  },
+
+  delete: async (id) => {
+    const horarios = await horariosService.getAll();
+    const filtrados = horarios.filter((h) => h.id !== id);
+    await writeJson('horarios.json', filtrados);
     return true;
   }
 };
