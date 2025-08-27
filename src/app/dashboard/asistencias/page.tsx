@@ -287,7 +287,7 @@ export default function AsistenciasPage() {
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
-                <table className="w-full">
+                <table className="hidden w-full md:table">
                   <thead>
                     <tr className="border-b bg-muted/50 text-sm">
                       <th className="p-2 text-left font-medium">Jugador</th>
@@ -342,6 +342,51 @@ export default function AsistenciasPage() {
                     })}
                   </tbody>
                 </table>
+                <div className="divide-y md:hidden">
+                  {jugadores.map((jugador) => {
+                    const registro = registros.find(r => r.jugadorId === jugador.id)
+                    return (
+                      <div key={jugador.id} className="p-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{jugador.nombre}</div>
+                            <div className="text-sm text-muted-foreground">#{jugador.dorsal}</div>
+                          </div>
+                          <Switch
+                            checked={registro?.asistio ?? true}
+                            onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
+                          />
+                        </div>
+                        {registro && !registro.asistio && (
+                          <div className="mt-2 space-y-2">
+                            <Select
+                              value={registro.motivo}
+                              onValueChange={(value) => handleMotivoChange(jugador.id, value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Seleccionar motivo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {motivosAusencia.map((motivo) => (
+                                  <SelectItem key={motivo.value} value={motivo.value}>
+                                    {motivo.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {registro.motivo === 'otro' && (
+                              <Input
+                                value={registro.motivoPersonalizado || ''}
+                                onChange={(e) => handleMotivoPersonalizadoChange(jugador.id, e.target.value)}
+                                placeholder="Motivo"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </CardContent>
             <CardFooter className="flex gap-2">

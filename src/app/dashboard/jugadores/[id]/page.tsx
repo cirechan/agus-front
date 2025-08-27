@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog"
+import { DialogFooter } from "@/components/ui/dialog"
+import { FormDialog } from "@/components/form-dialog"
 import { RatingStars } from "@/components/rating-stars"
 import { PlayerRadarChart } from "@/components/player-radar-chart"
 import { revalidatePath } from "next/cache"
@@ -131,19 +132,15 @@ export default async function JugadorPage({ params }: { params: { id: string } }
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Información personal</CardTitle>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button size="icon" variant="ghost"><Edit className="h-4 w-4"/></Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Editar jugador</DialogTitle></DialogHeader>
-                <form action={actualizarJugador} className="space-y-2">
-                  <Input name="nombre" defaultValue={jugador.nombre} placeholder="Nombre" />
-                  <Input name="posicion" defaultValue={jugador.posicion} placeholder="Posición" />
-                  <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <FormDialog
+              title="Editar jugador"
+              trigger={<Button size="icon" variant="ghost"><Edit className="h-4 w-4"/></Button>}
+              action={actualizarJugador}
+            >
+              <Input name="nombre" defaultValue={jugador.nombre} placeholder="Nombre" />
+              <Input name="posicion" defaultValue={jugador.posicion} placeholder="Posición" />
+              <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+            </FormDialog>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <div><span className="font-medium">Nombre:</span> {jugador.nombre}</div>
@@ -178,23 +175,19 @@ export default async function JugadorPage({ params }: { params: { id: string } }
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-sm">{new Date(v.fecha).toLocaleDateString()}</CardTitle>
                 <div className="flex gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>Editar valoración</DialogTitle></DialogHeader>
-                      <form action={actualizarValoracion} className="grid grid-cols-2 gap-2">
-                        <input type="hidden" name="id" value={v.id} />
-                        <Input type="number" step="0.5" name="tecnica" defaultValue={v.aptitudes.tecnica} placeholder="Técnica" />
-                        <Input type="number" step="0.5" name="tactica" defaultValue={v.aptitudes.tactica} placeholder="Táctica" />
-                        <Input type="number" step="0.5" name="fisica" defaultValue={v.aptitudes.fisica} placeholder="Física" />
-                        <Input type="number" step="0.5" name="mental" defaultValue={v.aptitudes.mental} placeholder="Mental" />
-                        <Textarea className="col-span-2" name="comentarios" defaultValue={v.comentarios} />
-                        <DialogFooter className="col-span-2"><Button type="submit">Guardar</Button></DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                  <FormDialog
+                    title="Editar valoración"
+                    trigger={<Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>}
+                    action={actualizarValoracion}
+                  >
+                    <input type="hidden" name="id" value={v.id} />
+                    <Input type="number" step="0.5" name="tecnica" defaultValue={v.aptitudes.tecnica} placeholder="Técnica"/>
+                    <Input type="number" step="0.5" name="tactica" defaultValue={v.aptitudes.tactica} placeholder="Táctica"/>
+                    <Input type="number" step="0.5" name="fisica" defaultValue={v.aptitudes.fisica} placeholder="Física" />
+                    <Input type="number" step="0.5" name="mental" defaultValue={v.aptitudes.mental} placeholder="Mental" />
+                    <Textarea className="col-span-2" name="comentarios" defaultValue={v.comentarios} />
+                    <DialogFooter className="col-span-2"><Button type="submit">Guardar</Button></DialogFooter>
+                  </FormDialog>
                   <form action={eliminarValoracion}>
                     <input type="hidden" name="id" value={v.id} />
                     <Button variant="ghost" size="icon"><Trash className="h-4 w-4" /></Button>
@@ -222,22 +215,18 @@ export default async function JugadorPage({ params }: { params: { id: string } }
             <p className="text-sm text-muted-foreground">No hay valoraciones</p>
           )}
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>Nueva valoración</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Nueva valoración</DialogTitle></DialogHeader>
-              <form action={crearValoracion} className="grid grid-cols-2 gap-2">
-                <Input type="number" step="0.5" name="tecnica" placeholder="Técnica" />
-                <Input type="number" step="0.5" name="tactica" placeholder="Táctica" />
-                <Input type="number" step="0.5" name="fisica" placeholder="Física" />
-                <Input type="number" step="0.5" name="mental" placeholder="Mental" />
-                <Textarea className="col-span-2" name="comentarios" placeholder="Comentarios" />
-                <DialogFooter className="col-span-2"><Button type="submit">Guardar</Button></DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <FormDialog
+            title="Nueva valoración"
+            trigger={<Button>Nueva valoración</Button>}
+            action={crearValoracion}
+          >
+            <Input type="number" step="0.5" name="tecnica" placeholder="Técnica" />
+            <Input type="number" step="0.5" name="tactica" placeholder="Táctica" />
+            <Input type="number" step="0.5" name="fisica" placeholder="Física" />
+            <Input type="number" step="0.5" name="mental" placeholder="Mental" />
+            <Textarea className="col-span-2" name="comentarios" placeholder="Comentarios" />
+            <DialogFooter className="col-span-2"><Button type="submit">Guardar</Button></DialogFooter>
+          </FormDialog>
         </TabsContent>
 
         <TabsContent value="asistencias" className="space-y-4">
@@ -246,21 +235,17 @@ export default async function JugadorPage({ params }: { params: { id: string } }
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-sm">{a.fecha}</CardTitle>
                 <div className="flex gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>Editar asistencia</DialogTitle></DialogHeader>
-                      <form action={actualizarAsistencia} className="space-y-2">
-                        <input type="hidden" name="id" value={a.id} />
-                        <Input type="date" name="fecha" defaultValue={a.fecha} />
-                        <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked={a.asistio} /> Presente</label>
-                        <Input name="motivo" defaultValue={a.motivo} placeholder="Motivo" />
-                        <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
-                      </form>
-                    </DialogContent>
-                  </Dialog>
+                  <FormDialog
+                    title="Editar asistencia"
+                    trigger={<Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>}
+                    action={actualizarAsistencia}
+                  >
+                    <input type="hidden" name="id" value={a.id} />
+                    <Input type="date" name="fecha" defaultValue={a.fecha} />
+                    <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked={a.asistio} /> Presente</label>
+                    <Input name="motivo" defaultValue={a.motivo} placeholder="Motivo" />
+                    <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+                  </FormDialog>
                   <form action={eliminarAsistencia}>
                     <input type="hidden" name="id" value={a.id} />
                     <Button variant="ghost" size="icon"><Trash className="h-4 w-4"/></Button>
@@ -276,20 +261,16 @@ export default async function JugadorPage({ params }: { params: { id: string } }
             <p className="text-sm text-muted-foreground">No hay registros</p>
           )}
 
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button>Nueva asistencia</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Nueva asistencia</DialogTitle></DialogHeader>
-              <form action={crearAsistencia} className="space-y-2">
-                <Input type="date" name="fecha" />
-                <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked /> Presente</label>
-                <Input name="motivo" placeholder="Motivo (si falta)" />
-                <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <FormDialog
+            title="Nueva asistencia"
+            trigger={<Button>Nueva asistencia</Button>}
+            action={crearAsistencia}
+          >
+            <Input type="date" name="fecha" />
+            <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked /> Presente</label>
+            <Input name="motivo" placeholder="Motivo (si falta)" />
+            <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+          </FormDialog>
         </TabsContent>
       </Tabs>
 
