@@ -3,20 +3,22 @@ import { valoracionesService } from '@/lib/api/services';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const jugadorId = searchParams.get('jugadorId');
+  const jugadorIdParam = searchParams.get('jugadorId');
+  const jugadorId = jugadorIdParam ? Number(jugadorIdParam) : undefined;
   const valoraciones = jugadorId
-    ? await valoracionesService.getByJugador(Number(jugadorId))
+    ? await valoracionesService.getByJugador(jugadorId)
     : await valoracionesService.getAll();
   return NextResponse.json(valoraciones);
 }
 
 export async function POST(req: Request) {
   const data = await req.json();
+  const payload = { ...data, jugadorId: Number(data.jugadorId) };
   let resultado;
-  if (data.id) {
-    resultado = await valoracionesService.update(Number(data.id), data);
+  if (payload.id) {
+    resultado = await valoracionesService.update(Number(payload.id), payload);
   } else {
-    resultado = await valoracionesService.create(data);
+    resultado = await valoracionesService.create(payload);
   }
   return NextResponse.json(resultado);
 }
