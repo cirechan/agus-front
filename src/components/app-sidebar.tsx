@@ -4,12 +4,11 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  CalendarIcon,
   ClipboardCheckIcon,
   HomeIcon,
   LineChartIcon,
   SearchIcon,
-  UserIcon
+  UserIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -103,13 +102,6 @@ export function AppSidebar({
               pathname={pathname}
               expanded={expanded}
             />
-            <NavLink
-  href="/dashboard/horarios"
-  icon={CalendarIcon}
-  label="Horarios"
-  pathname={pathname}
-  expanded={expanded}
-/>
 
           
           </div>

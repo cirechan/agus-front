@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { RatingStars } from "@/components/rating-stars"
 import { revalidatePath } from "next/cache"
 
 export default async function JugadorPage({ params }: { params: { id: string } }) {
@@ -131,13 +132,25 @@ export default async function JugadorPage({ params }: { params: { id: string } }
           {promedios && (
             <>
               <div className="font-medium">Prom. Técnica:</div>
-              <div>{promedios.tecnica}</div>
+              <div className="flex items-center gap-1">
+                {promedios.tecnica}
+                <RatingStars value={Number(promedios.tecnica)} />
+              </div>
               <div className="font-medium">Prom. Táctica:</div>
-              <div>{promedios.tactica}</div>
+              <div className="flex items-center gap-1">
+                {promedios.tactica}
+                <RatingStars value={Number(promedios.tactica)} />
+              </div>
               <div className="font-medium">Prom. Física:</div>
-              <div>{promedios.fisica}</div>
+              <div className="flex items-center gap-1">
+                {promedios.fisica}
+                <RatingStars value={Number(promedios.fisica)} />
+              </div>
               <div className="font-medium">Prom. Mental:</div>
-              <div>{promedios.mental}</div>
+              <div className="flex items-center gap-1">
+                {promedios.mental}
+                <RatingStars value={Number(promedios.mental)} />
+              </div>
             </>
           )}
         </CardContent>
