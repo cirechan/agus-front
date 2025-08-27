@@ -37,6 +37,8 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    --cdsa-green: 155 54% 27%;
+    --cdsa-blue: 215 79% 34%;
   }
   .dark {
     --sidebar-background: 240 5.9% 10%;

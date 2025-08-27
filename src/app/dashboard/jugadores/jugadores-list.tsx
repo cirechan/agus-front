@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { cn } from "@/lib/utils"
 
 interface Jugador {
   id: number
@@ -67,7 +68,14 @@ export default function JugadoresList({ jugadores, equipoNombre }: { jugadores: 
                     <CardTitle className="text-lg">{jugador.nombre}</CardTitle>
                     <CardDescription>{jugador.posicion}</CardDescription>
                   </div>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-primary-foreground">
+                  <div
+                    className={cn(
+                      "flex h-8 w-8 items-center justify-center rounded-full text-primary-foreground",
+                      jugador.posicion.toLowerCase() === "portero"
+                        ? "bg-[hsl(var(--cdsa-green))]"
+                        : "bg-red-600"
+                    )}
+                  >
                     {index + 1}
                   </div>
                 </div>
