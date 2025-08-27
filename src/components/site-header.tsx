@@ -1,36 +1,27 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { BellIcon, MenuIcon, SearchIcon } from "lucide-react"
-
-import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-} from "@/components/ui/sheet"
-import { AppSidebar } from "@/components/app-sidebar"
+import { useSidebar } from "@/components/ui/sidebar"
 import temporadasData from "@/data/temporadas.json"
 
 export function SiteHeader() {
   const temporadaActual = (temporadasData as any).temporadaActiva
+  const { toggleSidebar } = useSidebar()
 
   return (
     <header className="sticky top-0 z-50 flex h-16 w-full shrink-0 items-center gap-4 border-b bg-background px-4 md:px-6">
-      <Sheet>
-        <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="md:hidden">
-            <MenuIcon className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="pr-0">
-          <AppSidebar />
-        </SheetContent>
-      </Sheet>
+      <Button
+        variant="outline"
+        size="icon"
+        className="md:hidden"
+        onClick={toggleSidebar}
+      >
+        <MenuIcon className="h-5 w-5" />
+        <span className="sr-only">Toggle Menu</span>
+      </Button>
       <div className="flex w-full items-center gap-2 md:gap-4">
         <div className="relative flex-1 md:grow-0">
           <SearchIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
