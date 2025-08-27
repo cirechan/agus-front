@@ -260,12 +260,12 @@ export const valoracionesService = {
   }
 };
 
-// Servicios para scouting
+// Servicios para scouting utilizando el endpoint interno de Next.js
 export const scoutingService = {
   // Obtener todos los registros de scouting
   getAll: async () => {
     try {
-      const response = await axios.get(`${API_URL}/scouting`);
+      const response = await axios.get('/api/scouting');
       return response.data;
     } catch (error) {
       console.error('Error al obtener registros de scouting:', error);
@@ -273,32 +273,10 @@ export const scoutingService = {
     }
   },
 
-  // Obtener un registro de scouting por ID
-  getById: async (id) => {
-    try {
-      const response = await axios.get(`${API_URL}/scouting/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al obtener registro de scouting con ID ${id}:`, error);
-      throw error;
-    }
-  },
-
-  // Buscar jugadores scouteados por nombre
-  buscarPorNombre: async (nombre) => {
-    try {
-      const response = await axios.get(`${API_URL}/scouting/buscar?nombre=${nombre}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error al buscar jugadores scouteados con nombre ${nombre}:`, error);
-      throw error;
-    }
-  },
-
   // Crear un nuevo registro de scouting
   create: async (scoutingData) => {
     try {
-      const response = await axios.post(`${API_URL}/scouting`, scoutingData);
+      const response = await axios.post('/api/scouting', scoutingData);
       return response.data;
     } catch (error) {
       console.error('Error al crear registro de scouting:', error);
@@ -309,10 +287,21 @@ export const scoutingService = {
   // Actualizar un registro de scouting existente
   update: async (id, scoutingData) => {
     try {
-      const response = await axios.put(`${API_URL}/scouting/${id}`, scoutingData);
+      const response = await axios.put('/api/scouting', { id, ...scoutingData });
       return response.data;
     } catch (error) {
       console.error(`Error al actualizar registro de scouting con ID ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Eliminar un registro de scouting
+  delete: async (id) => {
+    try {
+      const response = await axios.delete('/api/scouting', { data: { id } });
+      return response.data;
+    } catch (error) {
+      console.error(`Error al eliminar registro de scouting con ID ${id}:`, error);
       throw error;
     }
   }

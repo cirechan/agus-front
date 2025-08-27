@@ -18,143 +18,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
+import { scoutingService } from "@/lib/api/services"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadoresScouteados = [
-  { 
-    id: "1", 
-    nombre: "Alejandro", 
-    apellido: "Martínez", 
-    equipo: "CD Leganés", 
-    añoNacimiento: 2012,
-    demarcacion: "Centrocampista",
-    lateralidad: "Derecha",
-    altura: "Alto",
-    complexion: "Atlético",
-    capacidadFisica: 4,
-    capacidadTecnica: 5,
-    capacidadTactica: 4,
-    capacidadDefensiva: 3,
-    mental: 4,
-    portero: 0,
-    propuesta: "FICHAR",
-    dificultad: "POSIBLE",
-    observaciones: "Excelente visión de juego y técnica. Destaca por su capacidad de pase y control.",
-    fechaScouting: "2025-03-15",
-    entrenador: "Carlos Pérez",
-    equipoCDSA: "Infantil A",
-    categoria: "1ª Infantil",
-    historial: [
-      {
-        fechaScouting: "2024-05-20",
-        equipo: "EF Alcobendas",
-        capacidadFisica: 3,
-        capacidadTecnica: 4,
-        capacidadTactica: 3,
-        capacidadDefensiva: 3,
-        mental: 3,
-        propuesta: "SEGUIMIENTO",
-        observaciones: "Jugador con potencial pero necesita mejorar físicamente."
-      }
-    ]
-  },
-  { 
-    id: "2", 
-    nombre: "Daniel", 
-    apellido: "García", 
-    equipo: "Rayo Vallecano", 
-    añoNacimiento: 2013,
-    demarcacion: "Delantero",
-    lateralidad: "Izquierda",
-    altura: "Altura media",
-    complexion: "Atlético",
-    capacidadFisica: 5,
-    capacidadTecnica: 4,
-    capacidadTactica: 3,
-    capacidadDefensiva: 2,
-    mental: 5,
-    portero: 0,
-    propuesta: "FICHAR",
-    dificultad: "COMPLICADO",
-    observaciones: "Delantero muy rápido y con gran definición. Destaca por su velocidad y capacidad goleadora.",
-    fechaScouting: "2025-02-28",
-    entrenador: "Miguel López",
-    equipoCDSA: "Alevín A",
-    categoria: "1ª Alevín"
-  },
-  { 
-    id: "3", 
-    nombre: "Pablo", 
-    apellido: "Rodríguez", 
-    equipo: "Atlético de Madrid", 
-    añoNacimiento: 2011,
-    demarcacion: "Defensa",
-    lateralidad: "Derecha",
-    altura: "Alto",
-    complexion: "Fuerte",
-    capacidadFisica: 4,
-    capacidadTecnica: 3,
-    capacidadTactica: 4,
-    capacidadDefensiva: 5,
-    mental: 4,
-    portero: 0,
-    propuesta: "NO FICHAR",
-    dificultad: "IMPOSIBLE",
-    observaciones: "Defensa central con gran capacidad física y buen juego aéreo. Pertenece a la cantera del Atlético.",
-    fechaScouting: "2025-01-15",
-    entrenador: "Laura Sánchez",
-    equipoCDSA: "Cadete B",
-    categoria: "2ª Cadete"
-  },
-  { 
-    id: "4", 
-    nombre: "Mario", 
-    apellido: "Fernández", 
-    equipo: "Getafe CF", 
-    añoNacimiento: 2014,
-    demarcacion: "Portero",
-    lateralidad: "Derecha",
-    altura: "Alto",
-    complexion: "Atlético",
-    capacidadFisica: 3,
-    capacidadTecnica: 4,
-    capacidadTactica: 4,
-    capacidadDefensiva: 3,
-    mental: 5,
-    portero: 5,
-    propuesta: "FICHAR",
-    dificultad: "POSIBLE",
-    observaciones: "Portero con grandes reflejos y buen juego con los pies. Destaca por su colocación y seguridad.",
-    fechaScouting: "2025-03-05",
-    entrenador: "Pedro Martín",
-    equipoCDSA: "Benjamín A",
-    categoria: "1ª Benjamín"
-  },
-  { 
-    id: "5", 
-    nombre: "Javier", 
-    apellido: "López", 
-    equipo: "AD Alcorcón", 
-    añoNacimiento: 2012,
-    demarcacion: "Centrocampista",
-    lateralidad: "Ambas",
-    altura: "Altura media",
-    complexion: "Delgado",
-    capacidadFisica: 3,
-    capacidadTecnica: 5,
-    capacidadTactica: 5,
-    capacidadDefensiva: 3,
-    mental: 4,
-    portero: 0,
-    propuesta: "FICHAR",
-    dificultad: "POSIBLE",
-    observaciones: "Centrocampista muy técnico y con gran visión de juego. Ambidiestro y con gran capacidad de pase.",
-    fechaScouting: "2025-02-10",
-    entrenador: "Carlos Pérez",
-    equipoCDSA: "Infantil A",
-    categoria: "1ª Infantil"
-  }
-]
 
 // Opciones para los selectores
 const demarcaciones = ["Portero", "Defensa", "Centrocampista", "Delantero"]
@@ -232,6 +97,21 @@ export default function ScoutingPage() {
   const [filtroPropuesta, setFiltroPropuesta] = React.useState("todas")
   const [filtroDemarcacion, setFiltroDemarcacion] = React.useState("todas")
   const [jugadorSeleccionado, setJugadorSeleccionado] = React.useState<string | null>(null)
+
+  const [jugadoresScouteados, setJugadoresScouteados] = React.useState<Jugador[]>([])
+
+  const fetchJugadores = async () => {
+    try {
+      const data = await scoutingService.getAll()
+      setJugadoresScouteados(data)
+    } catch (error) {
+      console.error('Error al cargar scouting:', error)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchJugadores()
+  }, [])
   
   // Estado para el formulario de nuevo scouting
   const [formData, setFormData] = React.useState({
@@ -374,19 +254,30 @@ export default function ScoutingPage() {
   }
   
   // Guardar scouting
-  const handleGuardarScouting = () => {
-    // Aquí se enviarían los datos al backend
-    console.log("Guardando scouting:", formData)
-    
-    // Mostrar mensaje de éxito (en una implementación real)
-    alert(formData.actualizando 
-      ? "Valoración de scouting actualizada correctamente" 
-      : "Nuevo scouting registrado correctamente"
-    )
-    
-    // Resetear formulario y volver al listado
-    resetForm()
-    setActiveTab("listado")
+  const handleGuardarScouting = async () => {
+    const { actualizando, jugadorId, ...payload } = formData
+    try {
+      if (actualizando && jugadorId) {
+        await scoutingService.update(jugadorId, payload)
+      } else {
+        await scoutingService.create(payload)
+      }
+      resetForm()
+      setActiveTab("listado")
+      fetchJugadores()
+    } catch (error) {
+      console.error('Error al guardar scouting:', error)
+    }
+  }
+
+  const handleEliminar = async (id: string) => {
+    try {
+      await scoutingService.delete(id)
+      setJugadorSeleccionado(null)
+      fetchJugadores()
+    } catch (error) {
+      console.error('Error al eliminar scouting:', error)
+    }
   }
   
   return (
@@ -701,15 +592,12 @@ export default function ScoutingPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                  <Button 
-                    variant="outline"
-                    onClick={() => {
-                      // Aquí se implementaría la lógica para eliminar el registro
-                      alert("Esta funcionalidad eliminaría el registro en una implementación real")
-                    }}
-                  >
-                    Eliminar
-                  </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => jugadorDetalle && handleEliminar(jugadorDetalle.id)}
+                    >
+                      Eliminar
+                    </Button>
                   <Button
                     onClick={() => {
                       // Preparar formulario con datos del jugador
