@@ -1,6 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { all, get, run } from '../db';
+import { all, get, run, ready } from '../db';
+
+// Ensure database tables are created and seeded before any service call
+await ready;
 
 // During build the JSON lives under src/data, but Vercel's runtime is read-only.
 // Write operations fall back to a temporary folder so server actions don't crash.
