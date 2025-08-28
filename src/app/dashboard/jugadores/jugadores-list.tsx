@@ -37,9 +37,11 @@ export default function JugadoresList({ jugadores, equipoNombre }: { jugadores: 
           <h1 className="text-2xl font-semibold">Jugadores</h1>
           <p className="text-muted-foreground">Plantilla de {equipoNombre}</p>
         </div>
-        <Button>
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nuevo Jugador
+        <Button asChild>
+          <Link href="/dashboard/jugadores/new">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nuevo Jugador
+          </Link>
         </Button>
       </div>
 
