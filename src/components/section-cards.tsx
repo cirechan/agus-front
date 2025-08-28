@@ -16,6 +16,10 @@ import {
   temporadasService,
 } from "@/lib/api/services"
 
+interface Asistencia {
+  asistio: boolean | number
+}
+
 export async function SectionCards() {
   const temporada = await temporadasService.getActual()
   const equipos = await equiposService.getByTemporada(temporada.id)
@@ -24,7 +28,7 @@ export async function SectionCards() {
   ).flat()
   const asistencias = (
     await Promise.all(equipos.map((e: any) => asistenciasService.getByEquipo(e.id)))
-  ).flat()
+  ).flat() as Asistencia[]
   const valoraciones = (
     await Promise.all(jugadores.map((j: any) => valoracionesService.getByJugador(j.id)))
   ).flat()
@@ -35,7 +39,7 @@ export async function SectionCards() {
   const asistenciaPromedio =
     asistencias.length > 0
       ? `${(
-          (asistencias.filter((a) => a.asistio).length / asistencias.length) *
+          (asistencias.filter((a: Asistencia) => a.asistio).length / asistencias.length) *
           100
         ).toFixed(0)}%`
       : "0%"
@@ -43,15 +47,17 @@ export async function SectionCards() {
   const valoracionMedia =
     valoraciones.length > 0
       ? (
-          valoraciones.reduce((sum, v) => sum + (v.valor || 0), 0) /
-          valoraciones.length
+          valoraciones.reduce(
+            (sum: number, v: any) => sum + (v.valor || 0),
+            0
+          ) / valoraciones.length
         ).toFixed(1)
       : "0"
 
   const objetivosCompletados =
     objetivos.length > 0
       ? `${(
-          (objetivos.filter((o) => o.progreso >= 100).length / objetivos.length) *
+          (objetivos.filter((o: any) => o.progreso >= 100).length / objetivos.length) *
           100
         ).toFixed(0)}%`
       : "0%"

@@ -14,19 +14,8 @@ import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-import jugadoresData from "@/data/jugadores.json"
-import equiposData from "@/data/equipos.json"
-import temporadasData from "@/data/temporadas.json"
+// Datos iniciales obtenidos desde la API
 
-const equipo = (equiposData as any[])[0]
-const temporadaActual = (temporadasData as any).temporadaActiva
-const jugadores = (jugadoresData as any[]).filter(
-  (j) => j.equipoId === equipo.id
-).map((j, index) => ({
-  id: String(j.id),
-  nombre: j.nombre,
-  dorsal: index + 1,
-}))
 
 // Motivos de ausencia predefinidos
 const motivosAusencia = [
@@ -49,6 +38,9 @@ interface Horario {
 
 export default function AsistenciasPage() {
   const [fecha, setFecha] = React.useState<Date>(new Date())
+  const [temporadaActual, setTemporadaActual] = React.useState<string>('')
+  const [equipo, setEquipo] = React.useState<any | null>(null)
+  const [jugadores, setJugadores] = React.useState<any[]>([])
   const [registros, setRegistros] = React.useState<{
     id?: number;
     jugadorId: string;
@@ -76,6 +68,7 @@ export default function AsistenciasPage() {
   }
 
   const handleGuardarHorarios = async () => {
+    if (!equipo) return
     await fetch('/api/horarios', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -83,17 +76,40 @@ export default function AsistenciasPage() {
     })
     alert('Horarios actualizados')
   }
-  
-  // Inicializar registros con todos los jugadores asistiendo por defecto
-  React.useEffect(() => {
-    fetch(`/api/horarios?equipoId=${equipo.id}`)
-      .then(res => res.json())
-      .then(data => setHorarios(data))
-  }, [])
 
   React.useEffect(() => {
+    const cargarDatos = async () => {
+      const [temporadaRes, equiposRes] = await Promise.all([
+        fetch('/api/temporadas?actual=1', { cache: 'no-store' }),
+        fetch('/api/equipos', { cache: 'no-store' }),
+      ])
+      const temporada = await temporadaRes.json()
+      setTemporadaActual(temporada?.id || '')
+      const equipos = await equiposRes.json()
+      const eq = equipos[0]
+      setEquipo(eq)
+      if (eq) {
+        const jRes = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: 'no-store' })
+        const jData = await jRes.json()
+        setJugadores(jData.map((j: any, index: number) => ({
+          id: String(j.id),
+          nombre: j.nombre,
+          dorsal: index + 1,
+        })))
+        fetch(`/api/horarios?equipoId=${eq.id}`, { cache: 'no-store' })
+          .then(res => res.json())
+          .then(data => setHorarios(data))
+      }
+    }
+    cargarDatos()
+  }, [])
+
+  // Inicializar registros con todos los jugadores asistiendo por defecto
+
+  React.useEffect(() => {
+    if (!equipo) return
     const cargar = async () => {
-      const res = await fetch(`/api/asistencias?fecha=${format(fecha, 'yyyy-MM-dd')}&equipoId=${equipo.id}`)
+      const res = await fetch(`/api/asistencias?fecha=${format(fecha, 'yyyy-MM-dd')}&equipoId=${equipo.id}`, { cache: 'no-store' })
       const data = await res.json()
       if (data.length > 0) {
         setRegistros(
@@ -105,7 +121,7 @@ export default function AsistenciasPage() {
           }))
         )
       } else {
-        const registrosIniciales = jugadores.map(jugador => ({
+        const registrosIniciales = jugadores.map((jugador: any) => ({
           jugadorId: jugador.id,
           asistio: true,
         }))
@@ -113,8 +129,8 @@ export default function AsistenciasPage() {
       }
     }
     cargar()
-  }, [fecha])
-  
+  }, [fecha, equipo, jugadores])
+
   // Manejar cambio de asistencia
   const handleAsistenciaChange = (jugadorId: string, asistio: boolean) => {
     setRegistros(prev => 
@@ -187,7 +203,11 @@ export default function AsistenciasPage() {
     setRegistros(registrosIniciales)
     alert('Registros eliminados')
   }
-  
+
+  if (!equipo) {
+    return <div className="p-4">Cargando...</div>
+  }
+
   return (
     <>
       <div className="flex items-center justify-between px-4 lg:px-6">
