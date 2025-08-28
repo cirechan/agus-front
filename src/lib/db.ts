@@ -39,6 +39,46 @@ db.serialize(() => {
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     data TEXT
   )`);
+
+  // Seed a default team and players if database is empty
+  db.get('SELECT COUNT(*) as count FROM equipos', (err, row: any) => {
+    if (!err && row.count === 0) {
+      db.run('INSERT INTO equipos (nombre) VALUES (?)', ['Equipo A'], function (err) {
+        if (err) return;
+        const equipoId = this.lastID;
+        const jugadores = [
+          ['Tiziano Oleiro Calamita', 'Portero'],
+          ['Carlos Alfaro Mateo', 'Portero'],
+          ['Diego Clavería Barrabés', 'Defensa'],
+          ['Felipe Tapia Ruiz', 'Defensa'],
+          ['Héctor Primo Miranda', 'Defensa'],
+          ['Santiago Alexander Beltrán Hernández', 'Defensa'],
+          ['Ricardo Romeo', 'Defensa'],
+          ['Gabriel Lahuerta Muñoz', 'Defensa'],
+          ['Lucas Domingo', 'Centrocampista'],
+          ['Jorge Pinto', 'Centrocampista'],
+          ['Pablo Moñux Abad', 'Centrocampista'],
+          ['César Lázaro Esperón', 'Centrocampista'],
+          ['Diego Bueno Ucedo', 'Centrocampista'],
+          ['Manuel Lozano Pascual', 'Centrocampista'],
+          ['Julio Povar Berdejo', 'Centrocampista'],
+          ['Pedro Colás do Carmo', 'Delantero'],
+          ['Roberto Oriol Lahuerta', 'Delantero'],
+          ['Francisco Javier Frago López-Dupla', 'Delantero'],
+          ['Diego Lorca Ferrer', 'Delantero'],
+          ['Mateo Almau Vallés', 'Delantero'],
+          ['Alejandro Puente Mauleón', 'Delantero'],
+          ['David Albert Fañanás', 'Delantero'],
+        ];
+        for (const [nombre, posicion] of jugadores) {
+          db.run(
+            'INSERT INTO jugadores (nombre, posicion, equipoId, logs) VALUES (?, ?, ?, ?)',
+            [nombre, posicion, equipoId, '{}']
+          );
+        }
+      });
+    }
+  });
 });
 
 export const run = (sql: string, params: any[] = []): Promise<{ id: number; changes: number }> =>
