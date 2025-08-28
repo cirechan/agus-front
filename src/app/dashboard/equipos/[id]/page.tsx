@@ -6,6 +6,7 @@ import { useParams } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import Link from "next/link"
 
 interface Objetivo {
   id: number
@@ -56,8 +57,11 @@ export default function EquipoPage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex items-center justify-between">
           <CardTitle>Plantilla ({plantilla.length})</CardTitle>
+          <Link href={`/dashboard/equipos/${equipoId}/edit`} className="text-sm text-primary hover:underline">
+            Editar
+          </Link>
         </CardHeader>
         <CardContent className="space-y-2">
           {plantilla.map((j) => (
