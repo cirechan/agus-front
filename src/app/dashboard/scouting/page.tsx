@@ -19,8 +19,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 
-// Datos de ejemplo - en producción vendrán de la API
-const jugadoresScouteados: any[] = []
+// Datos obtenidos desde la API
 
 // Opciones para los selectores
 const demarcaciones = ["Portero", "Defensa", "Centrocampista", "Delantero"]
@@ -98,6 +97,13 @@ export default function ScoutingPage() {
   const [filtroPropuesta, setFiltroPropuesta] = React.useState("todas")
   const [filtroDemarcacion, setFiltroDemarcacion] = React.useState("todas")
   const [jugadorSeleccionado, setJugadorSeleccionado] = React.useState<string | null>(null)
+  const [jugadoresScouteados, setJugadoresScouteados] = React.useState<Jugador[]>([])
+
+  React.useEffect(() => {
+    fetch('/api/scouting')
+      .then(res => res.json())
+      .then(data => setJugadoresScouteados(data))
+  }, [])
   
   // Estado para el formulario de nuevo scouting
   const [formData, setFormData] = React.useState({
@@ -240,17 +246,24 @@ export default function ScoutingPage() {
   }
   
   // Guardar scouting
-  const handleGuardarScouting = () => {
-    // Aquí se enviarían los datos al backend
-    console.log("Guardando scouting:", formData)
-    
-    // Mostrar mensaje de éxito (en una implementación real)
-    alert(formData.actualizando 
-      ? "Valoración de scouting actualizada correctamente" 
+  const handleGuardarScouting = async () => {
+    const { actualizando, jugadorId, ...payload } = formData as any
+    const method = actualizando ? 'PUT' : 'POST'
+    const body = actualizando ? { id: jugadorId, ...payload } : payload
+    const res = await fetch('/api/scouting', {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const saved = await res.json()
+    setJugadoresScouteados(prev => actualizando
+      ? prev.map(j => j.id === saved.id ? saved : j)
+      : [...prev, saved]
+    )
+    alert(actualizando
+      ? "Valoración de scouting actualizada correctamente"
       : "Nuevo scouting registrado correctamente"
     )
-    
-    // Resetear formulario y volver al listado
     resetForm()
     setActiveTab("listado")
   }
@@ -567,11 +580,13 @@ export default function ScoutingPage() {
                   </div>
                 </CardContent>
                 <CardFooter className="flex justify-end gap-2">
-                  <Button 
+                  <Button
                     variant="outline"
-                    onClick={() => {
-                      // Aquí se implementaría la lógica para eliminar el registro
-                      alert("Esta funcionalidad eliminaría el registro en una implementación real")
+                    onClick={async () => {
+                      await fetch(`/api/scouting?id=${jugadorDetalle?.id}`, { method: 'DELETE' })
+                      setJugadoresScouteados(prev => prev.filter(j => j.id !== jugadorDetalle?.id))
+                      alert('Registro eliminado')
+                      setJugadorSeleccionado(null)
                     }}
                   >
                     Eliminar
