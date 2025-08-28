@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { valoracionesService } from '@/lib/api/services';
 
+export const runtime = 'nodejs';
+
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
