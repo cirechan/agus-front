@@ -8,10 +8,16 @@ interface EditProps {
   params: { id: string };
 }
 
+interface Jugador {
+  id: number;
+  nombre: string;
+  posicion: string;
+}
+
 export default async function EditEquipoPage({ params }: EditProps) {
   const equipoId = Number(params.id);
   const equipo = await equiposService.getById(equipoId);
-  const jugadores = await jugadoresService.getByEquipo(equipoId);
+  const jugadores: Jugador[] = await jugadoresService.getByEquipo(equipoId);
 
   async function actualizarJugador(formData: FormData) {
     "use server";
@@ -38,7 +44,7 @@ export default async function EditEquipoPage({ params }: EditProps) {
     <div className="space-y-4 p-4 lg:p-6">
       <h1 className="text-2xl font-semibold">Editar {equipo?.nombre}</h1>
       <div className="space-y-2">
-        {jugadores.map((j) => (
+        {jugadores.map((j: Jugador) => (
           <form key={j.id} action={actualizarJugador} className="flex items-center gap-2">
             <input type="hidden" name="id" value={j.id} />
             <Input name="nombre" defaultValue={j.nombre} className="flex-1" />
