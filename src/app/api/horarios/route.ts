@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { horariosService } from '@/lib/api/services';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const equipoId = Number(searchParams.get('equipoId'));

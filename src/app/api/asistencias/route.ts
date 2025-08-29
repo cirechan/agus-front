@@ -1,30 +1,48 @@
 import { NextResponse } from 'next/server';
 import { asistenciasService } from '@/lib/api/services';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const fecha = searchParams.get('fecha');
-  const equipoId = Number(searchParams.get('equipoId'));
-  if (!fecha) return NextResponse.json([]);
-  const registros = await asistenciasService.getByFecha(equipoId, fecha);
-  return NextResponse.json(registros);
+  try {
+    const { searchParams } = new URL(req.url);
+    const fecha = searchParams.get('fecha');
+    const equipoId = Number(searchParams.get('equipoId'));
+    if (!fecha || Number.isNaN(equipoId)) return NextResponse.json([]);
+    const registros = await asistenciasService.getByFecha(equipoId, fecha);
+    return NextResponse.json(registros);
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json({ error: 'Error al cargar asistencias' }, { status: 500 });
+  }
 }
 
 export async function POST(req: Request) {
-  const { fecha, registros, equipoId } = await req.json();
-  if (!fecha || !Array.isArray(registros)) {
-    return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
+  try {
+    const { fecha, registros, equipoId } = await req.json();
+    if (!fecha || !Array.isArray(registros)) {
+      return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
+    }
+    const nuevos = await asistenciasService.setForFecha(Number(equipoId), fecha, registros);
+    return NextResponse.json(nuevos);
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json({ error: 'Error al guardar asistencias' }, { status: 500 });
   }
-  await asistenciasService.setForFecha(Number(equipoId), fecha, registros);
-  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const fecha = searchParams.get('fecha');
-  const equipoId = Number(searchParams.get('equipoId'));
-  if (fecha) {
-    await asistenciasService.deleteByFecha(Number(equipoId), fecha);
+  try {
+    const { searchParams } = new URL(req.url);
+    const fecha = searchParams.get('fecha');
+    const equipoId = Number(searchParams.get('equipoId'));
+    if (fecha && !Number.isNaN(equipoId)) {
+      await asistenciasService.deleteByFecha(equipoId, fecha);
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json({ error: 'Error al eliminar asistencias' }, { status: 500 });
   }
-  return NextResponse.json({ ok: true });
 }
