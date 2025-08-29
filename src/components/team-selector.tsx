@@ -13,8 +13,6 @@ import {
 } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 
-import equiposData from "@/data/equipos.json"
-
 interface Team {
   id: string
   name: string
@@ -28,20 +26,21 @@ export function TeamSelector() {
   const [teams, setTeams] = React.useState<Team[]>([])
   const [selectedTeam, setSelectedTeam] = React.useState<Team | null>(null)
 
-  // Cargar equipos desde el JSON local
   React.useEffect(() => {
-    const mapped: Team[] = (equiposData as any[]).map((equipo: any) => ({
-      id: String(equipo.id ?? equipo._id),
-      name: equipo.nombre,
-      category: equipo.categoria,
-      icon: <ShieldIcon className="h-4 w-4" />,
-    }))
-
-    setTeams(mapped)
-
-    if (!selectedTeam && mapped.length > 0) {
-      setSelectedTeam(mapped[0])
-    }
+    fetch('/api/equipos', { cache: 'no-store' })
+      .then(res => res.json())
+      .then((data: any[]) => {
+        const mapped: Team[] = data.map((equipo: any) => ({
+          id: String(equipo.id),
+          name: equipo.nombre,
+          category: equipo.categoria,
+          icon: <ShieldIcon className="h-4 w-4" />,
+        }))
+        setTeams(mapped)
+        if (!selectedTeam && mapped.length > 0) {
+          setSelectedTeam(mapped[0])
+        }
+      })
   }, [selectedTeam])
 
   return (

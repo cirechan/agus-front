@@ -10,19 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 
-import jugadoresData from "@/data/jugadores.json"
-import equiposData from "@/data/equipos.json"
-
-const equipo = (equiposData as any[])[0]
-const jugadoresBase = (jugadoresData as any[])
-  .filter((j) => j.equipoId === equipo.id)
-  .map((j, index) => ({
-    id: String(j.id),
-    nombre: j.nombre,
-    dorsal: index + 1,
-    equipo: equipo.nombre,
-    posicion: j.posicion,
-  }))
+// Datos iniciales cargados desde la API
 
 // Aptitudes a valorar
 const aptitudes = [
@@ -86,6 +74,8 @@ interface Valoracion {
 }
 
 export default function ValoracionesPage() {
+  const [equipo, setEquipo] = React.useState<any | null>(null)
+  const [jugadoresBase, setJugadoresBase] = React.useState<any[]>([])
   const [trimestreActual, setTrimestreActual] = React.useState(trimestres[0].id)
   const [filtroJugadores, setFiltroJugadores] = React.useState("todos")
   const [filtroPosicion, setFiltroPosicion] = React.useState("todas")
@@ -93,9 +83,27 @@ export default function ValoracionesPage() {
   const [valoraciones, setValoraciones] = React.useState<Valoracion[]>([])
 
   React.useEffect(() => {
-    fetch('/api/valoraciones')
+    fetch('/api/valoraciones', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => setValoraciones(data))
+    const cargarDatos = async () => {
+      const equipos = await fetch('/api/equipos', { cache: 'no-store' }).then(res => res.json())
+      const eq = equipos[0]
+      setEquipo(eq)
+      if (eq) {
+        const js = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: 'no-store' }).then(res => res.json())
+        setJugadoresBase(
+          js.map((j: any, index: number) => ({
+            id: String(j.id),
+            nombre: j.nombre,
+            dorsal: index + 1,
+            equipo: eq.nombre,
+            posicion: j.posicion,
+          }))
+        )
+      }
+    }
+    cargarDatos()
   }, [])
 
   const jugadores = React.useMemo(() => {
