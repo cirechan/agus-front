@@ -114,7 +114,7 @@ export function AppSidebar({
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-muted" />
               <div className="flex flex-col">
-                <span className="text-xs font-medium">Entrenador</span>
+                <span className="text-xs font-medium">Cadete B</span>
                 <span className="text-xs text-muted-foreground">
                   CD San Agustín
                 </span>
