@@ -72,11 +72,10 @@ export const equiposService = {
   },
 
   create: async (equipoData) => {
-    const result = await run('INSERT INTO equipos (nombre, categoria, temporadaId) VALUES ($1, $2, $3) RETURNING id', [
-      equipoData.nombre,
-      equipoData.categoria,
-      equipoData.temporadaId,
-    ]);
+    const result = await run(
+      'INSERT INTO equipos (nombre, categoria, temporadaId) VALUES ($1, $2, $3) RETURNING id',
+      [equipoData.nombre, equipoData.categoria, equipoData.temporadaId]
+    );
     return { id: result.id, ...equipoData };
   },
 
@@ -84,12 +83,10 @@ export const equiposService = {
     const existing = await equiposService.getById(id);
     if (!existing) return null;
     const updated = { ...existing, ...equipoData };
-    await run('UPDATE equipos SET nombre = $1, categoria = $2, temporadaId = $3 WHERE id = $4', [
-      updated.nombre,
-      updated.categoria,
-      updated.temporadaId,
-      id,
-    ]);
+    await run(
+      'UPDATE equipos SET nombre = $1, categoria = $2, temporadaId = $3 WHERE id = $4',
+      [updated.nombre, updated.categoria, updated.temporadaId, id]
+    );
     return updated;
   },
 
@@ -119,7 +116,8 @@ export const jugadoresService = {
   getByEquipo: async (equipoId) => {
     const rows = await all(
       `SELECT j.*, 
-        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id AND a.asistio = 1),0) AS asistencias,
+        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id AND a.asistio = 1),0) AS asistencias_presentes,
+        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id),0) AS asistencias_totales,
         COALESCE((
           SELECT AVG(((
             COALESCE((v.aptitudes::json->>'tecnica')::float,0) +
@@ -134,10 +132,15 @@ export const jugadoresService = {
     );
     return rows.map((r) => {
       const row = camelize(r);
+      const presentes = Number(r.asistencias_presentes || 0);
+      const total = Number(r.asistencias_totales || 0);
+      const porcentaje = total > 0 ? (presentes / total) * 100 : 0;
       return {
         ...row,
         logs: row.logs ? JSON.parse(row.logs) : {},
-        asistencias: Number(r.asistencias || 0),
+        asistenciasPresentes: presentes,
+        asistenciasTotales: total,
+        asistenciaPct: porcentaje,
         valoracionMedia: Number(r.valoracion_media || 0),
       };
     });
@@ -160,13 +163,16 @@ export const jugadoresService = {
     const existing = await jugadoresService.getById(id);
     if (!existing) return null;
     const updated = { ...existing, ...jugadorData };
-    await run('UPDATE jugadores SET nombre = $1, posicion = $2, equipoId = $3, logs = $4 WHERE id = $5', [
-      updated.nombre,
-      updated.posicion,
-      updated.equipoId,
-      JSON.stringify(updated.logs || {}),
-      id,
-    ]);
+    await run(
+      'UPDATE jugadores SET nombre = $1, posicion = $2, equipoId = $3, logs = $4 WHERE id = $5',
+      [
+        updated.nombre,
+        updated.posicion,
+        updated.equipoId,
+        JSON.stringify(updated.logs || {}),
+        id,
+      ]
+    );
     return updated;
   },
 

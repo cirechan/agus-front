@@ -25,19 +25,23 @@ export async function SectionCards() {
   let equipos = temporada
     ? await equiposService.getByTemporada(temporada.id)
     : await equiposService.getAll()
-  // Fallback to todos los equipos si no hay ninguno vinculado a la temporada
+  // Fallback a todos los equipos si no hay ninguno vinculado a la temporada
   if (equipos.length === 0) {
     equipos = await equiposService.getAll()
   }
+
   const jugadores = (
     await Promise.all(equipos.map((e: any) => jugadoresService.getByEquipo(e.id)))
   ).flat()
+
   const asistencias = (
     await Promise.all(equipos.map((e: any) => asistenciasService.getByEquipo(e.id)))
   ).flat() as Asistencia[]
+
   const valoraciones = (
     await Promise.all(jugadores.map((j: any) => valoracionesService.getByJugador(j.id)))
   ).flat()
+
   const objetivos = (
     await Promise.all(equipos.map((e: any) => objetivosService.getByEquipo(e.id)))
   ).flat()
@@ -50,13 +54,20 @@ export async function SectionCards() {
         ).toFixed(0)}%`
       : "0%"
 
+  // Promedio de valoraciones a partir de aptitudes numéricas (ignorando vacías/0)
+  const valoracionesPromedio = valoraciones
+    .map((v: any) => {
+      const values = Object.values(v.aptitudes || {}).map(Number).filter((n) => !isNaN(n))
+      if (values.length === 0 || values.every((n) => n === 0)) return null
+      return values.reduce((a, b) => a + b, 0) / values.length
+    })
+    .filter((n) => n !== null) as number[]
+
   const valoracionMedia =
-    valoraciones.length > 0
+    valoracionesPromedio.length > 0
       ? (
-          valoraciones.reduce(
-            (sum: number, v: any) => sum + (v.valor || 0),
-            0
-          ) / valoraciones.length
+          valoracionesPromedio.reduce((sum, n) => sum + n, 0) /
+          valoracionesPromedio.length
         ).toFixed(1)
       : "0"
 
@@ -92,6 +103,7 @@ export async function SectionCards() {
           <div className="text-muted-foreground">Temporada {temporadaLabel}</div>
         </CardFooter>
       </Card>
+
       <Card className="@container/card">
         <CardHeader className="relative">
           <CardDescription>Asistencia Promedio</CardDescription>
@@ -112,6 +124,7 @@ export async function SectionCards() {
           <div className="text-muted-foreground">Temporada {temporadaLabel}</div>
         </CardFooter>
       </Card>
+
       <Card className="@container/card">
         <CardHeader className="relative">
           <CardDescription>Valoración Media</CardDescription>
@@ -132,6 +145,7 @@ export async function SectionCards() {
           <div className="text-muted-foreground">Temporada {temporadaLabel}</div>
         </CardFooter>
       </Card>
+
       <Card className="@container/card">
         <CardHeader className="relative">
           <CardDescription>Objetivos Cumplidos</CardDescription>
