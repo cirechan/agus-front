@@ -8,6 +8,8 @@ export type Jugador = {
   id: number
   nombre: string
   posicion: string
+  valoracionMedia: number
+  asistencias: number
 }
 
 export const columns: ColumnDef<Jugador>[] = [
@@ -20,6 +22,22 @@ export const columns: ColumnDef<Jugador>[] = [
     header: "Posición",
     cell: ({ row }) => (
       <span className="capitalize">{row.getValue("posicion")}</span>
+    ),
+  },
+  {
+    accessorKey: "valoracionMedia",
+    header: "Valoración",
+    cell: ({ row }) => (
+      <div className="text-right">
+        {Number(row.getValue("valoracionMedia")).toFixed(1)}
+      </div>
+    ),
+  },
+  {
+    accessorKey: "asistencias",
+    header: "Asistencias",
+    cell: ({ row }) => (
+      <div className="text-right">{row.getValue("asistencias")}</div>
     ),
   },
   {
