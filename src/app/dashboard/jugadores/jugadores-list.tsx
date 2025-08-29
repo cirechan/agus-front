@@ -25,9 +25,10 @@ interface Jugador {
 export default function JugadoresList({ jugadores, equipoNombre }: { jugadores: Jugador[]; equipoNombre: string }) {
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const filtered = jugadores.filter((jugador) =>
-    jugador.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    jugador.posicion.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = jugadores.filter(
+    (jugador) =>
+      jugador.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      jugador.posicion.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
