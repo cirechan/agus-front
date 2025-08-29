@@ -1,10 +1,32 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { all, get, run, ready } from '../db';
+
+// Ensure database tables are created and seeded before any service call
+await ready;
 
 // During build the JSON lives under src/data, but Vercel's runtime is read-only.
 // Write operations fall back to a temporary folder so server actions don't crash.
 const projectDataDir = path.join(process.cwd(), 'src', 'data');
 const runtimeDataDir = path.join('/tmp', 'data');
+
+function camelize(row) {
+  if (!row) return row;
+  const res = { ...row };
+  if (res.equipoid !== undefined) {
+    res.equipoId = res.equipoid;
+    delete res.equipoid;
+  }
+  if (res.jugadorid !== undefined) {
+    res.jugadorId = res.jugadorid;
+    delete res.jugadorid;
+  }
+  if (res.temporadaid !== undefined) {
+    res.temporadaId = res.temporadaid;
+    delete res.temporadaid;
+  }
+  return res;
+}
 
 async function readJson(file) {
   const candidates = [runtimeDataDir, projectDataDir];
@@ -35,40 +57,44 @@ async function writeJson(file, data) {
 // Servicios para equipos
 export const equiposService = {
   getAll: async () => {
-    return await readJson('equipos.json');
+    const rows = await all('SELECT * FROM equipos');
+    return rows.map(camelize);
   },
 
   getById: async (id) => {
-    const equipos = await equiposService.getAll();
-    return equipos.find((e) => e.id === id);
+    const row = await get('SELECT * FROM equipos WHERE id = $1', [id]);
+    return row ? camelize(row) : null;
   },
 
   getByTemporada: async (temporadaId) => {
-    const equipos = await equiposService.getAll();
-    return equipos.filter((e) => e.temporadaId === temporadaId);
+    const rows = await all('SELECT * FROM equipos WHERE temporadaId = $1', [temporadaId]);
+    return rows.map(camelize);
   },
 
   create: async (equipoData) => {
-    const equipos = await equiposService.getAll();
-    const nuevo = { id: Date.now(), ...equipoData };
-    equipos.push(nuevo);
-    await writeJson('equipos.json', equipos);
-    return nuevo;
+    const result = await run('INSERT INTO equipos (nombre, categoria, temporadaId) VALUES ($1, $2, $3) RETURNING id', [
+      equipoData.nombre,
+      equipoData.categoria,
+      equipoData.temporadaId,
+    ]);
+    return { id: result.id, ...equipoData };
   },
 
   update: async (id, equipoData) => {
-    const equipos = await equiposService.getAll();
-    const index = equipos.findIndex((e) => e.id === id);
-    if (index === -1) return null;
-    equipos[index] = { ...equipos[index], ...equipoData };
-    await writeJson('equipos.json', equipos);
-    return equipos[index];
+    const existing = await equiposService.getById(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...equipoData };
+    await run('UPDATE equipos SET nombre = $1, categoria = $2, temporadaId = $3 WHERE id = $4', [
+      updated.nombre,
+      updated.categoria,
+      updated.temporadaId,
+      id,
+    ]);
+    return updated;
   },
 
   delete: async (id) => {
-    const equipos = await equiposService.getAll();
-    const filtrados = equipos.filter((e) => e.id !== id);
-    await writeJson('equipos.json', filtrados);
+    await run('DELETE FROM equipos WHERE id = $1', [id]);
     return true;
   }
 };
@@ -76,40 +102,76 @@ export const equiposService = {
 // Servicios para jugadores
 export const jugadoresService = {
   getAll: async () => {
-    return await readJson('jugadores.json');
+    const rows = await all('SELECT * FROM jugadores');
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, logs: row.logs ? JSON.parse(row.logs) : {} };
+    });
   },
 
   getById: async (id) => {
-    const jugadores = await jugadoresService.getAll();
-    return jugadores.find((j) => j.id === id);
+    const row = await get('SELECT * FROM jugadores WHERE id = $1', [id]);
+    if (!row) return null;
+    const mapped = camelize(row);
+    return { ...mapped, logs: mapped.logs ? JSON.parse(mapped.logs) : {} };
   },
 
   getByEquipo: async (equipoId) => {
-    const jugadores = await jugadoresService.getAll();
-    return jugadores.filter((j) => j.equipoId === equipoId);
+    const rows = await all(
+      `SELECT j.*, 
+        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id AND a.asistio = 1),0) AS asistencias,
+        COALESCE((
+          SELECT AVG(((
+            COALESCE((v.aptitudes::json->>'tecnica')::float,0) +
+            COALESCE((v.aptitudes::json->>'tactica')::float,0) +
+            COALESCE((v.aptitudes::json->>'fisica')::float,0) +
+            COALESCE((v.aptitudes::json->>'mental')::float,0)
+          ) / 4)) FROM valoraciones v WHERE v.jugadorId = j.id
+        ),0) AS valoracion_media
+      FROM jugadores j
+      WHERE equipoId = $1`,
+      [equipoId]
+    );
+    return rows.map((r) => {
+      const row = camelize(r);
+      return {
+        ...row,
+        logs: row.logs ? JSON.parse(row.logs) : {},
+        asistencias: Number(r.asistencias || 0),
+        valoracionMedia: Number(r.valoracion_media || 0),
+      };
+    });
   },
 
   create: async (jugadorData) => {
-    const jugadores = await jugadoresService.getAll();
-    const nuevo = { id: Date.now(), ...jugadorData };
-    jugadores.push(nuevo);
-    await writeJson('jugadores.json', jugadores);
-    return nuevo;
+    const result = await run(
+      'INSERT INTO jugadores (nombre, posicion, equipoId, logs) VALUES ($1, $2, $3, $4) RETURNING id',
+      [
+        jugadorData.nombre,
+        jugadorData.posicion,
+        jugadorData.equipoId,
+        JSON.stringify(jugadorData.logs || {}),
+      ]
+    );
+    return { id: result.id, ...jugadorData };
   },
 
   update: async (id, jugadorData) => {
-    const jugadores = await jugadoresService.getAll();
-    const index = jugadores.findIndex((j) => j.id === id);
-    if (index === -1) return null;
-    jugadores[index] = { ...jugadores[index], ...jugadorData };
-    await writeJson('jugadores.json', jugadores);
-    return jugadores[index];
+    const existing = await jugadoresService.getById(id);
+    if (!existing) return null;
+    const updated = { ...existing, ...jugadorData };
+    await run('UPDATE jugadores SET nombre = $1, posicion = $2, equipoId = $3, logs = $4 WHERE id = $5', [
+      updated.nombre,
+      updated.posicion,
+      updated.equipoId,
+      JSON.stringify(updated.logs || {}),
+      id,
+    ]);
+    return updated;
   },
 
   delete: async (id) => {
-    const jugadores = await jugadoresService.getAll();
-    const filtrados = jugadores.filter((j) => j.id !== id);
-    await writeJson('jugadores.json', filtrados);
+    await run('DELETE FROM jugadores WHERE id = $1', [id]);
     return true;
   }
 };
@@ -117,107 +179,174 @@ export const jugadoresService = {
 // Servicios para asistencias
 export const asistenciasService = {
   getAll: async () => {
-    return await readJson('asistencias.json');
+    const rows = await all('SELECT * FROM asistencias');
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, asistio: !!row.asistio };
+    });
   },
 
   getByEquipo: async (equipoId) => {
-    const asistencias = await asistenciasService.getAll();
-    return asistencias.filter((a) => a.equipoId === equipoId);
+    const rows = await all('SELECT * FROM asistencias WHERE equipoId = $1', [equipoId]);
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, asistio: !!row.asistio };
+    });
   },
 
   getByJugador: async (jugadorId) => {
-    const asistencias = await asistenciasService.getAll();
-    return asistencias.filter((a) => a.jugadorId === jugadorId);
+    const rows = await all('SELECT * FROM asistencias WHERE jugadorId = $1', [jugadorId]);
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, asistio: !!row.asistio };
+    });
   },
 
   getByFecha: async (equipoId, fecha) => {
-    const asistencias = await asistenciasService.getAll();
-    return asistencias.filter(
-      (a) => a.equipoId === equipoId && a.fecha === fecha
-    );
+    const rows = await all('SELECT * FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, asistio: !!row.asistio };
+    });
   },
 
   setForFecha: async (equipoId, fecha, registros) => {
-    const asistencias = await asistenciasService.getAll();
-    const filtradas = asistencias.filter(
-      (a) => !(a.equipoId === equipoId && a.fecha === fecha)
-    );
-    const nuevos = registros.map((r) => ({
-      id: Date.now() + Math.random(),
-      equipoId,
-      fecha,
-      ...r,
-    }));
-    await writeJson('asistencias.json', [...filtradas, ...nuevos]);
-    return nuevos;
+    await run('DELETE FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
+    const inserted = [];
+    for (const r of registros) {
+      const result = await run(
+        'INSERT INTO asistencias (jugadorId, equipoId, fecha, asistio, motivo) VALUES ($1, $2, $3, $4, $5)',
+        [r.jugadorId, equipoId, fecha, r.asistio ? 1 : 0, r.motivo || null]
+      );
+      inserted.push({
+        id: result.id,
+        jugadorId: r.jugadorId,
+        equipoId,
+        fecha,
+        asistio: r.asistio,
+        motivo: r.motivo,
+      });
+    }
+    return inserted;
   },
 
   deleteByFecha: async (equipoId, fecha) => {
-    const asistencias = await asistenciasService.getAll();
-    const filtradas = asistencias.filter(
-      (a) => !(a.equipoId === equipoId && a.fecha === fecha)
-    );
-    await writeJson('asistencias.json', filtradas);
+    await run('DELETE FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
     return true;
   },
 
   delete: async (id) => {
-    const asistencias = await asistenciasService.getAll();
-    const filtradas = asistencias.filter((a) => a.id !== id);
-    await writeJson('asistencias.json', filtradas);
+    await run('DELETE FROM asistencias WHERE id = $1', [id]);
     return true;
   },
 
   create: async (data) => {
-    const asistencias = await asistenciasService.getAll();
-    const nuevo = { id: Date.now(), ...data };
-    asistencias.push(nuevo);
-    await writeJson('asistencias.json', asistencias);
-    return nuevo;
+    const result = await run(
+      'INSERT INTO asistencias (jugadorId, equipoId, fecha, asistio, motivo) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [data.jugadorId, data.equipoId, data.fecha, data.asistio ? 1 : 0, data.motivo || null]
+    );
+    return { id: result.id, ...data };
   },
 
   update: async (id, data) => {
-    const asistencias = await asistenciasService.getAll();
-    const index = asistencias.findIndex((a) => a.id === id);
-    if (index === -1) return null;
-    asistencias[index] = { ...asistencias[index], ...data };
-    await writeJson('asistencias.json', asistencias);
-    return asistencias[index];
+    const row = await get('SELECT * FROM asistencias WHERE id = $1', [id]);
+    if (!row) return null;
+    const existing = camelize(row);
+    const updated = { ...existing, ...data };
+    await run(
+      'UPDATE asistencias SET jugadorId = $1, equipoId = $2, fecha = $3, asistio = $4, motivo = $5 WHERE id = $6',
+      [
+        updated.jugadorId,
+        updated.equipoId,
+        updated.fecha,
+        updated.asistio ? 1 : 0,
+        updated.motivo,
+        id,
+      ]
+    );
+    return { ...updated, asistio: !!updated.asistio };
   }
 };
 
 // Servicios para valoraciones
 export const valoracionesService = {
   getAll: async () => {
-    return await readJson('valoraciones.json');
+    const rows = await all('SELECT * FROM valoraciones');
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, aptitudes: row.aptitudes ? JSON.parse(row.aptitudes) : {} };
+    });
   },
 
   getByJugador: async (jugadorId) => {
-    const valoraciones = await valoracionesService.getAll();
-    return valoraciones.filter((v) => v.jugadorId === jugadorId);
+    const rows = await all('SELECT * FROM valoraciones WHERE jugadorId = $1', [jugadorId]);
+    return rows.map((r) => {
+      const row = camelize(r);
+      return { ...row, aptitudes: row.aptitudes ? JSON.parse(row.aptitudes) : {} };
+    });
   },
 
   create: async (data) => {
-    const valoraciones = await valoracionesService.getAll();
-    const nuevo = { id: Date.now(), ...data };
-    valoraciones.push(nuevo);
-    await writeJson('valoraciones.json', valoraciones);
-    return nuevo;
+    const result = await run(
+      'INSERT INTO valoraciones (jugadorId, fecha, aptitudes, comentarios) VALUES ($1, $2, $3, $4) RETURNING id',
+      [
+        data.jugadorId,
+        data.fecha,
+        JSON.stringify(data.aptitudes || {}),
+        data.comentarios || null,
+      ]
+    );
+    return { id: result.id, ...data };
   },
 
   update: async (id, data) => {
-    const valoraciones = await valoracionesService.getAll();
-    const index = valoraciones.findIndex((v) => v.id === id);
-    if (index === -1) return null;
-    valoraciones[index] = { ...valoraciones[index], ...data };
-    await writeJson('valoraciones.json', valoraciones);
-    return valoraciones[index];
+    const row = await get('SELECT * FROM valoraciones WHERE id = $1', [id]);
+    if (!row) return null;
+    const existing = camelize(row);
+    const updated = { ...existing, ...data };
+    await run(
+      'UPDATE valoraciones SET jugadorId = $1, fecha = $2, aptitudes = $3, comentarios = $4 WHERE id = $5',
+      [
+        updated.jugadorId,
+        updated.fecha,
+        JSON.stringify(updated.aptitudes || {}),
+        updated.comentarios,
+        id,
+      ]
+    );
+    return { ...updated, aptitudes: updated.aptitudes ? JSON.parse(updated.aptitudes) : {} };
   },
 
   delete: async (id) => {
-    const valoraciones = await valoracionesService.getAll();
-    const filtradas = valoraciones.filter((v) => v.id !== id);
-    await writeJson('valoraciones.json', filtradas);
+    await run('DELETE FROM valoraciones WHERE id = $1', [id]);
+    return true;
+  }
+};
+
+// Servicios para scouting
+export const scoutingService = {
+  getAll: async () => {
+    const rows = await all('SELECT * FROM scouting');
+    return rows.map((r) => ({ id: r.id, ...JSON.parse(r.data) }));
+  },
+
+  getById: async (id) => {
+    const row = await get('SELECT * FROM scouting WHERE id = $1', [id]);
+    return row ? { id: row.id, ...JSON.parse(row.data) } : null;
+  },
+
+  create: async (data) => {
+    const result = await run('INSERT INTO scouting (data) VALUES ($1) RETURNING id', [JSON.stringify(data)]);
+    return { id: result.id, ...data };
+  },
+
+  update: async (id, data) => {
+    await run('UPDATE scouting SET data = $1 WHERE id = $2', [JSON.stringify(data), id]);
+    return { id, ...data };
+  },
+
+  delete: async (id) => {
+    await run('DELETE FROM scouting WHERE id = $1', [id]);
     return true;
   }
 };
