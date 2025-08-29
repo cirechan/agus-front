@@ -119,7 +119,8 @@ export const jugadoresService = {
   getByEquipo: async (equipoId) => {
     const rows = await all(
       `SELECT j.*, 
-        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id AND a.asistio = 1),0) AS asistencias,
+        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id AND a.asistio = 1),0) AS asistencias_presentes,
+        COALESCE((SELECT COUNT(*) FROM asistencias a WHERE a.jugadorId = j.id),0) AS asistencias_totales,
         COALESCE((
           SELECT AVG(((
             COALESCE((v.aptitudes::json->>'tecnica')::float,0) +
@@ -134,10 +135,15 @@ export const jugadoresService = {
     );
     return rows.map((r) => {
       const row = camelize(r);
+      const presentes = Number(r.asistencias_presentes || 0);
+      const total = Number(r.asistencias_totales || 0);
+      const porcentaje = total > 0 ? (presentes / total) * 100 : 0;
       return {
         ...row,
         logs: row.logs ? JSON.parse(row.logs) : {},
-        asistencias: Number(r.asistencias || 0),
+        asistenciasPresentes: presentes,
+        asistenciasTotales: total,
+        asistenciaPct: porcentaje,
         valoracionMedia: Number(r.valoracion_media || 0),
       };
     });
