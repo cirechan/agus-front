@@ -1,0 +1,244 @@
+[
+  {
+    "id": 1,
+    "nombre": "Tiziano Oleiro Calamita",
+    "posicion": "Portero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "23 convocatorias, 12 titular (1ª Infantil). Destacó por manejo de balón y seguridad bajo palos.",
+      "25_26_pre": "Buen pie y reflejos, pero algo distraído, intensidad media.",
+      "lectura": "Portero de calidad técnica, con proyección clara, pero debe dar un salto en concentración y regularidad para rendir en cadetes."
+    }
+  },
+  {
+    "id": 2,
+    "nombre": "Carlos Alfaro Mateo",
+    "posicion": "Portero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "18 convocatorias, 2 titular (3ª Infantil). Portero suplente con pocos minutos.",
+      "25_26_pre": "Ausente en 2º entrenamiento.",
+      "lectura": "Necesita continuidad y rodaje para competir con Tiziano."
+    }
+  },
+  {
+    "id": 3,
+    "nombre": "Diego Clavería Barrabés",
+    "posicion": "Defensa",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "24 convocatorias, 9 titular, 1 gol (3ª Cadete). Jugador de rotación.",
+      "25_26_pre": "Muy participativo, rápido y comprometido. Excelente actitud.",
+      "lectura": "Jugador que pasó desapercibido el año pasado, pero apunta a crecer mucho este curso gracias a su compromiso y entrega."
+    }
+  },
+  {
+    "id": 4,
+    "nombre": "Felipe Tapia Ruiz",
+    "posicion": "Defensa",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "21 convocatorias, 6 titular (3ª Cadete). Perfil de suplente habitual.",
+      "25_26_pre": "Buen control y pase, pero disperso y poco concentrado.",
+      "lectura": "Lateral con condiciones físicas y técnicas aceptables, pero necesita mejorar disciplina táctica para consolidarse."
+    }
+  },
+  {
+    "id": 5,
+    "nombre": "Héctor Primo Miranda",
+    "posicion": "Defensa",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "31 partidos, 22 titular (2ª Infantil Montecarlo). Defensa de recorrido.",
+      "25_26_pre": "Correcto físicamente y con balón, aún poco integrado.",
+      "lectura": "Llegó con muchos minutos jugados en Montecarlo, pero de momento no muestra carácter. Puede crecer con adaptación al grupo."
+    }
+  },
+  {
+    "id": 6,
+    "nombre": "Santiago Alexander Beltrán Hernández",
+    "posicion": "Defensa",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "23 partidos, 18 titular, 3 goles (3ª Infantil Montecarlo).",
+      "25_26_pre": "Impreciso, con actitud pasota, poco integrado.",
+      "lectura": "Venía con protagonismo en Montecarlo, pero arranca mal: debe mejorar implicación para no perder peso en la plantilla."
+    }
+  },
+  {
+    "id": 7,
+    "nombre": "Ricardo Romeo",
+    "posicion": "Defensa",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "19 partidos, 17 titular (3ª Cadete). Lateral derecho con continuidad.",
+      "25_26_pre": "Ausente en 2º entrenamiento.",
+      "lectura": "Si mantiene continuidad, puede ser un fijo en el lateral, pero debe recuperar ritmo."
+    }
+  },
+  {
+    "id": 8,
+    "nombre": "Gabriel Lahuerta Muñoz",
+    "posicion": "Defensa",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "25 partidos, 24 titular, 1 gol (3ª Cadete). Central indiscutible.",
+      "25_26_pre": "Entrena con Cadete A.",
+      "lectura": "Referente defensivo del año pasado, sube de nivel en pretemporada. Será pieza clave si baja con el B."
+    }
+  },
+  {
+    "id": 9,
+    "nombre": "Lucas Domingo",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "24 partidos, 24 titular, 11 goles (3ª Infantil). Centrocampista ofensivo.",
+      "25_26_pre": "Correcto técnicamente, buen disparo, actitud trabajadora.",
+      "lectura": "Jugador fiable, con gol desde segunda línea. Debe ganar protagonismo en cadete."
+    }
+  },
+  {
+    "id": 10,
+    "nombre": "Jorge Pinto",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "24 partidos, 11 titular, 2 goles (3ª Cadete). Cumplidor.",
+      "25_26_pre": "Correcto técnicamente, pero limitado físicamente y con actitud pasota.",
+      "lectura": "Si no mejora compromiso, perderá protagonismo respecto a nuevos compañeros."
+    }
+  },
+  {
+    "id": 11,
+    "nombre": "Pablo Moñux Abad",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "33 partidos, 33 titular, 4 goles (1ª Infantil). Titular indiscutible.",
+      "25_26_pre": "Ausente en 2º entrenamiento.",
+      "lectura": "Jugador con calidad y experiencia en infantil alto nivel. A seguir cuando se reincorpore."
+    }
+  },
+  {
+    "id": 12,
+    "nombre": "César Lázaro Esperón",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "27 partidos, 26 titular, 2 goles (3ª Cadete). Mediocentro de confianza.",
+      "25_26_pre": "Ausente en 2º entrenamiento.",
+      "lectura": "Venía siendo fijo. Habrá que ver cómo se adapta con la competencia en medio."
+    }
+  },
+  {
+    "id": 13,
+    "nombre": "Diego Bueno Ucedo",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "25 partidos, 25 titular, 6 goles (3ª Cadete B). Jugador clave en su equipo.",
+      "25_26_pre": "Ausente en 2º entrenamiento.",
+      "lectura": "Llegó como titular indiscutible del B. Se espera que aporte intensidad y llegada."
+    }
+  },
+  {
+    "id": 14,
+    "nombre": "Manuel Lozano Pascual",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "25 partidos, 18 titular, 5 goles (3ª Cadete). Perfil box-to-box.",
+      "25_26_pre": "Entrena con Cadete A.",
+      "lectura": "Jugador importante el año pasado. Si baja al B, será clave."
+    }
+  },
+  {
+    "id": 15,
+    "nombre": "Julio Povar Berdejo",
+    "posicion": "Centrocampista",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "23 partidos, 11 titular, 15 goles (Compañía de María, fútbol sala). Jugador ofensivo.",
+      "25_26_pre": "Ausente en 2º entrenamiento.",
+      "lectura": "Llega con cifras goleadoras muy altas, habrá que ver adaptación a fútbol 11."
+    }
+  },
+  {
+    "id": 16,
+    "nombre": "Pedro Colás do Carmo",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "29 partidos, 7 titular, 2 goles (1ª Infantil). Rol secundario.",
+      "25_26_pre": "Físico diferencial, fuerte en juego aéreo, flojo en definición.",
+      "lectura": "No fue goleador en infantil, pero en cadete su físico puede darle un rol nuevo como referencia."
+    }
+  },
+  {
+    "id": 17,
+    "nombre": "Roberto Oriol Lahuerta",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "25 partidos, 23 titular, 40 goles (3ª Infantil). Goleador indiscutible.",
+      "25_26_pre": "Correcto en control y pase, sin destacar aún.",
+      "lectura": "En infantil fue un delantero total. En cadete debe confirmar que su instinto goleador se traslada a un nivel más exigente."
+    }
+  },
+  {
+    "id": 18,
+    "nombre": "Francisco Javier Frago López-Dupla",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "32 partidos, 29 titular, 2 goles (1ª Infantil). Extremo trabajador.",
+      "25_26_pre": "Buen control y pase, discreto, necesita afirmarse.",
+      "lectura": "Jugador cumplidor, puede aportar en rotación. Debe ganar confianza."
+    }
+  },
+  {
+    "id": 19,
+    "nombre": "Diego Lorca Ferrer",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "31 partidos, 27 titular, 10 goles (3ª Cadete). Delantero fiable.",
+      "25_26_pre": "Buen disparo, correcto en control, actitud positiva.",
+      "lectura": "Confirmó gol el año pasado. Arranca bien, puede ser pieza clave en ataque."
+    }
+  },
+  {
+    "id": 20,
+    "nombre": "Mateo Almau Vallés",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "33 partidos, 28 titular, 10 goles (3ª Cadete). Delantero importante.",
+      "25_26_pre": "Buen control y pase, lucha el balón, actitud positiva.",
+      "lectura": "Continuista respecto a la pasada campaña. Delantero fiable con capacidad para crecer."
+    }
+  },
+  {
+    "id": 21,
+    "nombre": "Alejandro Puente Mauleón",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "29 partidos, 12 titular, 2 goles (1ª Infantil). Jugador de banda.",
+      "25_26_pre": "Buen físico, veloz, simpático y predispuesto.",
+      "lectura": "Puede crecer en banda gracias a su velocidad. Perfil útil tanto de lateral como de extremo."
+    }
+  },
+  {
+    "id": 22,
+    "nombre": "David Albert Fañanás",
+    "posicion": "Delantero",
+    "equipoId": 1,
+    "logs": {
+      "24_25": "33 partidos, 30 titular, 24 goles (1ª Infantil). Delantero de referencia.",
+      "25_26_pre": "Entrena con Cadete A.",
+      "lectura": "Llega con cifras muy altas. Si juega en el B, será el otro gran referente ofensivo junto a Oriol."
+    }
+  }
+]

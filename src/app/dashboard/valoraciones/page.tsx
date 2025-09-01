@@ -1,28 +1,16 @@
 "use client"
 
 import * as React from "react"
-import { CalendarIcon, ChevronLeft, ChevronRight, FilterIcon, PlusCircle, Star, StarHalf } from "lucide-react"
-import { format, addMonths, subMonths, parseISO } from "date-fns"
-import { es } from "date-fns/locale"
+import { Star, StarHalf } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A", posicion: "Delantero", ultimaValoracion: "2025-03-15" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A", posicion: "Centrocampista", ultimaValoracion: "2025-03-15" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A", posicion: "Defensa", ultimaValoracion: "2025-02-20" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A", posicion: "Portero", ultimaValoracion: "2025-02-20" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A", posicion: "Defensa", ultimaValoracion: null },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A", posicion: "Centrocampista", ultimaValoracion: null },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A", posicion: "Delantero", ultimaValoracion: null },
-]
+// Datos iniciales cargados desde la API
 
 // Aptitudes a valorar
 const aptitudes = [
@@ -78,53 +66,88 @@ function StarRating({ value, onChange, readOnly = false }: StarRatingProps) {
 }
 
 interface Valoracion {
-  jugadorId: string;
-  trimestreId: string;
+  id?: number;
+  jugadorId: number;
+  fecha: string;
   aptitudes: Record<string, number>;
   comentarios: string;
 }
 
 export default function ValoracionesPage() {
+  const [equipo, setEquipo] = React.useState<any | null>(null)
+  const [jugadoresBase, setJugadoresBase] = React.useState<any[]>([])
   const [trimestreActual, setTrimestreActual] = React.useState(trimestres[0].id)
   const [filtroJugadores, setFiltroJugadores] = React.useState("todos")
   const [filtroPosicion, setFiltroPosicion] = React.useState("todas")
   const [jugadorSeleccionado, setJugadorSeleccionado] = React.useState<string | null>(null)
   const [valoraciones, setValoraciones] = React.useState<Valoracion[]>([])
-  
-  // Filtrar jugadores según criterios
+
+  React.useEffect(() => {
+    fetch('/api/valoraciones', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => setValoraciones(data))
+    const cargarDatos = async () => {
+      const equipos = await fetch('/api/equipos', { cache: 'no-store' }).then(res => res.json())
+      const eq = equipos[0]
+      setEquipo(eq)
+      if (eq) {
+        const js = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: 'no-store' }).then(res => res.json())
+        setJugadoresBase(
+          js.map((j: any, index: number) => ({
+            id: String(j.id),
+            nombre: j.nombre,
+            dorsal: index + 1,
+            equipo: eq.nombre,
+            posicion: j.posicion,
+          }))
+        )
+      }
+    }
+    cargarDatos()
+  }, [])
+
+  const jugadores = React.useMemo(() => {
+    const t = trimestres.find(t => t.id === trimestreActual)
+    return jugadoresBase.map(j => {
+      const valorado = valoraciones.some(v =>
+        v.jugadorId === Number(j.id) &&
+        t && new Date(v.fecha) >= new Date(t.fechaInicio) && new Date(v.fecha) <= new Date(t.fechaFin)
+      )
+      return { ...j, valorado }
+    })
+  }, [valoraciones, trimestreActual])
+
   const jugadoresFiltrados = React.useMemo(() => {
     return jugadores.filter(jugador => {
-      // Filtro por posición
       if (filtroPosicion !== "todas" && jugador.posicion !== filtroPosicion) {
         return false
       }
-      
-      // Filtro por estado de valoración
       if (filtroJugadores === "pendientes") {
-        return !jugador.ultimaValoracion || new Date(jugador.ultimaValoracion) < new Date(trimestres.find(t => t.id === trimestreActual)?.fechaInicio || "")
+        return !jugador.valorado
       } else if (filtroJugadores === "valorados") {
-        return jugador.ultimaValoracion && new Date(jugador.ultimaValoracion) >= new Date(trimestres.find(t => t.id === trimestreActual)?.fechaInicio || "")
+        return jugador.valorado
       }
-      
       return true
     })
-  }, [filtroJugadores, filtroPosicion, trimestreActual])
+  }, [filtroJugadores, filtroPosicion, jugadores])
+  
   
   // Obtener valoración actual del jugador seleccionado
   const valoracionActual = React.useMemo(() => {
     if (!jugadorSeleccionado) return null
-    
-    return valoraciones.find(v => 
-      v.jugadorId === jugadorSeleccionado && 
-      v.trimestreId === trimestreActual
-    ) || {
-      jugadorId: jugadorSeleccionado,
-      trimestreId: trimestreActual,
-      aptitudes: aptitudes.reduce((acc, apt) => ({ ...acc, [apt.id]: 0 }), {} as Record<string, number>),
-      comentarios: ""
-    }
+    const t = trimestres.find(t => t.id === trimestreActual)
+    return (
+      valoraciones.find(v =>
+        v.jugadorId === Number(jugadorSeleccionado) &&
+        t && new Date(v.fecha) >= new Date(t.fechaInicio) && new Date(v.fecha) <= new Date(t.fechaFin)
+      ) || {
+        jugadorId: Number(jugadorSeleccionado),
+        fecha: new Date().toISOString(),
+        aptitudes: aptitudes.reduce((acc, apt) => ({ ...acc, [apt.id]: 0 }), {} as Record<string, number>),
+        comentarios: "",
+      }
+    )
   }, [jugadorSeleccionado, trimestreActual, valoraciones])
-  
   // Actualizar valoración de aptitud
   const handleValoracionChange = (aptitudId: string, valor: number) => {
     if (!jugadorSeleccionado || !valoracionActual) return
@@ -138,18 +161,13 @@ export default function ValoracionesPage() {
     }
     
     setValoraciones(prev => {
-      const index = prev.findIndex(v => 
-        v.jugadorId === jugadorSeleccionado && 
-        v.trimestreId === trimestreActual
-      )
-      
+      const index = prev.findIndex(v => v.id === nuevaValoracion.id)
       if (index >= 0) {
-        const nuevasValoraciones = [...prev]
-        nuevasValoraciones[index] = nuevaValoracion
-        return nuevasValoraciones
-      } else {
-        return [...prev, nuevaValoracion]
+        const nuevas = [...prev]
+        nuevas[index] = nuevaValoracion as Valoracion
+        return nuevas
       }
+      return [...prev, nuevaValoracion as Valoracion]
     })
   }
   
@@ -163,33 +181,46 @@ export default function ValoracionesPage() {
     }
     
     setValoraciones(prev => {
-      const index = prev.findIndex(v => 
-        v.jugadorId === jugadorSeleccionado && 
-        v.trimestreId === trimestreActual
-      )
-      
+      const index = prev.findIndex(v => v.id === nuevaValoracion.id)
       if (index >= 0) {
-        const nuevasValoraciones = [...prev]
-        nuevasValoraciones[index] = nuevaValoracion
-        return nuevasValoraciones
-      } else {
-        return [...prev, nuevaValoracion]
+        const nuevas = [...prev]
+        nuevas[index] = nuevaValoracion as Valoracion
+        return nuevas
       }
+      return [...prev, nuevaValoracion as Valoracion]
     })
-  }
+    }
+  
   
   // Guardar valoración
-  const handleGuardarValoracion = () => {
-    // Aquí se enviarían los datos al backend
-    console.log("Guardando valoración:", valoracionActual)
-    
-    // Mostrar mensaje de éxito (en una implementación real)
-    alert("Valoración guardada correctamente")
-    
-    // Limpiar selección
+  const handleGuardarValoracion = async () => {
+    if (!valoracionActual) return
+    const res = await fetch('/api/valoraciones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(valoracionActual),
+    })
+    const saved = await res.json()
+    setValoraciones(prev => {
+      const index = prev.findIndex(v => v.id === saved.id)
+      if (index >= 0) {
+        const nuevas = [...prev]
+        nuevas[index] = saved
+        return nuevas
+      }
+      return [...prev, saved]
+    })
+    alert('Valoración guardada correctamente')
     setJugadorSeleccionado(null)
   }
-  
+
+  const handleEliminarValoracion = async () => {
+    if (!valoracionActual?.id) return
+    await fetch(`/api/valoraciones?id=${valoracionActual.id}`, { method: 'DELETE' })
+    setValoraciones(prev => prev.filter(v => v.id !== valoracionActual.id))
+    setJugadorSeleccionado(null)
+    alert('Valoración eliminada')
+  }
   // Calcular valoración media
   const calcularMedia = (aptitudes: Record<string, number>) => {
     if (!aptitudes || Object.keys(aptitudes).length === 0) return 0
@@ -268,16 +299,16 @@ export default function ValoracionesPage() {
                       className={`flex cursor-pointer items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/50 ${jugadorSeleccionado === jugador.id ? 'bg-muted' : ''}`}
                       onClick={() => setJugadorSeleccionado(jugador.id)}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                          {jugador.dorsal}
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                            {jugador.dorsal}
+                          </div>
+                          <div>
+                            <p className="font-medium">{jugador.nombre}</p>
+                            <p className="text-sm text-muted-foreground">{jugador.posicion}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{jugador.nombre} {jugador.apellidos}</p>
-                          <p className="text-sm text-muted-foreground">{jugador.posicion}</p>
-                        </div>
-                      </div>
-                      {jugador.ultimaValoracion && new Date(jugador.ultimaValoracion) >= new Date(trimestres.find(t => t.id === trimestreActual)?.fechaInicio || "") ? (
+                      {jugador.valorado ? (
                         <Badge variant="outline" className="bg-green-50 text-green-700">
                           Valorado
                         </Badge>
@@ -303,7 +334,7 @@ export default function ValoracionesPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {jugadores.find(j => j.id === jugadorSeleccionado)?.nombre} {jugadores.find(j => j.id === jugadorSeleccionado)?.apellidos}
+                  {jugadores.find(j => j.id === jugadorSeleccionado)?.nombre}
                 </CardTitle>
                 <CardDescription>
                   {jugadores.find(j => j.id === jugadorSeleccionado)?.posicion} - Dorsal {jugadores.find(j => j.id === jugadorSeleccionado)?.dorsal}
@@ -347,10 +378,15 @@ export default function ValoracionesPage() {
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="flex justify-between">
+              <CardFooter className="flex justify-between gap-2">
                 <Button variant="outline" onClick={() => setJugadorSeleccionado(null)}>
                   Cancelar
                 </Button>
+                {valoracionActual?.id && (
+                  <Button variant="destructive" onClick={handleEliminarValoracion}>
+                    Eliminar
+                  </Button>
+                )}
                 <Button onClick={handleGuardarValoracion}>
                   Guardar Valoración
                 </Button>

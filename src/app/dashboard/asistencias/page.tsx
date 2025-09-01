@@ -1,8 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle } from "lucide-react"
-import { format, addDays, subDays, isToday, parseISO } from "date-fns"
+import { CalendarIcon, ChevronLeft, ChevronRight, PlusCircle, X } from "lucide-react"
+import { format, addDays, subDays, isToday } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { Button } from "@/components/ui/button"
@@ -10,19 +10,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  { id: "1", nombre: "Juan", apellidos: "García López", dorsal: 9, equipo: "Alevín A" },
-  { id: "2", nombre: "Miguel", apellidos: "Fernández Ruiz", dorsal: 8, equipo: "Alevín A" },
-  { id: "3", nombre: "Carlos", apellidos: "Martínez Sanz", dorsal: 4, equipo: "Alevín A" },
-  { id: "4", nombre: "David", apellidos: "López Gómez", dorsal: 1, equipo: "Alevín A" },
-  { id: "5", nombre: "Javier", apellidos: "Sánchez Pérez", dorsal: 2, equipo: "Alevín A" },
-  { id: "6", nombre: "Alejandro", apellidos: "González Díaz", dorsal: 6, equipo: "Alevín A" },
-  { id: "7", nombre: "Daniel", apellidos: "Pérez Martín", dorsal: 11, equipo: "Alevín A" },
-]
+// Datos iniciales obtenidos desde la API
+
 
 // Motivos de ausencia predefinidos
 const motivosAusencia = [
@@ -32,38 +25,118 @@ const motivosAusencia = [
   { value: "estudios", label: "Estudios" },
   { value: "viaje", label: "Viaje" },
   { value: "no_justificado", label: "No justificado" },
+  { value: "otro", label: "Otro" },
 ]
 
 // Horarios de entrenamiento predefinidos
-const horariosEntrenamiento = [
-  { dia: "Lunes", hora: "18:00", duracion: "90 min" },
-  { dia: "Miércoles", hora: "18:00", duracion: "90 min" },
-  { dia: "Viernes", hora: "17:30", duracion: "90 min" },
-]
+interface Horario {
+  id?: number
+  dia: string
+  hora: string
+  duracion: string
+}
 
 export default function AsistenciasPage() {
   const [fecha, setFecha] = React.useState<Date>(new Date())
+  const [temporadaActual, setTemporadaActual] = React.useState<string>('')
+  const [equipo, setEquipo] = React.useState<any | null>(null)
+  const [jugadores, setJugadores] = React.useState<any[]>([])
   const [registros, setRegistros] = React.useState<{
+    id?: number;
     jugadorId: string;
     asistio: boolean;
     motivo?: string;
+    motivoPersonalizado?: string;
   }[]>([])
-  
-  // Inicializar registros con todos los jugadores asistiendo por defecto
+  const [horarios, setHorarios] = React.useState<Horario[]>([])
+
+  const handleAddHorario = () => {
+    setHorarios(prev => [...prev, { dia: "", hora: "", duracion: "" }])
+  }
+
+  const handleDeleteHorario = async (id?: number) => {
+    if (id) {
+      await fetch(`/api/horarios?id=${id}`, { method: 'DELETE' })
+    }
+    setHorarios(prev => prev.filter(h => h.id !== id))
+  }
+
+  const handleHorarioChange = (index: number, field: keyof Horario, value: string) => {
+    setHorarios(prev =>
+      prev.map((h, i) => (i === index ? { ...h, [field]: value } : h))
+    )
+  }
+
+  const handleGuardarHorarios = async () => {
+    if (!equipo) return
+    await fetch('/api/horarios', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ equipoId: equipo.id, horarios }),
+    })
+    alert('Horarios actualizados')
+  }
+
   React.useEffect(() => {
-    const registrosIniciales = jugadores.map(jugador => ({
-      jugadorId: jugador.id,
-      asistio: true
-    }))
-    setRegistros(registrosIniciales)
+    const cargarDatos = async () => {
+      const [temporadaRes, equiposRes] = await Promise.all([
+        fetch('/api/temporadas?actual=1', { cache: 'no-store' }),
+        fetch('/api/equipos', { cache: 'no-store' }),
+      ])
+      const temporada = await temporadaRes.json()
+      setTemporadaActual(temporada?.id || '')
+      const equipos = await equiposRes.json()
+      const eq = equipos[0]
+      setEquipo(eq)
+      if (eq) {
+        const jRes = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: 'no-store' })
+        const jData = await jRes.json()
+        setJugadores(jData.map((j: any, index: number) => ({
+          id: String(j.id),
+          nombre: j.nombre,
+          dorsal: index + 1,
+        })))
+        fetch(`/api/horarios?equipoId=${eq.id}`, { cache: 'no-store' })
+          .then(res => res.json())
+          .then(data => setHorarios(data))
+      }
+    }
+    cargarDatos()
   }, [])
-  
+
+  // Inicializar registros con todos los jugadores asistiendo por defecto
+
+  React.useEffect(() => {
+    if (!equipo) return
+    const cargar = async () => {
+      const res = await fetch(`/api/asistencias?fecha=${format(fecha, 'yyyy-MM-dd')}&equipoId=${equipo.id}`, { cache: 'no-store' })
+      const data = await res.json()
+      if (data.length > 0) {
+        setRegistros(
+          data.map((r: any) => ({
+            id: r.id,
+            jugadorId: String(r.jugadorId),
+            asistio: r.asistio,
+            motivo: r.motivo,
+          }))
+        )
+      } else {
+        const registrosIniciales = jugadores.map((jugador: any) => ({
+          jugadorId: jugador.id,
+          asistio: true,
+        }))
+        setRegistros(registrosIniciales)
+      }
+    }
+    cargar()
+  }, [fecha, equipo, jugadores])
+
   // Manejar cambio de asistencia
   const handleAsistenciaChange = (jugadorId: string, asistio: boolean) => {
     setRegistros(prev => 
       prev.map(registro => 
         registro.jugadorId === jugadorId 
-          ? { ...registro, asistio, motivo: asistio ? undefined : registro.motivo } 
+          ? { ...registro, asistio, motivo: asistio ? undefined : registro.motivo, motivoPersonalizado: asistio ? undefined : registro.motivoPersonalizado }
           : registro
       )
     )
@@ -71,10 +144,20 @@ export default function AsistenciasPage() {
   
   // Manejar cambio de motivo de ausencia
   const handleMotivoChange = (jugadorId: string, motivo: string) => {
-    setRegistros(prev => 
-      prev.map(registro => 
-        registro.jugadorId === jugadorId 
-          ? { ...registro, motivo } 
+    setRegistros(prev =>
+      prev.map(registro =>
+        registro.jugadorId === jugadorId
+          ? { ...registro, motivo }
+          : registro
+      )
+    )
+  }
+
+  const handleMotivoPersonalizadoChange = (jugadorId: string, motivoPersonalizado: string) => {
+    setRegistros(prev =>
+      prev.map(registro =>
+        registro.jugadorId === jugadorId
+          ? { ...registro, motivoPersonalizado }
           : registro
       )
     )
@@ -91,17 +174,40 @@ export default function AsistenciasPage() {
   }
   
   // Guardar registros de asistencia
-  const handleGuardarAsistencias = () => {
-    // Aquí se enviarían los datos al backend
-    console.log("Guardando asistencias:", {
-      fecha: format(fecha, "yyyy-MM-dd"),
-      registros
+  const handleGuardarAsistencias = async () => {
+    const registrosFinales = registros.map(r => ({
+      jugadorId: Number(r.jugadorId),
+      asistio: r.asistio,
+      motivo: r.motivo === 'otro' ? r.motivoPersonalizado : r.motivo
+    }))
+    await fetch('/api/asistencias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fecha: format(fecha, 'yyyy-MM-dd'),
+        registros: registrosFinales,
+        equipoId: equipo.id,
+      })
     })
-    
-    // Mostrar mensaje de éxito (en una implementación real)
-    alert("Asistencias guardadas correctamente")
+    alert('Asistencias guardadas correctamente')
   }
-  
+
+  const handleEliminarAsistencias = async () => {
+    await fetch(`/api/asistencias?fecha=${format(fecha, 'yyyy-MM-dd')}&equipoId=${equipo.id}`, {
+      method: 'DELETE'
+    })
+    const registrosIniciales = jugadores.map(jugador => ({
+      jugadorId: jugador.id,
+      asistio: true,
+    }))
+    setRegistros(registrosIniciales)
+    alert('Registros eliminados')
+  }
+
+  if (!equipo) {
+    return <div className="p-4">Cargando...</div>
+  }
+
   return (
     <>
       <div className="flex items-center justify-between px-4 lg:px-6">
@@ -119,29 +225,43 @@ export default function AsistenciasPage() {
             <CardHeader>
               <CardTitle>Horarios de Entrenamiento</CardTitle>
               <CardDescription>
-                Alevín A - Temporada 2024-2025
+                {equipo.nombre} - Temporada {temporadaActual}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {horariosEntrenamiento.map((horario, index) => (
-                  <div key={index} className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="font-medium">{horario.dia}</p>
-                      <p className="text-sm text-muted-foreground">{horario.hora} ({horario.duracion})</p>
-                    </div>
-                    <Button variant="ghost" size="icon">
-                      <PlusCircle className="h-4 w-4" />
+                {horarios.map((horario, index) => (
+                  <div key={horario.id ?? index} className="flex items-center gap-2 rounded-lg border p-3">
+                    <Input
+                      value={horario.dia}
+                      onChange={(e) => handleHorarioChange(index, 'dia', e.target.value)}
+                      placeholder="Día"
+                    />
+                    <Input
+                      value={horario.hora}
+                      onChange={(e) => handleHorarioChange(index, 'hora', e.target.value)}
+                      placeholder="Hora"
+                      className="w-[90px]"
+                    />
+                    <Input
+                      value={horario.duracion}
+                      onChange={(e) => handleHorarioChange(index, 'duracion', e.target.value)}
+                      placeholder="Duración"
+                      className="w-[90px]"
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => handleDeleteHorario(horario.id)}>
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
               </div>
             </CardContent>
-            <CardFooter>
-              <Button variant="outline" className="w-full">
+            <CardFooter className="flex flex-col gap-2">
+              <Button variant="outline" onClick={handleAddHorario}>
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Añadir horario
               </Button>
+              <Button onClick={handleGuardarHorarios}>Guardar horarios</Button>
             </CardFooter>
           </Card>
         </div>
@@ -187,7 +307,7 @@ export default function AsistenciasPage() {
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
-                <table className="w-full">
+                <table className="hidden w-full md:table">
                   <thead>
                     <tr className="border-b bg-muted/50 text-sm">
                       <th className="p-2 text-left font-medium">Jugador</th>
@@ -201,7 +321,7 @@ export default function AsistenciasPage() {
                       const registro = registros.find(r => r.jugadorId === jugador.id)
                       return (
                         <tr key={jugador.id} className="border-b">
-                          <td className="p-2">{jugador.nombre} {jugador.apellidos}</td>
+                          <td className="p-2">{jugador.nombre}</td>
                           <td className="p-2">{jugador.dorsal}</td>
                           <td className="p-2">
                             <Switch
@@ -211,21 +331,30 @@ export default function AsistenciasPage() {
                           </td>
                           <td className="p-2">
                             {registro && !registro.asistio && (
-                              <Select
-                                value={registro.motivo}
-                                onValueChange={(value) => handleMotivoChange(jugador.id, value)}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Seleccionar motivo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {motivosAusencia.map((motivo) => (
-                                    <SelectItem key={motivo.value} value={motivo.value}>
-                                      {motivo.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="space-y-2">
+                                <Select
+                                  value={registro.motivo}
+                                  onValueChange={(value) => handleMotivoChange(jugador.id, value)}
+                                >
+                                  <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Seleccionar motivo" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {motivosAusencia.map((motivo) => (
+                                      <SelectItem key={motivo.value} value={motivo.value}>
+                                        {motivo.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {registro.motivo === 'otro' && (
+                                  <Input
+                                    value={registro.motivoPersonalizado || ''}
+                                    onChange={(e) => handleMotivoPersonalizadoChange(jugador.id, e.target.value)}
+                                    placeholder="Motivo"
+                                  />
+                                )}
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -233,9 +362,57 @@ export default function AsistenciasPage() {
                     })}
                   </tbody>
                 </table>
+                <div className="divide-y md:hidden">
+                  {jugadores.map((jugador) => {
+                    const registro = registros.find(r => r.jugadorId === jugador.id)
+                    return (
+                      <div key={jugador.id} className="p-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="font-medium">{jugador.nombre}</div>
+                            <div className="text-sm text-muted-foreground">#{jugador.dorsal}</div>
+                          </div>
+                          <Switch
+                            checked={registro?.asistio ?? true}
+                            onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
+                          />
+                        </div>
+                        {registro && !registro.asistio && (
+                          <div className="mt-2 space-y-2">
+                            <Select
+                              value={registro.motivo}
+                              onValueChange={(value) => handleMotivoChange(jugador.id, value)}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Seleccionar motivo" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {motivosAusencia.map((motivo) => (
+                                  <SelectItem key={motivo.value} value={motivo.value}>
+                                    {motivo.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {registro.motivo === 'otro' && (
+                              <Input
+                                value={registro.motivoPersonalizado || ''}
+                                onChange={(e) => handleMotivoPersonalizadoChange(jugador.id, e.target.value)}
+                                placeholder="Motivo"
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex gap-2">
+              <Button variant="destructive" className="w-full" onClick={handleEliminarAsistencias}>
+                Eliminar Registros
+              </Button>
               <Button className="w-full" onClick={handleGuardarAsistencias}>
                 Guardar Asistencias
               </Button>

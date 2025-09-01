@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "jugadorId": 1,
+    "equipoId": 1,
+    "fecha": "2024-08-10",
+    "asistio": false,
+    "motivo": "lesion"
+  }
+]

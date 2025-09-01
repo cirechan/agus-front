@@ -1,410 +1,294 @@
-"use client"
-
-import * as React from "react"
-import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, CalendarIcon, ClipboardCheckIcon, LineChartIcon, PencilIcon, TrendingUpIcon, UsersIcon } from "lucide-react"
 import Link from "next/link"
-
+import { ArrowLeft, Edit, Trash } from "lucide-react"
+import { equiposService, jugadoresService, asistenciasService, valoracionesService } from "@/lib/api/services"
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Badge } from "@/components/ui/badge"
-import { SkillsChart } from "@/components/skills-chart"
-import { Separator } from "@/components/ui/separator"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { DialogFooter } from "@/components/ui/dialog"
+import { FormDialog } from "@/components/form-dialog"
+import { RatingStars } from "@/components/rating-stars"
+import { PlayerRadarChart } from "@/components/player-radar-chart"
+import { revalidatePath } from "next/cache"
 
-// Datos de ejemplo - en producción vendrían de la API
-const jugadores = [
-  {
-    id: "1",
-    nombre: "Juan",
-    apellidos: "García López",
-    posicion: "Delantero",
-    dorsal: 9,
-    equipo: "Alevín A",
-    categoria: "1ª Alevín",
-    fechaNacimiento: "2014-05-12",
-    asistencia: "95%",
-    valoracionMedia: 4.2,
-    aptitudes: [
-      { name: "Técnica", value: 4.5, fullMark: 5 },
-      { name: "Táctica", value: 3.8, fullMark: 5 },
-      { name: "Física", value: 4.2, fullMark: 5 },
-      { name: "Mental", value: 4.3, fullMark: 5 }
-    ],
-    historialEquipos: [
-      { temporada: "2024-2025", equipo: "Alevín A", categoria: "1ª Alevín" },
-      { temporada: "2023-2024", equipo: "Benjamín A", categoria: "1ª Benjamín" },
-      { temporada: "2022-2023", equipo: "Prebenjamín B", categoria: "2ª Prebenjamín" }
-    ],
-    historialValoraciones: [
-      { 
-        fecha: "2025-03-15", 
-        trimestre: "1T 2025",
-        aptitudes: [
-          { name: "Técnica", value: 4.5, fullMark: 5 },
-          { name: "Táctica", value: 3.8, fullMark: 5 },
-          { name: "Física", value: 4.2, fullMark: 5 },
-          { name: "Mental", value: 4.3, fullMark: 5 }
-        ],
-        comentarios: "Excelente progresión en aspectos técnicos. Debe mejorar posicionamiento táctico."
-      },
-      { 
-        fecha: "2024-12-10", 
-        trimestre: "4T 2024",
-        aptitudes: [
-          { name: "Técnica", value: 4.3, fullMark: 5 },
-          { name: "Táctica", value: 3.5, fullMark: 5 },
-          { name: "Física", value: 4.0, fullMark: 5 },
-          { name: "Mental", value: 4.1, fullMark: 5 }
-        ],
-        comentarios: "Buena actitud en los entrenamientos. Ha mejorado su capacidad de finalización."
-      },
-      { 
-        fecha: "2024-09-20", 
-        trimestre: "3T 2024",
-        aptitudes: [
-          { name: "Técnica", value: 4.0, fullMark: 5 },
-          { name: "Táctica", value: 3.2, fullMark: 5 },
-          { name: "Física", value: 3.8, fullMark: 5 },
-          { name: "Mental", value: 3.9, fullMark: 5 }
-        ],
-        comentarios: "Buen inicio de temporada. Necesita mejorar en aspectos tácticos."
+export default async function JugadorPage({ params }: { params: { id: string } }) {
+  const jugadorId = Number(params.id)
+  const jugador = await jugadoresService.getById(jugadorId)
+  if (!jugador) {
+    return <div className="p-4">Jugador no encontrado</div>
+  }
+  const equipo = await equiposService.getById(jugador.equipoId)
+  const asistencias = await asistenciasService.getByJugador(jugadorId)
+  const valoraciones = await valoracionesService.getByJugador(jugadorId)
+
+  // resumen de asistencias
+  const totalSesiones = asistencias.length
+  const presentes = asistencias.filter((a: any) => a.asistio).length
+  const porcentajeAsistencia = totalSesiones ? ((presentes / totalSesiones) * 100).toFixed(1) : "0"
+
+  // medias de valoraciones
+  const promedios = valoraciones.length
+    ? {
+        tecnica:
+          valoraciones.reduce((sum: number, v: any) => sum + (v.aptitudes.tecnica || 0), 0) /
+          valoraciones.length,
+        tactica:
+          valoraciones.reduce((sum: number, v: any) => sum + (v.aptitudes.tactica || 0), 0) /
+          valoraciones.length,
+        fisica:
+          valoraciones.reduce((sum: number, v: any) => sum + (v.aptitudes.fisica || 0), 0) /
+          valoraciones.length,
+        mental:
+          valoraciones.reduce((sum: number, v: any) => sum + (v.aptitudes.mental || 0), 0) /
+          valoraciones.length,
       }
-    ],
-    asistencias: [
-      { fecha: "2025-04-09", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-04-07", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-04-04", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-04-02", tipo: "Entrenamiento", asistio: false, motivo: "Enfermedad" },
-      { fecha: "2025-03-31", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-03-28", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-03-26", tipo: "Entrenamiento", asistio: true },
-      { fecha: "2025-03-24", tipo: "Entrenamiento", asistio: true }
-    ]
-  },
-  // Otros jugadores...
-]
+    : null
 
-export default function JugadorDetallePage() {
-  const params = useParams()
-  const jugadorId = params.id as string
-  
-  // Encontrar el jugador por ID
-  const jugador = jugadores.find(j => j.id === jugadorId) || jugadores[0]
-  
-  // Calcular edad
-  const edad = new Date().getFullYear() - new Date(jugador.fechaNacimiento).getFullYear()
-  
+  // server actions
+  async function actualizarJugador(formData: FormData) {
+    "use server"
+    const nombre = formData.get("nombre") as string
+    const posicion = formData.get("posicion") as string
+    await jugadoresService.update(jugadorId, { nombre, posicion })
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+    revalidatePath('/dashboard/jugadores')
+  }
+
+  async function crearValoracion(formData: FormData) {
+    "use server"
+    const tecnica = Number(formData.get("tecnica")) || 0
+    const tactica = Number(formData.get("tactica")) || 0
+    const fisica = Number(formData.get("fisica")) || 0
+    const mental = Number(formData.get("mental")) || 0
+    const comentarios = formData.get("comentarios") as string
+    const fecha = new Date().toISOString()
+    await valoracionesService.create({ jugadorId, fecha, aptitudes: { tecnica, tactica, fisica, mental }, comentarios })
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+    revalidatePath('/dashboard/jugadores')
+  }
+
+  async function actualizarValoracion(formData: FormData) {
+    "use server"
+    const id = Number(formData.get("id"))
+    const tecnica = Number(formData.get("tecnica")) || 0
+    const tactica = Number(formData.get("tactica")) || 0
+    const fisica = Number(formData.get("fisica")) || 0
+    const mental = Number(formData.get("mental")) || 0
+    const comentarios = formData.get("comentarios") as string
+    await valoracionesService.update(id, { aptitudes: { tecnica, tactica, fisica, mental }, comentarios })
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+  }
+
+  async function eliminarValoracion(formData: FormData) {
+    "use server"
+    const id = Number(formData.get("id"))
+    await valoracionesService.delete(id)
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+    revalidatePath('/dashboard/jugadores')
+  }
+
+  async function crearAsistencia(formData: FormData) {
+    "use server"
+    const fecha = formData.get("fecha") as string
+    const asistio = formData.get("asistio") === "on"
+    const motivo = formData.get("motivo") as string
+    await asistenciasService.create({ jugadorId, equipoId: jugador.equipoId, fecha, asistio, motivo })
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+  }
+
+  async function actualizarAsistencia(formData: FormData) {
+    "use server"
+    const id = Number(formData.get("id"))
+    const fecha = formData.get("fecha") as string
+    const asistio = formData.get("asistio") === "on"
+    const motivo = formData.get("motivo") as string
+    await asistenciasService.update(id, { fecha, asistio, motivo })
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+  }
+
+  async function eliminarAsistencia(formData: FormData) {
+    "use server"
+    const id = Number(formData.get("id"))
+    await asistenciasService.delete(id)
+    revalidatePath(`/dashboard/jugadores/${jugadorId}`)
+  }
+
   return (
-    <>
-      <div className="flex items-center gap-4 px-4 lg:px-6">
+    <div className="space-y-6 p-4 lg:p-6">
+      <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/dashboard/jugadores">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-semibold">{jugador.nombre} {jugador.apellidos}</h1>
-          <p className="text-muted-foreground">
-            {jugador.equipo} - {jugador.categoria}
-          </p>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Badge variant="outline" className="text-sm">
-            {jugador.posicion}
-          </Badge>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-primary-foreground">
-            {jugador.dorsal}
-          </div>
+          <h1 className="text-2xl font-semibold">{jugador.nombre}</h1>
+          {equipo && <p className="text-muted-foreground">{equipo.nombre}</p>}
         </div>
       </div>
-      
-      <div className="grid grid-cols-1 gap-6 px-4 py-6 md:grid-cols-3 lg:px-6">
-        <div className="md:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Información Personal</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Edad</p>
-                    <p className="text-sm">{edad} años</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Fecha Nacimiento</p>
-                    <p className="text-sm">{new Date(jugador.fechaNacimiento).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Posición</p>
-                    <p className="text-sm">{jugador.posicion}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Dorsal</p>
-                    <p className="text-sm">{jugador.dorsal}</p>
-                  </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Información personal</CardTitle>
+            <FormDialog
+              title="Editar jugador"
+              trigger={<Button size="icon" variant="ghost"><Edit className="h-4 w-4"/></Button>}
+              action={actualizarJugador}
+            >
+              <Input name="nombre" defaultValue={jugador.nombre} placeholder="Nombre" />
+              <Input name="posicion" defaultValue={jugador.posicion} placeholder="Posición" />
+              <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+            </FormDialog>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            <div><span className="font-medium">Nombre:</span> {jugador.nombre}</div>
+            <div><span className="font-medium">Posición:</span> {jugador.posicion}</div>
+            <div><span className="font-medium">Asistencias:</span> {presentes}/{totalSesiones} ({porcentajeAsistencia}%)</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Aptitudes del jugador</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {promedios ? (
+              <PlayerRadarChart data={promedios} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin valoraciones</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="valoraciones" className="w-full">
+        <TabsList>
+          <TabsTrigger value="valoraciones">Valoraciones</TabsTrigger>
+          <TabsTrigger value="asistencias">Asistencias</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="valoraciones" className="space-y-4">
+          {valoraciones.map((v: any) => (
+            <Card key={v.id}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">{new Date(v.fecha).toLocaleDateString()}</CardTitle>
+                <div className="flex gap-2">
+                  <FormDialog
+                    title="Editar valoración"
+                    trigger={<Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>}
+                    action={actualizarValoracion}
+                  >
+                    <input type="hidden" name="id" value={v.id} />
+                    <Input type="number" step="0.5" name="tecnica" defaultValue={v.aptitudes.tecnica} placeholder="Técnica"/>
+                    <Input type="number" step="0.5" name="tactica" defaultValue={v.aptitudes.tactica} placeholder="Táctica"/>
+                    <Input type="number" step="0.5" name="fisica" defaultValue={v.aptitudes.fisica} placeholder="Física" />
+                    <Input type="number" step="0.5" name="mental" defaultValue={v.aptitudes.mental} placeholder="Mental" />
+                    <Textarea className="col-span-2" name="comentarios" defaultValue={v.comentarios} />
+                    <DialogFooter className="col-span-2"><Button type="submit">Guardar</Button></DialogFooter>
+                  </FormDialog>
+                  <form action={eliminarValoracion}>
+                    <input type="hidden" name="id" value={v.id} />
+                    <Button variant="ghost" size="icon"><Trash className="h-4 w-4" /></Button>
+                  </form>
                 </div>
-                
-                <Separator />
-                
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Equipo Actual</p>
-                  <p className="text-sm">{jugador.equipo} - {jugador.categoria}</p>
+              </CardHeader>
+              <CardContent className="grid grid-cols-2 gap-2 text-sm">
+                <div className="font-medium">Técnica</div>
+                <div className="flex items-center gap-1"><RatingStars value={v.aptitudes.tecnica} /></div>
+                <div className="font-medium">Táctica</div>
+                <div className="flex items-center gap-1"><RatingStars value={v.aptitudes.tactica} /></div>
+                <div className="font-medium">Física</div>
+                <div className="flex items-center gap-1"><RatingStars value={v.aptitudes.fisica} /></div>
+                <div className="font-medium">Mental</div>
+                <div className="flex items-center gap-1"><RatingStars value={v.aptitudes.mental} /></div>
+              </CardContent>
+              {v.comentarios && (
+                <CardFooter className="text-sm text-muted-foreground">
+                  {v.comentarios}
+                </CardFooter>
+              )}
+            </Card>
+          ))}
+          {valoraciones.length === 0 && (
+            <p className="text-sm text-muted-foreground">No hay valoraciones</p>
+          )}
+
+          <FormDialog
+            title="Nueva valoración"
+            trigger={<Button>Nueva valoración</Button>}
+            action={crearValoracion}
+          >
+            <Input type="number" step="0.5" name="tecnica" placeholder="Técnica" />
+            <Input type="number" step="0.5" name="tactica" placeholder="Táctica" />
+            <Input type="number" step="0.5" name="fisica" placeholder="Física" />
+            <Input type="number" step="0.5" name="mental" placeholder="Mental" />
+            <Textarea className="col-span-2" name="comentarios" placeholder="Comentarios" />
+            <DialogFooter className="col-span-2"><Button type="submit">Guardar</Button></DialogFooter>
+          </FormDialog>
+        </TabsContent>
+
+        <TabsContent value="asistencias" className="space-y-4">
+          {asistencias.map((a: any) => (
+            <Card key={a.id}>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm">{a.fecha}</CardTitle>
+                <div className="flex gap-2">
+                  <FormDialog
+                    title="Editar asistencia"
+                    trigger={<Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>}
+                    action={actualizarAsistencia}
+                  >
+                    <input type="hidden" name="id" value={a.id} />
+                    <Input type="date" name="fecha" defaultValue={a.fecha} />
+                    <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked={a.asistio} /> Presente</label>
+                    <Input name="motivo" defaultValue={a.motivo} placeholder="Motivo" />
+                    <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+                  </FormDialog>
+                  <form action={eliminarAsistencia}>
+                    <input type="hidden" name="id" value={a.id} />
+                    <Button variant="ghost" size="icon"><Trash className="h-4 w-4"/></Button>
+                  </form>
                 </div>
-                
-                <Separator />
-                
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Historial de Equipos</p>
-                  <div className="mt-2 space-y-2">
-                    {jugador.historialEquipos.map((historial, index) => (
-                      <div key={index} className="flex justify-between text-sm">
-                        <span>{historial.temporada}</span>
-                        <span>{historial.equipo} - {historial.categoria}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              </CardHeader>
+              <CardContent className="text-sm">
+                {a.asistio ? "Presente" : `Ausente (${a.motivo})`}
+              </CardContent>
+            </Card>
+          ))}
+          {asistencias.length === 0 && (
+            <p className="text-sm text-muted-foreground">No hay registros</p>
+          )}
+
+          <FormDialog
+            title="Nueva asistencia"
+            trigger={<Button>Nueva asistencia</Button>}
+            action={crearAsistencia}
+          >
+            <Input type="date" name="fecha" />
+            <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked /> Presente</label>
+            <Input name="motivo" placeholder="Motivo (si falta)" />
+            <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+          </FormDialog>
+        </TabsContent>
+      </Tabs>
+
+      {jugador.logs && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Logs</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {Object.entries(jugador.logs).map(([k, v]) => (
+              <div key={k}>
+                <span className="font-medium mr-2">{k.replace("_", "/")}</span>
+                {v as string}
               </div>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div className="md:col-span-2">
-          <SkillsChart 
-            data={jugador.aptitudes}
-            title="Aptitudes del Jugador"
-            description="Valoración actual en escala de 1 a 5"
-            footer={
-              <div className="flex items-center gap-2 font-medium leading-none">
-                Progresión positiva <TrendingUpIcon className="h-4 w-4" />
-              </div>
-            }
-          />
-        </div>
-      </div>
-      
-      <div className="px-4 lg:px-6">
-        <Tabs defaultValue="valoraciones">
-          <div className="flex items-center justify-between">
-            <TabsList>
-              <TabsTrigger value="valoraciones">Valoraciones</TabsTrigger>
-              <TabsTrigger value="asistencias">Asistencias</TabsTrigger>
-              <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <TabsContent value="valoraciones" className="pt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Historial de Valoraciones</CardTitle>
-                <CardDescription>
-                  Evolución de las aptitudes del jugador
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-8">
-                  {jugador.historialValoraciones.map((valoracion, index) => (
-                    <div key={index} className="border-b pb-6 last:border-0 last:pb-0">
-                      <div className="mb-4 flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-medium">{valoracion.trimestre}</h3>
-                          <p className="text-sm text-muted-foreground">Fecha: {new Date(valoracion.fecha).toLocaleDateString()}</p>
-                        </div>
-                        <Button variant="outline" size="sm">
-                          <PencilIcon className="mr-2 h-4 w-4" />
-                          Editar
-                        </Button>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                        <div className="aspect-square max-h-[200px]">
-                          <SkillsChart 
-                            data={valoracion.aptitudes}
-                            title=""
-                            description=""
-                          />
-                        </div>
-                        <div>
-                          <h4 className="mb-2 text-sm font-medium">Comentarios</h4>
-                          <p className="text-sm text-muted-foreground">{valoracion.comentarios}</p>
-                          
-                          <div className="mt-4 grid grid-cols-2 gap-4">
-                            {valoracion.aptitudes.map((aptitud, i) => (
-                              <div key={i}>
-                                <p className="text-xs font-medium text-muted-foreground">{aptitud.name}</p>
-                                <div className="flex items-center gap-2">
-                                  <div className="h-2 w-full rounded-full bg-muted">
-                                    <div 
-                                      className="h-full rounded-full bg-primary" 
-                                      style={{ width: `${(aptitud.value / aptitud.fullMark) * 100}%` }}
-                                    ></div>
-                                  </div>
-                                  <span className="text-xs font-medium">{aptitud.value}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button className="w-full">
-                  <PencilIcon className="mr-2 h-4 w-4" />
-                  Nueva Valoración
-                </Button>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="asistencias" className="pt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Registro de Asistencias</CardTitle>
-                <CardDescription>
-                  Asistencia a entrenamientos y partidos
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-md border">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/50 text-sm">
-                        <th className="p-2 text-left font-medium">Fecha</th>
-                        <th className="p-2 text-left font-medium">Tipo</th>
-                        <th className="p-2 text-left font-medium">Asistencia</th>
-                        <th className="p-2 text-left font-medium">Motivo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {jugador.asistencias.map((asistencia, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-2">{new Date(asistencia.fecha).toLocaleDateString()}</td>
-                          <td className="p-2">{asistencia.tipo}</td>
-                          <td className="p-2">
-                            {asistencia.asistio ? (
-                              <Badge variant="outline" className="bg-green-50 text-green-700">Presente</Badge>
-                            ) : (
-                              <Badge variant="outline" className="bg-red-50 text-red-700">Ausente</Badge>
-                            )}
-                          </td>
-                          <td className="p-2">{asistencia.motivo || "-"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <div className="flex w-full items-center justify-between">
-                  <div className="text-sm">
-                    <span className="font-medium">Asistencia total:</span> {jugador.asistencia}
-                  </div>
-                  <Button variant="outline">
-                    Ver historial completo
-                  </Button>
-                </div>
-              </CardFooter>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="estadisticas" className="pt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Estadísticas del Jugador</CardTitle>
-                <CardDescription>
-                  Rendimiento y evolución
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Progresión de Aptitudes</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        {jugador.aptitudes.map((aptitud, index) => (
-                          <div key={index} className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-medium">{aptitud.name}</div>
-                              <div className="text-sm font-medium">{aptitud.value}/5</div>
-                            </div>
-                            <div className="h-2 w-full rounded-full bg-muted">
-                              <div 
-                                className="h-full rounded-full bg-primary" 
-                                style={{ width: `${(aptitud.value / aptitud.fullMark) * 100}%` }}
-                              ></div>
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              +{(Math.random() * 0.5).toFixed(1)} desde la última evaluación
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Resumen de Temporada</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div className="flex items-start gap-4">
-                          <div className="rounded-md bg-primary/10 p-2">
-                            <ClipboardCheckIcon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                              Asistencia a Entrenamientos
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {jugador.asistencia} de asistencia total
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-start gap-4">
-                          <div className="rounded-md bg-primary/10 p-2">
-                            <LineChartIcon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                              Valoración Media
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {jugador.valoracionMedia}/5 en la temporada actual
-                            </p>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-start gap-4">
-                          <div className="rounded-md bg-primary/10 p-2">
-                            <TrendingUpIcon className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-sm font-medium leading-none">
-                              Progresión
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Mejora constante en aspectos técnicos y físicos
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
-    </>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }

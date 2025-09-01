@@ -3,27 +3,16 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { 
-  BarChartIcon, 
-  CalendarIcon, 
-  ChevronDown,
-  ClipboardCheckIcon, 
-  HomeIcon, 
-  LineChartIcon, 
-  SearchIcon, 
-  ShieldIcon, 
-  UsersIcon, 
-  UserIcon
+import {
+  ClipboardCheckIcon,
+  HomeIcon,
+  LineChartIcon,
+  SearchIcon,
+  UserIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { TeamSelector } from "@/components/team-selector"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -43,7 +32,6 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname()
   const { open: expanded, setOpen: setExpanded } = useSidebar()
-  const [teamsOpen, setTeamsOpen] = React.useState(true)
 
   return (
     <Sidebar collapsible="icon" className={className}>
@@ -73,14 +61,8 @@ export function AppSidebar({
             </span>
           </Button>
         </div>
-        
-        {expanded && (
-          <div className="px-2 py-2">
-            <TeamSelector />
-          </div>
-        )}
       </SidebarHeader>
-      
+
       <SidebarContent>
         <nav className="flex-1 overflow-auto py-4">
           <div className="grid gap-1 px-2">
@@ -91,53 +73,6 @@ export function AppSidebar({
               pathname={pathname}
               expanded={expanded}
             />
-            
-            <Collapsible
-              open={teamsOpen}
-              onOpenChange={setTeamsOpen}
-              className={cn(!expanded && "hidden")}
-            >
-              <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="flex w-full justify-between px-3 py-2 text-sm font-medium"
-                >
-                  <div className="flex items-center gap-2">
-                    <UsersIcon className="h-5 w-5" />
-                    <span>Equipos</span>
-                  </div>
-                  <ChevronDown className={cn("h-4 w-4 transition-transform", teamsOpen && "rotate-180")} />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pl-6 pt-1">
-                <div className="grid gap-1">
-                  <NavLink
-                    href="/dashboard/equipos"
-                    icon={UsersIcon}
-                    label="Todos los equipos"
-                    pathname={pathname}
-                    expanded={expanded}
-                  />
-                  <NavLink
-                    href="/dashboard/equipos/nuevo"
-                    icon={UsersIcon}
-                    label="Nuevo equipo"
-                    pathname={pathname}
-                    expanded={expanded}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-            
-            {!expanded && (
-              <NavLink
-                href="/dashboard/equipos"
-                icon={UsersIcon}
-                label="Equipos"
-                pathname={pathname}
-                expanded={expanded}
-              />
-            )}
             
             <NavLink
               href="/dashboard/jugadores"
@@ -167,13 +102,6 @@ export function AppSidebar({
               pathname={pathname}
               expanded={expanded}
             />
-            <NavLink
-  href="/dashboard/horarios"
-  icon={CalendarIcon}
-  label="Horarios"
-  pathname={pathname}
-  expanded={expanded}
-/>
 
           
           </div>
@@ -186,7 +114,7 @@ export function AppSidebar({
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-muted" />
               <div className="flex flex-col">
-                <span className="text-xs font-medium">Entrenador</span>
+                <span className="text-xs font-medium">Cadete B</span>
                 <span className="text-xs text-muted-foreground">
                   CD San Agustín
                 </span>

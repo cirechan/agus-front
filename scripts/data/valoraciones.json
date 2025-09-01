@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "jugadorId": 1,
+    "fecha": "2024-08-15T00:00:00.000Z",
+    "aptitudes": {
+      "tecnica": 3,
+      "tactica": 2.5,
+      "fisica": 3,
+      "mental": 3.5
+    },
+    "comentarios": "Buen comienzo"
+  }
+]
