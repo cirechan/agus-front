@@ -73,6 +73,40 @@ export async function listMatches(): Promise<Match[]> {
   );
 }
 
+export async function getMatch(id: number): Promise<Match | null> {
+  const sql = getSql();
+  const rows = await sql`
+    SELECT p.id,
+           p.equipo_local_id AS "homeTeamId",
+           p.equipo_visitante_id AS "awayTeamId",
+           p.inicio AS kickoff,
+           p.competicion AS competition,
+           p.jornada AS "matchday",
+           p.alineacion AS lineup
+    FROM partidos p
+    WHERE p.id = ${id}
+  `;
+  const row = rows[0];
+  if (!row) return null;
+
+  const events = await sql`
+    SELECT id,
+           partido_id AS "matchId",
+           minuto AS "minute",
+           tipo AS "type",
+           jugador_id AS "playerId",
+           equipo_id AS "teamId",
+           datos AS data
+    FROM eventos_partido
+    WHERE partido_id = ${id}
+    ORDER BY minuto
+  `;
+  return mapMatch(
+    { ...row, lineup: row.lineup ? row.lineup : [] },
+    events.map((e: any) => mapEvent(e))
+  );
+}
+
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`

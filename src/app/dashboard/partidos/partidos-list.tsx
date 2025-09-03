@@ -77,8 +77,8 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
               </p>
             </CardContent>
             <CardFooter className="border-t bg-muted/50 p-4">
-              <Button variant="ghost" className="w-full" disabled>
-                Ver detalles
+              <Button variant="ghost" className="w-full" asChild>
+                <Link href={`/dashboard/partidos/${match.id}`}>Ver detalles</Link>
               </Button>
             </CardFooter>
           </Card>
