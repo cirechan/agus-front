@@ -46,19 +46,19 @@ function mapEvent(row: any): MatchEvent {
 export async function listMatches(): Promise<Match[]> {
   const sql = getSql();
   const rows = await sql`
-    SELECT m.id,
-           m.home_team_id AS "homeTeamId",
-           m.away_team_id AS "awayTeamId",
-           m.kickoff,
-           m.lineup,
+    SELECT p.id,
+           p.equipo_local_id AS "homeTeamId",
+           p.equipo_visitante_id AS "awayTeamId",
+           p.inicio AS kickoff,
+           p.alineacion AS lineup,
            COALESCE(
-             (SELECT json_agg(e ORDER BY e.minute)
-                FROM match_events e
-                WHERE e.match_id = m.id),
+             (SELECT json_agg(e ORDER BY e.minuto)
+                FROM eventos_partido e
+                WHERE e.partido_id = p.id),
              '[]'
            ) AS events
-    FROM matches m
-    ORDER BY m.kickoff DESC
+    FROM partidos p
+    ORDER BY p.inicio DESC
   `;
 
   return rows.map((row: any) =>
@@ -72,14 +72,18 @@ export async function listMatches(): Promise<Match[]> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO matches (home_team_id, away_team_id, kickoff, lineup)
+    INSERT INTO partidos (equipo_local_id, equipo_visitante_id, inicio, alineacion)
     VALUES (
       ${match.homeTeamId},
       ${match.awayTeamId},
       ${match.kickoff},
       ${JSON.stringify(match.lineup)}
     )
-    RETURNING id, home_team_id AS "homeTeamId", away_team_id AS "awayTeamId", kickoff, lineup
+    RETURNING id,
+              equipo_local_id AS "homeTeamId",
+              equipo_visitante_id AS "awayTeamId",
+              inicio AS kickoff,
+              alineacion AS lineup
   `;
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
 }
@@ -87,7 +91,7 @@ export async function createMatch(match: NewMatch): Promise<Match> {
 export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO match_events (match_id, minute, type, player_id, team_id, data)
+    INSERT INTO eventos_partido (partido_id, minuto, tipo, jugador_id, equipo_id, datos)
     VALUES (
       ${event.matchId},
       ${event.minute},
@@ -96,7 +100,13 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
       ${event.teamId ?? null},
       ${JSON.stringify(event.data ?? null)}
     )
-    RETURNING id, match_id AS "matchId", minute, type, player_id AS "playerId", team_id AS "teamId", data
+    RETURNING id,
+              partido_id AS "matchId",
+              minuto AS "minute",
+              tipo AS "type",
+              jugador_id AS "playerId",
+              equipo_id AS "teamId",
+              datos AS data
   `;
   return mapEvent(row);
 }
@@ -104,17 +114,27 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
 export async function updateLineup(matchId: number, lineup: PlayerSlot[]): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
-    UPDATE matches
-    SET lineup = ${JSON.stringify(lineup)}
+    UPDATE partidos
+    SET alineacion = ${JSON.stringify(lineup)}
     WHERE id = ${matchId}
-    RETURNING id, home_team_id AS "homeTeamId", away_team_id AS "awayTeamId", kickoff, lineup
+    RETURNING id,
+              equipo_local_id AS "homeTeamId",
+              equipo_visitante_id AS "awayTeamId",
+              inicio AS kickoff,
+              alineacion AS lineup
   `;
 
   const events = await sql`
-    SELECT id, match_id AS "matchId", minute, type, player_id AS "playerId", team_id AS "teamId", data
-    FROM match_events
-    WHERE match_id = ${matchId}
-    ORDER BY minute
+    SELECT id,
+           partido_id AS "matchId",
+           minuto AS "minute",
+           tipo AS "type",
+           jugador_id AS "playerId",
+           equipo_id AS "teamId",
+           datos AS data
+    FROM eventos_partido
+    WHERE partido_id = ${matchId}
+    ORDER BY minuto
   `;
 
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, events.map((e: any) => mapEvent(e)));
