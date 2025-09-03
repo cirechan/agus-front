@@ -1,9 +1,24 @@
 import { neon } from '@neondatabase/serverless';
-import type { Match, MatchEvent, PlayerSlot, NewMatch, NewMatchEvent } from '@/types/match';
+import type {
+  Match,
+  MatchEvent,
+  PlayerSlot,
+  NewMatch,
+  NewMatchEvent,
+} from '@/types/match';
 
-const connectionString =
-  process.env.DATABASE_URL || process.env.POSTGRES_URL || undefined;
-const sql = connectionString ? neon(connectionString) : undefined;
+function getSql() {
+  const connectionString =
+    process.env['DATABASE_URL'] ||
+    process.env['POSTGRES_URL'] ||
+    process.env['POSTGRES_PRISMA_URL'] ||
+    process.env['POSTGRES_URL_NON_POOLING'] ||
+    process.env['NEON_DATABASE_URL'];
+  if (!connectionString) {
+    throw new Error('Database connection not configured');
+  }
+  return neon(connectionString);
+}
 
 function mapMatch(row: any, events: MatchEvent[] = []): Match {
   return {
@@ -29,9 +44,7 @@ function mapEvent(row: any): MatchEvent {
 }
 
 export async function listMatches(): Promise<Match[]> {
-  if (!sql) {
-    throw new Error('Database connection not configured');
-  }
+  const sql = getSql();
   const rows = await sql`
     SELECT m.id,
            m.home_team_id AS "homeTeamId",
@@ -57,9 +70,7 @@ export async function listMatches(): Promise<Match[]> {
 }
 
 export async function createMatch(match: NewMatch): Promise<Match> {
-  if (!sql) {
-    throw new Error('Database connection not configured');
-  }
+  const sql = getSql();
   const [row] = await sql`
     INSERT INTO matches (home_team_id, away_team_id, kickoff, lineup)
     VALUES (
@@ -74,9 +85,7 @@ export async function createMatch(match: NewMatch): Promise<Match> {
 }
 
 export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
-  if (!sql) {
-    throw new Error('Database connection not configured');
-  }
+  const sql = getSql();
   const [row] = await sql`
     INSERT INTO match_events (match_id, minute, type, player_id, team_id, data)
     VALUES (
@@ -93,9 +102,7 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
 }
 
 export async function updateLineup(matchId: number, lineup: PlayerSlot[]): Promise<Match> {
-  if (!sql) {
-    throw new Error('Database connection not configured');
-  }
+  const sql = getSql();
   const [row] = await sql`
     UPDATE matches
     SET lineup = ${JSON.stringify(lineup)}
