@@ -28,8 +28,9 @@ function mapMatch(row: any, events: MatchEvent[] = []): Match {
     kickoff: row.kickoff,
     competition: row.competition,
     matchday: row.matchday,
-    lineup: (row.lineup ?? []) as PlayerSlot[],
+    lineup: ((row.lineup ?? []) as any[]).map((s) => ({ minutes: 0, ...s })) as PlayerSlot[],
     events,
+    opponentNotes: row.opponentNotes ?? null,
   };
 }
 
@@ -55,6 +56,7 @@ export async function listMatches(): Promise<Match[]> {
            p.competicion AS competition,
            p.jornada AS "matchday",
            p.alineacion AS lineup,
+           p.notas_rival AS "opponentNotes",
            COALESCE(
              (SELECT json_agg(e ORDER BY e.minuto)
                 FROM eventos_partido e
@@ -82,7 +84,8 @@ export async function getMatch(id: number): Promise<Match | null> {
            p.inicio AS kickoff,
            p.competicion AS competition,
            p.jornada AS "matchday",
-           p.alineacion AS lineup
+           p.alineacion AS lineup,
+           p.notas_rival AS "opponentNotes"
     FROM partidos p
     WHERE p.id = ${id}
   `;
@@ -110,14 +113,15 @@ export async function getMatch(id: number): Promise<Match | null> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO partidos (equipo_local_id, equipo_visitante_id, inicio, competicion, jornada, alineacion)
+    INSERT INTO partidos (equipo_local_id, equipo_visitante_id, inicio, competicion, jornada, alineacion, notas_rival)
     VALUES (
       ${match.homeTeamId},
       ${match.awayTeamId},
       ${match.kickoff},
       ${match.competition},
       ${match.matchday ?? null},
-      ${JSON.stringify(match.lineup)}
+      ${JSON.stringify(match.lineup)},
+      ${match.opponentNotes ?? null}
     )
     RETURNING id,
               equipo_local_id AS "homeTeamId",
@@ -125,7 +129,8 @@ export async function createMatch(match: NewMatch): Promise<Match> {
               inicio AS kickoff,
               competicion AS competition,
               jornada AS "matchday",
-              alineacion AS lineup
+              alineacion AS lineup,
+              notas_rival AS "opponentNotes"
   `;
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
 }
@@ -153,11 +158,16 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   return mapEvent(row);
 }
 
-export async function updateLineup(matchId: number, lineup: PlayerSlot[]): Promise<Match> {
+export async function updateLineup(
+  matchId: number,
+  lineup: PlayerSlot[],
+  opponentNotes: string | null = null
+): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
     UPDATE partidos
-    SET alineacion = ${JSON.stringify(lineup)}
+    SET alineacion = ${JSON.stringify(lineup)},
+        notas_rival = ${opponentNotes}
     WHERE id = ${matchId}
     RETURNING id,
               equipo_local_id AS "homeTeamId",
@@ -165,7 +175,8 @@ export async function updateLineup(matchId: number, lineup: PlayerSlot[]): Promi
               inicio AS kickoff,
               competicion AS competition,
               jornada AS "matchday",
-              alineacion AS lineup
+              alineacion AS lineup,
+              notas_rival AS "opponentNotes"
   `;
 
   const events = await sql`
@@ -181,5 +192,8 @@ export async function updateLineup(matchId: number, lineup: PlayerSlot[]): Promi
     ORDER BY minuto
   `;
 
-  return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, events.map((e: any) => mapEvent(e)));
+  return mapMatch(
+    { ...row, lineup: row.lineup ? row.lineup : [] },
+    events.map((e: any) => mapEvent(e))
+  );
 }

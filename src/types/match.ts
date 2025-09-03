@@ -8,6 +8,8 @@ export interface PlayerSlot {
    * Indicates whether the player starts on the field or the bench.
    */
   role: 'field' | 'bench';
+  /** Minutes played by the player in this match. */
+  minutes: number;
 }
 
 export interface MatchEvent {
@@ -35,6 +37,8 @@ export interface Match {
   matchday?: number | null;
   lineup: PlayerSlot[];
   events: MatchEvent[];
+  /** Notes about the opponent or match context. */
+  opponentNotes?: string | null;
 }
 
 export type NewMatch = Omit<Match, 'id'>;

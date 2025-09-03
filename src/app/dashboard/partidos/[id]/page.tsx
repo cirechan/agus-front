@@ -20,7 +20,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
     "use server";
     const raw = formData.get("lineup") as string;
     const lineup = JSON.parse(raw);
-    await updateLineup(id, lineup);
+    const notes = formData.get("opponentNotes");
+    await updateLineup(id, lineup, notes ? String(notes) : null);
   }
 
   async function addEvent(formData: FormData) {

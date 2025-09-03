@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface Player {
   id: number;
@@ -21,6 +22,7 @@ interface MatchDetailProps {
 
 export default function MatchDetail({ match, players, saveLineup, addEvent }: MatchDetailProps) {
   const [lineup, setLineup] = useState<PlayerSlot[]>(match.lineup);
+  const [notes, setNotes] = useState(match.opponentNotes ?? "");
 
   const starters = lineup.filter((p) => p.role === "field");
   const bench = lineup.filter((p) => p.role === "bench");
@@ -33,7 +35,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
       if (existing) {
         return prev.map((p) => (p.playerId === playerId ? { ...p, role } : p));
       }
-      return [...prev, { playerId, role }];
+      return [...prev, { playerId, role, minutes: 0 }];
     });
   }
 
@@ -41,9 +43,16 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
     setLineup((prev) => prev.filter((p) => p.playerId !== playerId));
   }
 
+  function setMinutes(playerId: number, minutes: number) {
+    setLineup((prev) =>
+      prev.map((p) => (p.playerId === playerId ? { ...p, minutes } : p))
+    );
+  }
+
   function handleSave() {
     const fd = new FormData();
     fd.append("lineup", JSON.stringify(lineup));
+    fd.append("opponentNotes", notes);
     saveLineup(fd);
   }
 
@@ -59,7 +68,14 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
             {starters.map((s) => (
               <div key={s.playerId} className="flex items-center justify-between">
                 <span>{players.find((p) => p.id === s.playerId)?.nombre}</span>
-                <div className="space-x-2">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="number"
+                    className="w-16"
+                    value={s.minutes}
+                    min={0}
+                    onChange={(e) => setMinutes(s.playerId, Number(e.target.value))}
+                  />
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button size="sm" variant="outline">Evento</Button>
@@ -92,7 +108,14 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
             {bench.map((s) => (
               <div key={s.playerId} className="flex items-center justify-between">
                 <span>{players.find((p) => p.id === s.playerId)?.nombre}</span>
-                <div className="space-x-2">
+                <div className="flex items-center space-x-2">
+                  <Input
+                    type="number"
+                    className="w-16"
+                    value={s.minutes}
+                    min={0}
+                    onChange={(e) => setMinutes(s.playerId, Number(e.target.value))}
+                  />
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button size="sm" variant="outline">Evento</Button>
@@ -146,7 +169,18 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
           ))}
         </ul>
       </div>
-      {/* TODO: Add rival notes and lineup */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Notas del rival</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Observaciones sobre el rival"
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
