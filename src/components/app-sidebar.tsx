@@ -9,6 +9,7 @@ import {
   LineChartIcon,
   SearchIcon,
   UserIcon,
+  CalendarIcon,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -92,6 +93,13 @@ export function AppSidebar({
               href="/dashboard/valoraciones"
               icon={LineChartIcon}
               label="Valoraciones"
+              pathname={pathname}
+              expanded={expanded}
+            />
+            <NavLink
+              href="/dashboard/partidos"
+              icon={CalendarIcon}
+              label="Partidos"
               pathname={pathname}
               expanded={expanded}
             />
