@@ -29,6 +29,10 @@ export interface Match {
   awayTeamId: number;
   /** ISO date string representing kickoff time. */
   kickoff: string;
+  /** Tipo de competición: liga, playoff, copa o amistoso. */
+  competition: 'liga' | 'playoff' | 'copa' | 'amistoso';
+  /** Número de jornada si aplica. */
+  matchday?: number | null;
   lineup: PlayerSlot[];
   events: MatchEvent[];
 }

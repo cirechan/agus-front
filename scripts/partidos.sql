@@ -5,6 +5,8 @@ CREATE TABLE partidos (
     equipo_local_id   INTEGER NOT NULL REFERENCES equipos(id) ON DELETE CASCADE,
     equipo_visitante_id INTEGER NOT NULL REFERENCES equipos(id) ON DELETE CASCADE,
     inicio            TIMESTAMPTZ NOT NULL,
+    competicion       TEXT NOT NULL,
+    jornada           INTEGER,
     alineacion        JSONB NOT NULL DEFAULT '[]'
 );
 

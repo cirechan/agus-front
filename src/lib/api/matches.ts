@@ -26,6 +26,8 @@ function mapMatch(row: any, events: MatchEvent[] = []): Match {
     homeTeamId: row.homeTeamId,
     awayTeamId: row.awayTeamId,
     kickoff: row.kickoff,
+    competition: row.competition,
+    matchday: row.matchday,
     lineup: (row.lineup ?? []) as PlayerSlot[],
     events,
   };
@@ -50,6 +52,8 @@ export async function listMatches(): Promise<Match[]> {
            p.equipo_local_id AS "homeTeamId",
            p.equipo_visitante_id AS "awayTeamId",
            p.inicio AS kickoff,
+           p.competicion AS competition,
+           p.jornada AS "matchday",
            p.alineacion AS lineup,
            COALESCE(
              (SELECT json_agg(e ORDER BY e.minuto)
@@ -72,17 +76,21 @@ export async function listMatches(): Promise<Match[]> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO partidos (equipo_local_id, equipo_visitante_id, inicio, alineacion)
+    INSERT INTO partidos (equipo_local_id, equipo_visitante_id, inicio, competicion, jornada, alineacion)
     VALUES (
       ${match.homeTeamId},
       ${match.awayTeamId},
       ${match.kickoff},
+      ${match.competition},
+      ${match.matchday ?? null},
       ${JSON.stringify(match.lineup)}
     )
     RETURNING id,
               equipo_local_id AS "homeTeamId",
               equipo_visitante_id AS "awayTeamId",
               inicio AS kickoff,
+              competicion AS competition,
+              jornada AS "matchday",
               alineacion AS lineup
   `;
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
@@ -121,6 +129,8 @@ export async function updateLineup(matchId: number, lineup: PlayerSlot[]): Promi
               equipo_local_id AS "homeTeamId",
               equipo_visitante_id AS "awayTeamId",
               inicio AS kickoff,
+              competicion AS competition,
+              jornada AS "matchday",
               alineacion AS lineup
   `;
 
