@@ -1,5 +1,5 @@
-import { getMatch, recordEvent, updateLineup } from "@/lib/api/matches";
-import { jugadoresService } from "@/lib/api/services";
+import { getMatch, recordEvent, updateLineup, removeEvent } from "@/lib/api/matches";
+import { jugadoresService, equiposService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
   const id = Number(params.id);
   const match = await getMatch(id);
   const players = await jugadoresService.getByEquipo(1);
+  const homeTeam = await equiposService.getById(match.homeTeamId);
+  const awayTeam = await equiposService.getById(match.awayTeamId);
   if (!match) {
     return <div className="p-4">Partido no encontrado</div>;
   }
@@ -30,10 +32,32 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const type = formData.get("type") as string;
     const playerIdRaw = formData.get("playerId");
     const playerId = playerIdRaw ? Number(playerIdRaw) : null;
-    await recordEvent({ matchId: id, minute, type, playerId, teamId: null, data: null });
+    const teamIdRaw = formData.get("teamId");
+    const teamId = teamIdRaw ? Number(teamIdRaw) : null;
+    return await recordEvent({
+      matchId: id,
+      minute,
+      type,
+      playerId,
+      teamId,
+      data: null,
+    });
+  }
+
+  async function deleteEventById(eventId: number) {
+    "use server";
+    await removeEvent(eventId);
   }
 
   return (
-    <MatchDetail match={match} players={players} saveLineup={saveLineup} addEvent={addEvent} />
+    <MatchDetail
+      match={match}
+      players={players}
+      saveLineup={saveLineup}
+      addEvent={addEvent}
+      deleteEvent={deleteEventById}
+      homeTeamName={homeTeam?.nombre ?? "Local"}
+      awayTeamName={awayTeam?.nombre ?? "Rival"}
+    />
   );
 }

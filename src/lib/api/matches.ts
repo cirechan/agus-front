@@ -158,6 +158,11 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   return mapEvent(row);
 }
 
+export async function removeEvent(id: number): Promise<void> {
+  const sql = getSql();
+  await sql`DELETE FROM eventos_partido WHERE id = ${id}`;
+}
+
 export async function updateLineup(
   matchId: number,
   lineup: PlayerSlot[],
