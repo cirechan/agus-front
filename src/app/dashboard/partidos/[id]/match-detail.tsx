@@ -70,6 +70,12 @@ const EVENT_LABELS: Record<string, string> = {
   penalti: "Penalti",
 };
 
+const EVENT_ICONS = [
+  { type: "gol", icon: "⚽" },
+  { type: "amarilla", icon: "🟨" },
+  { type: "roja", icon: "🟥" },
+];
+
 interface Player {
   id: number;
   nombre: string;
@@ -96,6 +102,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
   const [added, setAdded] = useState(0);
   const [dragging, setDragging] = useState<number | null>(null);
   const [events, setEvents] = useState<MatchEvent[]>(match.events);
+  const [draggingEvent, setDraggingEvent] = useState<string | null>(null);
 
   const eventsByPlayer = useMemo(() => {
     const map: Record<number, string[]> = {};
@@ -126,6 +133,14 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
         data: null,
       },
     ]);
+  }
+
+  async function quickAddEvent(playerId: number, type: string) {
+    const fd = new FormData();
+    fd.append("playerId", String(playerId));
+    fd.append("type", type);
+    fd.append("minute", String(Math.floor(seconds / 60)));
+    await handleAddEvent(fd);
   }
 
   function renderEventIcons(playerId: number) {
@@ -233,7 +248,14 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
     }
   }
 
-  function handleDropPosition(position: string) {
+  function handleDropPosition(position: string, playerAtPos?: number) {
+    if (draggingEvent) {
+      if (playerAtPos != null) {
+        void quickAddEvent(playerAtPos, draggingEvent);
+      }
+      setDraggingEvent(null);
+      return;
+    }
     if (dragging != null) {
       setLineup((prev) => {
         let next = prev.map((p): PlayerSlot => {
@@ -341,11 +363,11 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
           >
             +1&apos;
           </Button>
-        </div>
-        <div className="w-32">
-          <Select value={formation} onValueChange={changeFormation}>
-            <SelectTrigger>
-              <SelectValue placeholder="Formación" />
+      </div>
+      <div className="w-32">
+        <Select value={formation} onValueChange={changeFormation}>
+          <SelectTrigger>
+            <SelectValue placeholder="Formación" />
             </SelectTrigger>
             <SelectContent>
               {Object.keys(FORMATIONS).map((f) => (
@@ -358,7 +380,30 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
         </div>
       </div>
 
-      <div className="relative mx-auto mt-4 h-[500px] w-full max-w-[600px] rounded-lg bg-green-700">
+      <div className="mx-auto flex w-full max-w-[600px] justify-center space-x-4">
+        {EVENT_ICONS.map((e) => (
+          <div
+            key={e.type}
+            draggable
+            onDragStart={() => setDraggingEvent(e.type)}
+            onDragEnd={() => setDraggingEvent(null)}
+            className="flex h-8 w-8 cursor-move items-center justify-center rounded-full border bg-white"
+            title={EVENT_LABELS[e.type]}
+          >
+            {e.icon}
+          </div>
+        ))}
+      </div>
+
+      <div className="relative mx-auto mt-4 h-[500px] w-full max-w-[600px] overflow-hidden rounded-lg bg-green-600">
+        <div className="absolute inset-0 bg-[repeating-linear-gradient(to_right,#15803d,#15803d_20px,#16a34a_20px,#16a34a_40px)]" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 rounded-lg border-2 border-white" />
+          <div className="absolute left-1/2 top-0 h-full w-px -ml-px bg-white" />
+          <div className="absolute left-1/2 top-1/2 h-24 w-24 -ml-12 -mt-12 rounded-full border-2 border-white" />
+          <div className="absolute left-1/2 -ml-32 top-0 h-20 w-64 border-2 border-white border-t-0" />
+          <div className="absolute left-1/2 -ml-32 bottom-0 h-20 w-64 border-2 border-white border-b-0" />
+        </div>
         {FORMATIONS[formation].map((pos) => {
           const slot = lineup.find(
             (p) => p.role === "field" && p.position === pos
@@ -370,14 +415,14 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
           return (
             <div
               key={pos}
-              className="absolute flex flex-col items-center"
+              className="absolute z-10 flex flex-col items-center"
               style={{
                 left: `${coords.x}%`,
                 top: `${coords.y}%`,
                 transform: "translate(-50%, -50%)",
               }}
               onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDropPosition(pos)}
+              onDrop={() => handleDropPosition(pos, slot?.playerId)}
             >
               {slot ? (
                 <div
@@ -394,7 +439,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                       {renderEventIcons(slot.playerId)}
                     </div>
                   </div>
-                  <span className="mt-1 text-xs text-white text-center">
+                  <span className="mt-1 text-center text-xs text-white">
                     {player?.nombre}
                   </span>
                 </div>
@@ -419,6 +464,13 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                 draggable
                 onDragStart={() => handleDragStart(s.playerId)}
                 onDragEnd={() => setDragging(null)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (draggingEvent) {
+                    void quickAddEvent(s.playerId, draggingEvent);
+                    setDraggingEvent(null);
+                  }
+                }}
               >
                 <div className="flex w-28 items-center space-x-1 truncate">
                   <span className="truncate">
@@ -509,6 +561,13 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                 draggable
                 onDragStart={() => handleDragStart(s.playerId)}
                 onDragEnd={() => setDragging(null)}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (draggingEvent) {
+                    void quickAddEvent(s.playerId, draggingEvent);
+                    setDraggingEvent(null);
+                  }
+                }}
               >
                 <div className="flex w-28 items-center space-x-1 truncate">
                   <span className="truncate">
