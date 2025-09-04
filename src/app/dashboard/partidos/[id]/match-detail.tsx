@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { Match, PlayerSlot } from "@/types/match";
+import { useState, useEffect, useMemo } from "react";
+import type { Match, PlayerSlot, MatchEvent } from "@/types/match";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -95,6 +95,53 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
   const [running, setRunning] = useState(false);
   const [added, setAdded] = useState(0);
   const [dragging, setDragging] = useState<number | null>(null);
+  const [events, setEvents] = useState<MatchEvent[]>(match.events);
+
+  const eventsByPlayer = useMemo(() => {
+    const map: Record<number, string[]> = {};
+    events.forEach((e) => {
+      if (e.playerId != null) {
+        map[e.playerId] = map[e.playerId] || [];
+        map[e.playerId].push(e.type);
+      }
+    });
+    return map;
+  }, [events]);
+
+  async function handleAddEvent(formData: FormData) {
+    await addEvent(formData);
+    const minute = Number(formData.get("minute"));
+    const type = formData.get("type") as string;
+    const playerIdRaw = formData.get("playerId");
+    const playerId = playerIdRaw ? Number(playerIdRaw) : null;
+    setEvents((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        matchId: match.id,
+        minute,
+        type,
+        playerId,
+        teamId: null,
+        data: null,
+      },
+    ]);
+  }
+
+  function renderEventIcons(playerId: number) {
+    const playerEvents = eventsByPlayer[playerId];
+    if (!playerEvents) return null;
+    const icons: JSX.Element[] = [];
+    const yellows = playerEvents.filter((e) => e === "amarilla").length;
+    const reds = playerEvents.filter((e) => e === "roja").length;
+    const goals = playerEvents.filter((e) => e === "gol").length;
+    for (let i = 0; i < yellows; i++)
+      icons.push(<span key={`y${i}`} className="text-yellow-500">🟨</span>);
+    for (let i = 0; i < reds; i++)
+      icons.push(<span key={`r${i}`} className="text-red-600">🟥</span>);
+    for (let i = 0; i < goals; i++) icons.push(<span key={`g${i}`}>⚽</span>);
+    return <div className="flex space-x-0.5">{icons}</div>;
+  }
 
   useEffect(() => {
     if (!running) return;
@@ -339,8 +386,13 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                   onDragEnd={() => setDragging(null)}
                   className="flex flex-col items-center"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-white text-sm font-bold">
-                    {slot.number ?? ""}
+                  <div className="relative">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-white text-sm font-bold">
+                      {slot.number ?? ""}
+                    </div>
+                    <div className="absolute -top-1 -right-1">
+                      {renderEventIcons(slot.playerId)}
+                    </div>
                   </div>
                   <span className="mt-1 text-xs text-white text-center">
                     {player?.nombre}
@@ -368,9 +420,12 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                 onDragStart={() => handleDragStart(s.playerId)}
                 onDragEnd={() => setDragging(null)}
               >
-                <span className="w-28 truncate">
-                  {players.find((p) => p.id === s.playerId)?.nombre}
-                </span>
+                <div className="flex w-28 items-center space-x-1 truncate">
+                  <span className="truncate">
+                    {players.find((p) => p.id === s.playerId)?.nombre}
+                  </span>
+                  {renderEventIcons(s.playerId)}
+                </div>
                 <div className="flex items-center space-x-2">
                   <Select
                     value={s.position}
@@ -401,7 +456,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56">
-                      <form action={addEvent} className="space-y-2">
+                      <form action={handleAddEvent} className="space-y-2">
                         <input
                           type="hidden"
                           name="playerId"
@@ -455,9 +510,12 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                 onDragStart={() => handleDragStart(s.playerId)}
                 onDragEnd={() => setDragging(null)}
               >
-                <span className="w-28 truncate">
-                  {players.find((p) => p.id === s.playerId)?.nombre}
-                </span>
+                <div className="flex w-28 items-center space-x-1 truncate">
+                  <span className="truncate">
+                    {players.find((p) => p.id === s.playerId)?.nombre}
+                  </span>
+                  {renderEventIcons(s.playerId)}
+                </div>
                 <div className="flex items-center space-x-2">
                   <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
                   <Popover>
@@ -467,7 +525,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-56">
-                      <form action={addEvent} className="space-y-2">
+                      <form action={handleAddEvent} className="space-y-2">
                         <input
                           type="hidden"
                           name="playerId"
@@ -545,7 +603,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
       <div className="mt-4">
         <h2 className="text-xl font-semibold">Eventos</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm">
-          {match.events.map((e) => (
+          {events.map((e) => (
             <li key={e.id}>
               {e.minute}&apos; {EVENT_LABELS[e.type] ?? e.type}
               {e.playerId
