@@ -12,6 +12,12 @@ export interface PlayerSlot {
   position?: string;
   /** Minutes played by the player in this match. */
   minutes: number;
+  /**
+   * Second of match when the player entered the field. Used only on the
+   * client to compute minutes played automatically and omitted when
+   * persisting the lineup.
+   */
+  enterSecond?: number;
 }
 
 export interface MatchEvent {

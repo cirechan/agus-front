@@ -62,6 +62,14 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   RW: { x: 75, y: 30 },
 };
 
+const EVENT_LABELS: Record<string, string> = {
+  gol: "Gol",
+  amarilla: "Tarjeta amarilla",
+  roja: "Tarjeta roja",
+  falta: "Falta",
+  penalti: "Penalti",
+};
+
 interface Player {
   id: number;
   nombre: string;
@@ -75,12 +83,18 @@ interface MatchDetailProps {
 }
 
 export default function MatchDetail({ match, players, saveLineup, addEvent }: MatchDetailProps) {
-  const [lineup, setLineup] = useState<PlayerSlot[]>(match.lineup);
+  const [lineup, setLineup] = useState<PlayerSlot[]>(() =>
+    match.lineup.map((p) => ({
+      ...p,
+      enterSecond: p.role === "field" ? 0 : undefined,
+    }))
+  );
   const [notes, setNotes] = useState(match.opponentNotes ?? "");
   const [formation, setFormation] = useState<string>("4-4-2");
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
   const [added, setAdded] = useState(0);
+  const [dragging, setDragging] = useState<number | null>(null);
 
   useEffect(() => {
     if (!running) return;
@@ -105,18 +119,44 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
     setLineup((prev) => {
       const existing = prev.find((p) => p.playerId === playerId);
       if (existing) {
-        return prev.map((p) =>
-          p.playerId === playerId
-            ? {
-                ...p,
-                role,
-                position: role === "field" ? p.position ?? nextPosition(prev) : undefined,
-              }
-            : p
-        );
+        if (role === "field") {
+          const pos = existing.position ?? nextPosition(prev);
+          const enterSecond = existing.enterSecond ?? seconds;
+          return prev.map((p) =>
+            p.playerId === playerId
+              ? { ...p, role: "field", position: pos, enterSecond }
+              : p
+          );
+        } else {
+          const played =
+            existing.role === "field"
+              ? existing.minutes +
+                Math.floor((seconds - (existing.enterSecond ?? 0)) / 60)
+              : existing.minutes;
+          return prev.map((p) =>
+            p.playerId === playerId
+              ? {
+                  ...p,
+                  role: "bench",
+                  position: undefined,
+                  minutes: played,
+                  enterSecond: undefined,
+                }
+              : p
+          );
+        }
       }
       const pos = role === "field" ? nextPosition(prev) : undefined;
-      return [...prev, { playerId, role, minutes: 0, position: pos }];
+      return [
+        ...prev,
+        {
+          playerId,
+          role,
+          minutes: 0,
+          position: pos,
+          enterSecond: role === "field" ? seconds : undefined,
+        },
+      ];
     });
   }
 
@@ -124,10 +164,76 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
     setLineup((prev) => prev.filter((p) => p.playerId !== playerId));
   }
 
-  function setMinutes(playerId: number, minutes: number) {
-    setLineup((prev) =>
-      prev.map((p) => (p.playerId === playerId ? { ...p, minutes } : p))
-    );
+  function handleDragStart(id: number) {
+    setDragging(id);
+  }
+  function handleDropField() {
+    if (dragging != null) {
+      setRole(dragging, "field");
+      setDragging(null);
+    }
+  }
+  function handleDropBench() {
+    if (dragging != null) {
+      setRole(dragging, "bench");
+      setDragging(null);
+    }
+  }
+  function handleDropAvailable() {
+    if (dragging != null) {
+      removePlayer(dragging);
+      setDragging(null);
+    }
+  }
+
+  function handleDropPosition(position: string) {
+    if (dragging != null) {
+      setLineup((prev) => {
+        let next = prev.map((p): PlayerSlot => {
+          if (p.position === position && p.role === "field") {
+            const played =
+              p.minutes + Math.floor((seconds - (p.enterSecond ?? 0)) / 60);
+            return {
+              ...p,
+              role: "bench",
+              position: undefined,
+              minutes: played,
+              enterSecond: undefined,
+            };
+          }
+          return p;
+        });
+        const existing = next.find((p) => p.playerId === dragging);
+        if (existing) {
+          next = next.map((p): PlayerSlot =>
+            p.playerId === dragging
+              ? {
+                  ...p,
+                  role: "field",
+                  position,
+                  enterSecond: existing.enterSecond ?? seconds,
+                }
+              : p
+          );
+        } else {
+          next.push({
+            playerId: dragging,
+            role: "field",
+            position,
+            minutes: 0,
+            enterSecond: seconds,
+          });
+        }
+        return next;
+      });
+      setDragging(null);
+    }
+  }
+
+  function displayMinutes(p: PlayerSlot) {
+    return p.role === "field"
+      ? p.minutes + Math.floor((seconds - (p.enterSecond ?? 0)) / 60)
+      : p.minutes;
   }
 
   function setPosition(playerId: number, position: string) {
@@ -155,7 +261,14 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
 
   function handleSave() {
     const fd = new FormData();
-    fd.append("lineup", JSON.stringify(lineup));
+    const sanitized = lineup.map(({ enterSecond, ...rest }) => ({
+      ...rest,
+      minutes:
+        rest.role === "field"
+          ? rest.minutes + Math.floor((seconds - (enterSecond ?? 0)) / 60)
+          : rest.minutes,
+    }));
+    fd.append("lineup", JSON.stringify(sanitized));
     fd.append("opponentNotes", notes);
     saveLineup(fd);
   }
@@ -164,10 +277,13 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
     <div className="space-y-4 p-4 lg:p-6">
       <h1 className="text-2xl font-semibold">Partido</h1>
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-2">
-          <span className="font-mono text-lg">
-            {formatTime(seconds)} +{added}&apos;
-          </span>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-baseline space-x-2">
+            <span className="font-mono text-3xl">{formatTime(seconds)}</span>
+            {added > 0 && (
+              <span className="font-mono text-xl text-red-600">+{added}&apos;</span>
+            )}
+          </div>
           <Button size="sm" onClick={() => setRunning((r) => !r)}>
             {running ? "Pausar" : "Iniciar"}
           </Button>
@@ -176,7 +292,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
             variant="secondary"
             onClick={() => setAdded((a) => a + 1)}
           >
-            Añadir minuto
+            +1&apos;
           </Button>
         </div>
         <div className="w-32">
@@ -196,39 +312,62 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
       </div>
 
       <div className="relative mx-auto mt-4 h-[500px] w-full max-w-[600px] rounded-lg bg-green-700">
-        {starters.map((s) => {
-          if (!s.position) return null;
-          const coords = POSITION_COORDS[s.position];
-          const player = players.find((p) => p.id === s.playerId);
+        {FORMATIONS[formation].map((pos) => {
+          const slot = lineup.find(
+            (p) => p.role === "field" && p.position === pos
+          );
+          const coords = POSITION_COORDS[pos];
+          const player = slot
+            ? players.find((p) => p.id === slot.playerId)
+            : null;
           return (
             <div
-              key={s.playerId}
+              key={pos}
               className="absolute flex flex-col items-center"
               style={{
                 left: `${coords.x}%`,
                 top: `${coords.y}%`,
                 transform: "translate(-50%, -50%)",
               }}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => handleDropPosition(pos)}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-white text-sm font-bold">
-                {s.number ?? ""}
-              </div>
-              <span className="mt-1 text-xs text-white text-center">
-                {player?.nombre}
-              </span>
+              {slot ? (
+                <div
+                  draggable
+                  onDragStart={() => handleDragStart(slot.playerId)}
+                  onDragEnd={() => setDragging(null)}
+                  className="flex flex-col items-center"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-white text-sm font-bold">
+                    {slot.number ?? ""}
+                  </div>
+                  <span className="mt-1 text-xs text-white text-center">
+                    {player?.nombre}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white" />
+              )}
             </div>
           );
         })}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card>
+        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropField}>
           <CardHeader>
             <CardTitle>Titulares</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {starters.map((s) => (
-              <div key={s.playerId} className="flex items-center justify-between">
+              <div
+                key={s.playerId}
+                className="flex items-center justify-between"
+                draggable
+                onDragStart={() => handleDragStart(s.playerId)}
+                onDragEnd={() => setDragging(null)}
+              >
                 <span className="w-28 truncate">
                   {players.find((p) => p.id === s.playerId)?.nombre}
                 </span>
@@ -254,13 +393,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                       ))}
                     </SelectContent>
                   </Select>
-                  <Input
-                    type="number"
-                    className="w-16"
-                    value={s.minutes}
-                    min={0}
-                    onChange={(e) => setMinutes(s.playerId, Number(e.target.value))}
-                  />
+                  <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button size="sm" variant="outline">
@@ -279,13 +412,17 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                           placeholder="Minuto"
                           type="number"
                           min="0"
+                          defaultValue={Math.floor(seconds / 60)}
                         />
                         <select
                           name="type"
                           className="w-full rounded border p-1"
                         >
                           <option value="gol">Gol</option>
-                          <option value="tarjeta">Tarjeta</option>
+                          <option value="amarilla">Tarjeta amarilla</option>
+                          <option value="roja">Tarjeta roja</option>
+                          <option value="falta">Falta</option>
+                          <option value="penalti">Penalti</option>
                         </select>
                         <Button type="submit" size="sm">
                           Guardar
@@ -305,24 +442,24 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
             ))}
           </CardContent>
         </Card>
-        <Card>
+        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropBench}>
           <CardHeader>
             <CardTitle>Suplentes</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {bench.map((s) => (
-              <div key={s.playerId} className="flex items-center justify-between">
+              <div
+                key={s.playerId}
+                className="flex items-center justify-between"
+                draggable
+                onDragStart={() => handleDragStart(s.playerId)}
+                onDragEnd={() => setDragging(null)}
+              >
                 <span className="w-28 truncate">
                   {players.find((p) => p.id === s.playerId)?.nombre}
                 </span>
                 <div className="flex items-center space-x-2">
-                  <Input
-                    type="number"
-                    className="w-16"
-                    value={s.minutes}
-                    min={0}
-                    onChange={(e) => setMinutes(s.playerId, Number(e.target.value))}
-                  />
+                  <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button size="sm" variant="outline">
@@ -341,13 +478,17 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
                           placeholder="Minuto"
                           type="number"
                           min="0"
+                          defaultValue={Math.floor(seconds / 60)}
                         />
                         <select
                           name="type"
                           className="w-full rounded border p-1"
                         >
                           <option value="gol">Gol</option>
-                          <option value="tarjeta">Tarjeta</option>
+                          <option value="amarilla">Tarjeta amarilla</option>
+                          <option value="roja">Tarjeta roja</option>
+                          <option value="falta">Falta</option>
+                          <option value="penalti">Penalti</option>
                         </select>
                         <Button type="submit" size="sm">
                           Guardar
@@ -367,13 +508,19 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
             ))}
           </CardContent>
         </Card>
-        <Card>
+        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropAvailable}>
           <CardHeader>
             <CardTitle>Disponibles</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {available.map((p) => (
-              <div key={p.id} className="flex items-center justify-between">
+              <div
+                key={p.id}
+                className="flex items-center justify-between"
+                draggable
+                onDragStart={() => handleDragStart(p.id)}
+                onDragEnd={() => setDragging(null)}
+              >
                 <span className="w-28 truncate">{p.nombre}</span>
                 <div className="space-x-2">
                   <Button size="sm" onClick={() => setRole(p.id, "field")}>
@@ -400,7 +547,7 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
         <ul className="list-disc space-y-1 pl-5 text-sm">
           {match.events.map((e) => (
             <li key={e.id}>
-              {e.minute}&apos; {e.type}
+              {e.minute}&apos; {EVENT_LABELS[e.type] ?? e.type}
               {e.playerId
                 ? ` (${players.find((p) => p.id === e.playerId)?.nombre})`
                 : ""}
