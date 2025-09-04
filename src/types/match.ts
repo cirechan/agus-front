@@ -8,6 +8,8 @@ export interface PlayerSlot {
    * Indicates whether the player starts on the field or the bench.
    */
   role: 'field' | 'bench';
+  /** Shorthand position code (e.g. GK, LB, ST) used for visual layout. */
+  position?: string;
   /** Minutes played by the player in this match. */
   minutes: number;
 }
