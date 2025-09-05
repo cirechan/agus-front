@@ -19,21 +19,21 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
-  GK: { x: 10, y: 50 },
-  LB: { x: 30, y: 20 },
-  LCB: { x: 30, y: 40 },
-  RCB: { x: 30, y: 60 },
-  RB: { x: 30, y: 80 },
-  LM: { x: 50, y: 20 },
-  LCM: { x: 50, y: 40 },
+  GK: { x: 50, y: 90 },
+  LB: { x: 20, y: 70 },
+  LCB: { x: 40, y: 70 },
+  RCB: { x: 60, y: 70 },
+  RB: { x: 80, y: 70 },
+  LM: { x: 30, y: 50 },
+  LCM: { x: 40, y: 50 },
   CM: { x: 50, y: 50 },
-  RCM: { x: 50, y: 60 },
-  RM: { x: 50, y: 80 },
-  LW: { x: 70, y: 20 },
-  LS: { x: 70, y: 40 },
-  ST: { x: 70, y: 50 },
-  RS: { x: 70, y: 60 },
-  RW: { x: 70, y: 80 },
+  RCM: { x: 60, y: 50 },
+  RM: { x: 70, y: 50 },
+  LW: { x: 25, y: 30 },
+  LS: { x: 40, y: 30 },
+  ST: { x: 50, y: 30 },
+  RS: { x: 60, y: 30 },
+  RW: { x: 75, y: 30 },
 };
 
 const EVENT_ICONS = [
@@ -153,6 +153,7 @@ export default function MatchDetail({
   const [benchPositions, setBenchPositions] = useState<
     Record<number, string | undefined>
   >(initialBenchPositions);
+  const [subbedOut, setSubbedOut] = useState<number[]>([]);
 
   const initialStats = useMemo(() => {
     const stats: Record<number, { minutes: number; enterSecond?: number }> = {};
@@ -342,6 +343,9 @@ export default function MatchDetail({
       };
       return stats;
     });
+    if (outgoingId) {
+      setSubbedOut((prev) => [...prev, outgoingId]);
+    }
     setSubsMade((c) => c + 1);
   }
 
@@ -372,128 +376,141 @@ export default function MatchDetail({
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full h-full"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={handleFieldDrop}
-    >
-      <canvas ref={canvasRef} className="w-full h-full touch-none" />
-
-      {lineup.map((slot) => {
-        const player = slot.playerId ? playerMap[slot.playerId] : null;
-        return (
-          <div
-            key={slot.position}
-            className="absolute"
-            style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => handleSlotDrop(slot.position, e)}
-          >
-            {player && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      handlePlayerDragStart(slot.position, player.id, e)
-                    }
-                    className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-white border-2 cursor-grab select-none"
-                    style={{
-                      backgroundColor:
-                        slot.position === "GK"
-                          ? GOALKEEPER_COLOR
-                          : PLAYER_COLOR,
-                    }}
-                  >
-                    {player.dorsal ?? ""}
-                  </div>
-                </PopoverTrigger>
-                <PopoverContent className="flex gap-2" side="top">
-                  {EVENT_ICONS.map(({ type, icon }) => (
-                    <Button
-                      key={type}
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => quickAddEvent(player.id, type)}
-                    >
-                      {icon}
-                    </Button>
-                  ))}
-                </PopoverContent>
-              </Popover>
-            )}
-            {player && (
-              <>
-                <div className="mt-1 text-center text-xs w-20 -ml-10 text-white">
-                  {player.nombre}
-                </div>
-                <div className="flex justify-center mt-1 space-x-1 text-lg -ml-5">
-                  {events
-                    .filter((e) => e.playerId === player.id)
-                    .map((e) => (
-                      <span key={e.id}>
-                        {e.type === "gol"
-                          ? "⚽"
-                          : e.type === "amarilla"
-                          ? "🟨"
-                          : "🟥"}
-                      </span>
-                    ))}
-                </div>
-              </>
-            )}
-          </div>
-        );
-      })}
-
-      <div className="absolute top-0 left-0 right-0 bg-gray-900 text-white select-none">
-        <div className="max-w-4xl mx-auto flex items-center justify-between p-2">
+    <div className="flex w-full h-full">
+      <div className="flex-1 flex flex-col">
+        <div className="h-12 bg-gray-900 text-white select-none flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="font-semibold">{homeTeamName}</span>
+            <Button size="sm" onClick={() => addTeamGoal("home")}>Gol</Button>
             <span className="text-2xl font-bold">{homeGoals}</span>
-            <Button size="sm" onClick={() => addTeamGoal("home")}>
-              Gol
-            </Button>
           </div>
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setRunning(!running)}
+            >
+              {running ? "Pausar" : "Iniciar"}
+            </Button>
             <span className="tabular-nums text-xl">
               {String(Math.floor(seconds / 60)).padStart(2, "0")}:
               {String(seconds % 60).padStart(2, "0")}
             </span>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setRunning(!running)}
-              >
-                {running ? "Pausar" : "Iniciar"}
-              </Button>
-              <Button size="sm" variant="destructive" onClick={undoLastEvent}>
-                Deshacer
-              </Button>
-              <Button size="sm" variant="secondary" asChild>
-                <Link href={`/dashboard/partidos/${match.id}?setup=1`}>
-                  Configurar
-                </Link>
-              </Button>
-            </div>
+            <Button size="sm" variant="destructive" onClick={undoLastEvent}>
+              Deshacer
+            </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <Link href={`/dashboard/partidos/${match.id}?setup=1`}>Configurar</Link>
+            </Button>
           </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" onClick={() => addTeamGoal("away")}>
-              Gol
-            </Button>
             <span className="text-2xl font-bold">{awayGoals}</span>
+            <Button size="sm" onClick={() => addTeamGoal("away")}>Gol</Button>
             <span className="font-semibold">{awayTeamName}</span>
           </div>
         </div>
-      </div>
 
-      <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-white">
-        <div className="absolute right-2 top-1 text-xs">{subsMade}/5</div>
-        <div className="flex justify-center flex-wrap gap-4">
+        <div
+          ref={containerRef}
+          className="relative flex-1"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleFieldDrop}
+        >
+          <canvas ref={canvasRef} className="w-full h-full touch-none" />
+
+          {lineup.map((slot) => {
+            const player = slot.playerId ? playerMap[slot.playerId] : null;
+            return (
+              <div
+                key={slot.position}
+                className="absolute"
+                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleSlotDrop(slot.position, e)}
+              >
+                {player && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <div
+                        draggable
+                        onDragStart={(e) =>
+                          handlePlayerDragStart(slot.position, player.id, e)
+                        }
+                        className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-white border-2 cursor-grab select-none"
+                        style={{
+                          backgroundColor:
+                            slot.position === "GK"
+                              ? GOALKEEPER_COLOR
+                              : PLAYER_COLOR,
+                        }}
+                      >
+                        {player.dorsal ?? ""}
+                      </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="flex gap-2" side="top">
+                      {EVENT_ICONS.map(({ type, icon }) => (
+                        <Button
+                          key={type}
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => quickAddEvent(player.id, type)}
+                        >
+                          {icon}
+                        </Button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                )}
+                {player && (
+                  <>
+                    <div className="mt-1 text-center text-xs w-20 -ml-10 text-white">
+                      {player.nombre}
+                    </div>
+                    <div className="flex justify-center mt-1 space-x-1 text-lg -ml-5">
+                      {events
+                        .filter((e) => e.playerId === player.id)
+                        .map((e) => (
+                          <span key={e.id}>
+                            {e.type === "gol"
+                              ? "⚽"
+                              : e.type === "amarilla"
+                              ? "🟨"
+                              : "🟥"}
+                          </span>
+                        ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
+            {EVENT_ICONS.map(({ type, icon }) => (
+              <div
+                key={type}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setDragImage(new Image(), 0, 0);
+                  setDraggingEvent(type);
+                }}
+                onDragEnd={() => setDraggingEvent(null)}
+                className="cursor-grab"
+              >
+                {icon}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="w-32 bg-black/60 text-white p-2 overflow-y-auto">
+        <div className="text-xs text-right mb-2">{subsMade}/5</div>
+        <div className="flex flex-col gap-4 items-center">
           {bench.map((pl) => (
-            <div key={pl.id} className="flex flex-col items-center">
+            <div
+              key={pl.id}
+              className={`flex flex-col items-center ${subbedOut.includes(pl.id) ? "opacity-50" : ""}`}
+            >
               <div
                 draggable
                 onDragStart={(e) => handleBenchDragStart(pl.id, e)}
@@ -508,31 +525,13 @@ export default function MatchDetail({
               >
                 {pl.dorsal ?? ""}
               </div>
-              <span className="mt-1 text-xs text-white w-20 text-center">
+              <span className="mt-1 text-xs text-white text-center w-full">
                 {pl.nombre}
               </span>
             </div>
           ))}
         </div>
       </div>
-
-      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
-        {EVENT_ICONS.map(({ type, icon }) => (
-          <div
-            key={type}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.setDragImage(new Image(), 0, 0);
-              setDraggingEvent(type);
-            }}
-            onDragEnd={() => setDraggingEvent(null)}
-            className="cursor-grab"
-          >
-            {icon}
-          </div>
-        ))}
-      </div>
-
       <Toaster />
     </div>
   );
