@@ -17,6 +17,7 @@ import {
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 10, y: 50 },
@@ -77,6 +78,7 @@ interface MatchDetailProps {
   players: Player[];
   addEvent: (formData: FormData) => Promise<MatchEvent>;
   deleteEvent: (id: number) => Promise<void>;
+  saveLineup: (lineup: PlayerSlot[]) => Promise<void>;
   homeTeamName: string;
   awayTeamName: string;
 }
@@ -86,11 +88,13 @@ export default function MatchDetail({
   players,
   addEvent,
   deleteEvent,
+  saveLineup,
   homeTeamName,
   awayTeamName,
 }: MatchDetailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const initialLineup: LineupSlot[] = useMemo(() => {
     if (match.lineup.length) {
@@ -238,11 +242,19 @@ export default function MatchDetail({
     return () => window.removeEventListener("resize", onResize);
   }, [paint]);
 
-  async function quickAddEvent(playerId: number, type: string) {
+  async function quickAddEvent({
+    playerId,
+    type,
+    teamId,
+  }: {
+    playerId?: number;
+    type: string;
+    teamId?: number;
+  }) {
     const fd = new FormData();
-    fd.append("playerId", String(playerId));
+    if (playerId) fd.append("playerId", String(playerId));
     fd.append("type", type);
-    fd.append("teamId", String(match.homeTeamId));
+    if (teamId) fd.append("teamId", String(teamId));
     fd.append("minute", String(Math.floor(seconds / 60)));
     const created = await addEvent(fd);
     setEvents((prev) => [...prev, created]);
@@ -255,6 +267,72 @@ export default function MatchDetail({
     await deleteEvent(last.id);
     setEvents((prev) => prev.slice(0, -1));
     toast("Último evento deshecho");
+  }
+
+  async function removeEventById(id: number) {
+    await deleteEvent(id);
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    toast("Evento eliminado");
+  }
+
+  function toggleRunning() {
+    if (running) {
+      setPlayerStats((prev) => {
+        const stats = { ...prev };
+        lineup.forEach((slot) => {
+          const pid = slot.playerId;
+          if (pid && stats[pid]?.enterSecond != null) {
+            stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+            delete stats[pid].enterSecond;
+          }
+        });
+        return stats;
+      });
+      setRunning(false);
+    } else {
+      setPlayerStats((prev) => {
+        const stats = { ...prev };
+        lineup.forEach((slot) => {
+          const pid = slot.playerId;
+          if (pid) {
+            stats[pid] = { ...stats[pid], enterSecond: seconds };
+          }
+        });
+        return stats;
+      });
+      setRunning(true);
+    }
+  }
+
+  async function handleFinish() {
+    const stats = { ...playerStats };
+    lineup.forEach((slot) => {
+      const pid = slot.playerId;
+      if (pid && stats[pid]?.enterSecond != null) {
+        stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+        delete stats[pid].enterSecond;
+      }
+    });
+    const lineupPayload: PlayerSlot[] = [
+      ...lineup
+        .filter((s) => s.playerId)
+        .map((s) => ({
+          playerId: s.playerId as number,
+          number: playerMap[s.playerId as number]?.dorsal ?? undefined,
+          role: "field" as const,
+          position: s.position,
+          minutes: stats[s.playerId as number]?.minutes ?? 0,
+        })),
+      ...bench.map((p) => ({
+        playerId: p.id,
+        number: p.dorsal ?? undefined,
+        role: "bench" as const,
+        position: benchPositions[p.id],
+        minutes: stats[p.id]?.minutes ?? 0,
+      })),
+    ];
+    await saveLineup(lineupPayload);
+    router.push(`/dashboard/partidos/${match.id}/final`);
   }
 
   function handlePlayerDragStart(
@@ -345,20 +423,17 @@ export default function MatchDetail({
         <div className="h-12 bg-gray-900 text-white select-none flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="font-semibold">{homeTeamName}</span>
+            <Button size="sm" onClick={() => quickAddEvent({ type: "gol", teamId: match.homeTeamId })}>
+              Gol
+            </Button>
             <span className="text-2xl font-bold">{homeGoals}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setRunning(!running)}
-            >
+            <Button size="sm" variant="outline" onClick={toggleRunning}>
               {running ? "Pausar" : "Iniciar"}
             </Button>
             <span className="tabular-nums text-xl">
-              {String(
-                Math.floor(seconds / 60) + (half - 1) * 40
-              ).padStart(2, "0")}
+              {String(Math.floor(seconds / 60) + (half - 1) * 40).padStart(2, "0")}
               :{String(seconds % 60).padStart(2, "0")}
             </span>
             {half === 1 && !running && (
@@ -366,17 +441,43 @@ export default function MatchDetail({
                 2ª Parte
               </Button>
             )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button size="sm" variant="secondary">Eventos</Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 max-h-48 overflow-y-auto" side="bottom">
+                <ul className="space-y-1 text-sm">
+                  {events.map((e) => (
+                    <li key={e.id} className="flex items-center justify-between">
+                      <span>
+                        {e.minute}&apos; {e.playerId ? playerMap[e.playerId]?.nombre + " " : ""}
+                        {e.type}
+                      </span>
+                      <Button size="icon" variant="ghost" onClick={() => removeEventById(e.id)}>
+                        ×
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </PopoverContent>
+            </Popover>
             <Button size="sm" variant="destructive" onClick={undoLastEvent}>
               Deshacer
             </Button>
+            <Button size="sm" variant="secondary" asChild>
+              <Link href={`/dashboard/partidos/${match.id}/config`}>Configurar</Link>
+            </Button>
             {half === 2 && !running && (
-              <Button size="sm" variant="secondary" asChild>
-                <Link href={`/dashboard/partidos/${match.id}/final`}>Finalizar</Link>
+              <Button size="sm" variant="secondary" onClick={handleFinish}>
+                Finalizar
               </Button>
             )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold">{awayGoals}</span>
+            <Button size="sm" onClick={() => quickAddEvent({ type: "gol", teamId: match.awayTeamId })}>
+              Gol
+            </Button>
             <span className="font-semibold">{awayTeamName}</span>
           </div>
         </div>
@@ -419,7 +520,13 @@ export default function MatchDetail({
                           key={type}
                           size="icon"
                           variant="ghost"
-                          onClick={() => quickAddEvent(player.id, type)}
+                          onClick={() =>
+                            quickAddEvent({
+                              playerId: player.id,
+                              type,
+                              teamId: match.homeTeamId,
+                            })
+                          }
                         >
                           {icon}
                         </Button>

@@ -1,6 +1,7 @@
-import { getMatch, recordEvent, removeEvent } from "@/lib/api/matches";
+import { getMatch, recordEvent, removeEvent, updateLineup } from "@/lib/api/matches";
 import { jugadoresService, equiposService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
+import type { PlayerSlot } from "@/types/match";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
     : allPlayers;
   const homeTeam = await equiposService.getById(match.homeTeamId);
   const awayTeam = await equiposService.getById(match.awayTeamId);
+  const opponentNotes = match.opponentNotes ?? null;
 
   async function addEvent(formData: FormData) {
     "use server";
@@ -45,12 +47,18 @@ export default async function MatchPage({ params }: MatchPageProps) {
     await removeEvent(eventId);
   }
 
+  async function saveLineupServer(lineup: PlayerSlot[]) {
+    "use server";
+    await updateLineup(id, lineup, opponentNotes);
+  }
+
   return (
     <MatchDetail
       match={match}
       players={players}
       addEvent={addEvent}
       deleteEvent={deleteEventById}
+      saveLineup={saveLineupServer}
       homeTeamName={homeTeam?.nombre ?? "Local"}
       awayTeamName={awayTeam?.nombre ?? "Rival"}
     />
