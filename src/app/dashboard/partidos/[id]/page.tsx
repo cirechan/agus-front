@@ -11,12 +11,12 @@ interface MatchPageProps {
 export default async function MatchPage({ params }: MatchPageProps) {
   const id = Number(params.id);
   const match = await getMatch(id);
-  const players = await jugadoresService.getByEquipo(1);
-  const homeTeam = await equiposService.getById(match.homeTeamId);
-  const awayTeam = await equiposService.getById(match.awayTeamId);
   if (!match) {
     return <div className="p-4">Partido no encontrado</div>;
   }
+  const players = await jugadoresService.getByEquipo(1);
+  const homeTeam = await equiposService.getById(match.homeTeamId);
+  const awayTeam = await equiposService.getById(match.awayTeamId);
 
   async function saveLineup(formData: FormData) {
     "use server";
