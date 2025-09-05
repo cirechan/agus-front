@@ -45,6 +45,20 @@ const EVENT_ICONS = [
 const PLAYER_COLOR = "#1d4ed8"; // blue-700
 const GOALKEEPER_COLOR = "#16a34a"; // green-600
 
+const DEFAULT_FORMATION = [
+  "GK",
+  "LB",
+  "LCB",
+  "RCB",
+  "RB",
+  "LM",
+  "CM",
+  "RM",
+  "LW",
+  "ST",
+  "RW",
+];
+
 interface Player {
   id: number;
   nombre: string;
@@ -77,22 +91,42 @@ export default function MatchDetail({
 }: MatchDetailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [lineup, setLineup] = useState<CanvasPlayer[]>(() =>
-    match.lineup.map((slot: PlayerSlot) => {
-      const coords =
-        slot.position && POSITION_COORDS[slot.position]
-          ? POSITION_COORDS[slot.position]
-          : { x: 50, y: 50 };
-      const name =
-        players.find((p) => p.id === slot.playerId)?.nombre || String(slot.playerId);
+  const initialLineup: CanvasPlayer[] = useMemo(() => {
+    if (match.lineup.length) {
+      return match.lineup.map((slot: PlayerSlot) => {
+        const coords =
+          slot.position && POSITION_COORDS[slot.position]
+            ? POSITION_COORDS[slot.position]
+            : { x: 50, y: 50 };
+        const name =
+          players.find((p) => p.id === slot.playerId)?.nombre ||
+          String(slot.playerId);
+        return {
+          playerId: slot.playerId,
+          name,
+          x: coords.x,
+          y: coords.y,
+          isGK: slot.position === "GK",
+        };
+      });
+    }
+    // Default: first 11 players in a basic formation
+    return players.slice(0, DEFAULT_FORMATION.length).map((pl, idx) => {
+      const pos = DEFAULT_FORMATION[idx];
+      const coords = POSITION_COORDS[pos] || { x: 50, y: 50 };
       return {
-        playerId: slot.playerId,
-        name,
+        playerId: pl.id,
+        name: pl.nombre,
         x: coords.x,
         y: coords.y,
-        isGK: slot.position === "GK",
+        isGK: pos === "GK",
       };
-    })
+    });
+  }, [match.lineup, players]);
+
+  const [lineup, setLineup] = useState<CanvasPlayer[]>(initialLineup);
+  const [bench, setBench] = useState<Player[]>(() =>
+    players.filter((p) => !initialLineup.some((l) => l.playerId === p.id))
   );
   const [draggingPlayer, setDraggingPlayer] = useState<number | null>(null);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -251,7 +285,6 @@ export default function MatchDetail({
 
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    if (!draggingEvent) return;
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -259,6 +292,27 @@ export default function MatchDetail({
     const y = e.clientY - rect.top;
     const w = rect.width;
     const h = rect.height;
+
+    const playerIdData = e.dataTransfer.getData("playerId");
+    if (playerIdData) {
+      const pid = Number(playerIdData);
+      const name =
+        players.find((pl) => pl.id === pid)?.nombre || String(pid);
+      setBench((prev) => prev.filter((p) => p.id !== pid));
+      setLineup((prev) => {
+        const existing = prev.find((p) => p.playerId === pid);
+        const coords = { x: (x / w) * 100, y: (y / h) * 100 };
+        if (existing) {
+          return prev.map((p) =>
+            p.playerId === pid ? { ...p, ...coords } : p
+          );
+        }
+        return [...prev, { playerId: pid, name, isGK: false, ...coords }];
+      });
+      return;
+    }
+
+    if (!draggingEvent) return;
     const target = lineup.find(
       (p) =>
         Math.hypot(x - (p.x / 100) * w, y - (p.y / 100) * h) < 20
@@ -370,8 +424,16 @@ export default function MatchDetail({
             <DrawerTitle>Jugadores</DrawerTitle>
           </DrawerHeader>
           <div className="p-4 grid grid-cols-2 gap-2">
-            {players.map((pl) => (
-              <div key={pl.id} className="text-sm">
+            {bench.map((pl) => (
+              <div
+                key={pl.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("playerId", String(pl.id));
+                  e.dataTransfer.setDragImage(new Image(), 0, 0);
+                }}
+                className="text-sm cursor-grab rounded-md border p-2"
+              >
                 {pl.nombre}
               </div>
             ))}
