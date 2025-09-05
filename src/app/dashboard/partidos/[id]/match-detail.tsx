@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/popover";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
+import Link from "next/link";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 10, y: 50 },
@@ -469,6 +470,11 @@ export default function MatchDetail({
           </span>
           <Button size="sm" variant="destructive" onClick={undoLastEvent}>
             Deshacer
+          </Button>
+          <Button size="sm" variant="secondary" asChild>
+            <Link href={`/dashboard/partidos/${match.id}?setup=1`}>
+              Configurar
+            </Link>
           </Button>
         </div>
         <div className="flex items-center gap-2">

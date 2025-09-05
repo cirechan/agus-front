@@ -16,7 +16,9 @@ export default async function MatchPage({ params }: MatchPageProps) {
   }
   const allPlayers = await jugadoresService.getByEquipo(1);
   const selectedIds = match.lineup.map((l) => l.playerId);
-  const players = allPlayers.filter((p) => selectedIds.includes(p.id));
+  const players = match.lineup.length
+    ? allPlayers.filter((p) => selectedIds.includes(p.id))
+    : allPlayers;
   const homeTeam = await equiposService.getById(match.homeTeamId);
   const awayTeam = await equiposService.getById(match.awayTeamId);
 
