@@ -1,44 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import type { Match, PlayerSlot, MatchEvent } from "@/types/match";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-
-const FORMATIONS: Record<string, string[]> = {
-  "4-4-2": [
-    "GK",
-    "LB",
-    "LCB",
-    "RCB",
-    "RB",
-    "LM",
-    "LCM",
-    "RCM",
-    "RM",
-    "LS",
-    "RS",
-  ],
-  "4-3-3": [
-    "GK",
-    "LB",
-    "LCB",
-    "RCB",
-    "RB",
-    "LCM",
-    "CM",
-    "RCM",
-    "LW",
-    "ST",
-    "RW",
-  ],
-};
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 50, y: 90 },
@@ -58,26 +22,26 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   RW: { x: 75, y: 30 },
 };
 
-const EVENT_LABELS: Record<string, string> = {
-  gol: "Gol",
-  amarilla: "Tarjeta amarilla",
-  roja: "Tarjeta roja",
-  falta: "Falta",
-  penalti: "Penalti",
-};
-
 const EVENT_ICONS = [
   { type: "gol", icon: "⚽" },
   { type: "amarilla", icon: "🟨" },
   { type: "roja", icon: "🟥" },
 ];
 
-const PLAYER_COLOR = "bg-blue-700";
-const GOALKEEPER_COLOR = "bg-green-600";
+const PLAYER_COLOR = "#1d4ed8"; // blue-700
+const GOALKEEPER_COLOR = "#16a34a"; // green-600
 
 interface Player {
   id: number;
   nombre: string;
+}
+
+interface CanvasPlayer {
+  playerId: number;
+  name: string;
+  x: number; // percentage
+  y: number; // percentage
+  isGK: boolean;
 }
 
 interface MatchDetailProps {
@@ -97,115 +61,30 @@ export default function MatchDetail({
   homeTeamName,
   awayTeamName,
 }: MatchDetailProps) {
-  const [lineup, setLineup] = useState<PlayerSlot[]>(() =>
-    match.lineup.map((p) => ({
-      ...p,
-      enterSecond: p.role === "field" ? 0 : undefined,
-    }))
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [lineup, setLineup] = useState<CanvasPlayer[]>(() =>
+    match.lineup.map((slot: PlayerSlot) => {
+      const coords =
+        slot.position && POSITION_COORDS[slot.position]
+          ? POSITION_COORDS[slot.position]
+          : { x: 50, y: 50 };
+      const name =
+        players.find((p) => p.id === slot.playerId)?.nombre || String(slot.playerId);
+      return {
+        playerId: slot.playerId,
+        name,
+        x: coords.x,
+        y: coords.y,
+        isGK: slot.position === "GK",
+      };
+    })
   );
-  const [formation, setFormation] = useState<string>("4-4-2");
+  const [draggingPlayer, setDraggingPlayer] = useState<number | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [draggingEvent, setDraggingEvent] = useState<string | null>(null);
+  const [events, setEvents] = useState<MatchEvent[]>(match.events);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
-  const [added, setAdded] = useState(0);
-  const [dragging, setDragging] = useState<number | null>(null);
-  const [events, setEvents] = useState<MatchEvent[]>(match.events);
-  const [draggingEvent, setDraggingEvent] = useState<string | null>(null);
-
-  const eventsByPlayer = useMemo(() => {
-    const map: Record<number, string[]> = {};
-    events.forEach((e) => {
-      if (e.playerId != null) {
-        map[e.playerId] = map[e.playerId] || [];
-        map[e.playerId].push(e.type);
-      }
-    });
-    return map;
-  }, [events]);
-
-  async function handleAddEvent(formData: FormData) {
-    const created = await addEvent(formData);
-    setEvents((prev) => [...prev, created]);
-  }
-
-  async function quickAddEvent(playerId: number, type: string) {
-    const fd = new FormData();
-    fd.append("playerId", String(playerId));
-    fd.append("type", type);
-    fd.append("teamId", String(match.homeTeamId));
-    fd.append("minute", String(Math.floor(seconds / 60)));
-    await handleAddEvent(fd);
-  }
-
-  async function addTeamGoal(side: "home" | "away") {
-    const fd = new FormData();
-    fd.append("type", "gol");
-    fd.append("minute", String(Math.floor(seconds / 60)));
-    fd.append(
-      "teamId",
-      String(side === "home" ? match.homeTeamId : match.awayTeamId)
-    );
-    await handleAddEvent(fd);
-  }
-
-  async function undoLastEvent() {
-    const last = events[events.length - 1];
-    if (!last) return;
-    await deleteEvent(last.id);
-    setEvents((prev) => prev.slice(0, -1));
-  }
-
-  function renderEventIcons(playerId: number) {
-    const playerEvents = eventsByPlayer[playerId];
-    if (!playerEvents) return null;
-    const icons: JSX.Element[] = [];
-    const yellows = playerEvents.filter((e) => e === "amarilla").length;
-    const reds = playerEvents.filter((e) => e === "roja").length;
-    const goals = playerEvents.filter((e) => e === "gol").length;
-    for (let i = 0; i < yellows; i++)
-      icons.push(<span key={`y${i}`} className="text-yellow-500">🟨</span>);
-    for (let i = 0; i < reds; i++)
-      icons.push(<span key={`r${i}`} className="text-red-600">🟥</span>);
-    for (let i = 0; i < goals; i++) icons.push(<span key={`g${i}`}>⚽</span>);
-    return <div className="flex space-x-0.5">{icons}</div>;
-  }
-
-  useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [running]);
-
-  function handleDragStart(e: React.DragEvent, id: number) {
-    e.dataTransfer.setDragImage(new Image(), 0, 0);
-    setDragging(id);
-  }
-
-  function handleDropPosition(position: string, playerAtPos?: number) {
-    if (draggingEvent) {
-      if (playerAtPos != null) {
-        void quickAddEvent(playerAtPos, draggingEvent);
-      }
-      setDraggingEvent(null);
-      return;
-    }
-    if (dragging != null) {
-      setLineup((prev) => {
-        const currentPos = prev.find((p) => p.playerId === dragging)?.position;
-        return prev.map((p) => {
-          if (p.playerId === dragging) return { ...p, position };
-          if (p.playerId === playerAtPos) return { ...p, position: currentPos };
-          return p;
-        });
-      });
-      setDragging(null);
-    }
-  }
-
-  function formatTime(total: number) {
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
 
   const homeGoals = useMemo(
     () =>
@@ -222,148 +101,241 @@ export default function MatchDetail({
     [events, match.awayTeamId]
   );
 
+  useEffect(() => {
+    if (!running) return;
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [running]);
+
+  const paint = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // grass
+    for (let i = 0; i < w; i += 80) {
+      ctx.fillStyle = i % 160 === 0 ? "#15803d" : "#166534";
+      ctx.fillRect(i, 0, 80, h);
+    }
+
+    // outer lines
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(40, 40, w - 80, h - 80);
+    // mid line
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 40);
+    ctx.lineTo(w / 2, h - 40);
+    ctx.stroke();
+    // center circle
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, 60, 0, Math.PI * 2);
+    ctx.stroke();
+    // penalty areas
+    ctx.strokeRect(40, h / 2 - 100, 120, 200);
+    ctx.strokeRect(w - 160, h / 2 - 100, 120, 200);
+
+    lineup.forEach((p) => {
+      const px = (p.x / 100) * w;
+      const py = (p.y / 100) * h;
+      ctx.fillStyle = p.isGK ? GOALKEEPER_COLOR : PLAYER_COLOR;
+      ctx.beginPath();
+      ctx.arc(px, py, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(p.name.split(" ")[0], px, py - 28);
+
+      let offset = 24;
+      events
+        .filter((e) => e.playerId === p.playerId)
+        .forEach((e) => {
+          const icon =
+            e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥";
+          ctx.fillText(icon, px, py + offset);
+          offset += 14;
+        });
+    });
+  }, [lineup, events]);
+
+  useEffect(() => {
+    paint();
+  }, [paint]);
+
+  useEffect(() => {
+    function onResize() {
+      paint();
+    }
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, [paint]);
+
+  function handlePointerDown(
+    e: React.PointerEvent<HTMLCanvasElement>
+  ) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = canvas.width;
+    const h = canvas.height;
+    const found = lineup.find(
+      (p) =>
+        Math.hypot(x - (p.x / 100) * w, y - (p.y / 100) * h) < 20
+    );
+    if (found) {
+      setDraggingPlayer(found.playerId);
+      setOffset({
+        x: x - (found.x / 100) * w,
+        y: y - (found.y / 100) * h,
+      });
+    }
+  }
+
+  function handlePointerMove(
+    e: React.PointerEvent<HTMLCanvasElement>
+  ) {
+    if (draggingPlayer == null) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left - offset.x;
+    const y = e.clientY - rect.top - offset.y;
+    const w = canvas.width;
+    const h = canvas.height;
+    setLineup((prev) =>
+      prev.map((p) =>
+        p.playerId === draggingPlayer
+          ? { ...p, x: (x / w) * 100, y: (y / h) * 100 }
+          : p
+      )
+    );
+  }
+
+  function handlePointerUp() {
+    setDraggingPlayer(null);
+  }
+
+  async function quickAddEvent(playerId: number, type: string) {
+    const fd = new FormData();
+    fd.append("playerId", String(playerId));
+    fd.append("type", type);
+    fd.append("teamId", String(match.homeTeamId));
+    fd.append("minute", String(Math.floor(seconds / 60)));
+    const created = await addEvent(fd);
+    setEvents((prev) => [...prev, created]);
+  }
+
+  async function addTeamGoal(side: "home" | "away") {
+    const fd = new FormData();
+    fd.append("type", "gol");
+    fd.append("minute", String(Math.floor(seconds / 60)));
+    fd.append(
+      "teamId",
+      String(side === "home" ? match.homeTeamId : match.awayTeamId)
+    );
+    const created = await addEvent(fd);
+    setEvents((prev) => [...prev, created]);
+  }
+
+  async function undoLastEvent() {
+    const last = events[events.length - 1];
+    if (!last) return;
+    await deleteEvent(last.id);
+    setEvents((prev) => prev.slice(0, -1));
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    if (!draggingEvent) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = canvas.width;
+    const h = canvas.height;
+    const target = lineup.find(
+      (p) =>
+        Math.hypot(x - (p.x / 100) * w, y - (p.y / 100) * h) < 20
+    );
+    if (target) {
+      await quickAddEvent(target.playerId, draggingEvent);
+    }
+    setDraggingEvent(null);
+  }
+
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden">
-      <div className="flex flex-none flex-col items-center space-y-4 p-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-baseline space-x-2">
-            <span className="font-mono text-3xl">{formatTime(seconds)}</span>
-            {added > 0 && (
-              <span className="font-mono text-xl text-red-600">+{added}&apos;</span>
-            )}
-          </div>
-          <Button size="sm" onClick={() => setRunning((r) => !r)}>
+    <div className="relative w-full h-full">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+      />
+
+      {/* Scoreboard */}
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
+        <div className="flex items-center space-x-2">
+          <span className="font-semibold">{homeTeamName}</span>
+          <Button size="sm" onClick={() => addTeamGoal("home")}>Gol</Button>
+          <span className="text-2xl font-bold">{homeGoals}</span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button size="sm" variant="outline" onClick={() => setRunning(!running)}>
             {running ? "Pausar" : "Iniciar"}
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setAdded((a) => a + 1)}
-          >
-            +1&apos;
-          </Button>
-          <div className="w-32">
-            <Select value={formation} onValueChange={setFormation}>
-              <SelectTrigger>
-                <SelectValue placeholder="Formación" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(FORMATIONS).map((f) => (
-                  <SelectItem key={f} value={f}>
-                    {f}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="flex justify-center space-x-4">
-          {EVENT_ICONS.map((e) => (
-            <div
-              key={e.type}
-              draggable
-              onDragStart={(ev) => {
-                ev.dataTransfer.setDragImage(new Image(), 0, 0);
-                setDraggingEvent(e.type);
-              }}
-              onDragEnd={() => setDraggingEvent(null)}
-              className={`flex h-10 w-10 items-center justify-center rounded-full border bg-white text-xl cursor-grab ${
-                draggingEvent === e.type ? "opacity-50 cursor-grabbing" : ""
-              }`}
-              title={EVENT_LABELS[e.type]}
-            >
-              {e.icon}
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center space-x-4 rounded-md bg-gray-900 px-4 py-2 text-white">
-          <div className="flex flex-col items-center">
-            <span className="text-xs md:text-sm">{homeTeamName}</span>
-            <Button size="sm" variant="secondary" onClick={() => addTeamGoal("home")}>
-              Gol
-            </Button>
-          </div>
-          <div className="text-2xl font-bold md:text-3xl">
-            {homeGoals} - {awayGoals}
-          </div>
-          <div className="flex flex-col items-center">
-            <span className="text-xs md:text-sm">{awayTeamName}</span>
-            <Button size="sm" variant="secondary" onClick={() => addTeamGoal("away")}>
-              Gol
-            </Button>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={undoLastEvent}
-            className="ml-4"
-          >
+          <span className="tabular-nums text-xl">
+            {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+            {String(seconds % 60).padStart(2, "0")}
+          </span>
+          <Button size="sm" variant="destructive" onClick={undoLastEvent}>
             Deshacer
           </Button>
         </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-2xl font-bold">{awayGoals}</span>
+          <Button size="sm" onClick={() => addTeamGoal("away")}>Gol</Button>
+          <span className="font-semibold">{awayTeamName}</span>
+        </div>
       </div>
 
-      <div className="relative flex-grow overflow-hidden bg-green-600">
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(to_right,#15803d,#15803d_20px,#16a34a_20px,#16a34a_40px)]" />
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 border-2 border-white" />
-          <div className="absolute left-1/2 top-0 h-full w-px -ml-px bg-white" />
-          <div className="absolute left-1/2 top-1/2 h-24 w-24 -ml-12 -mt-12 rounded-full border-2 border-white" />
-          <div className="absolute left-1/2 -ml-32 top-0 h-20 w-64 border-2 border-white border-t-0" />
-          <div className="absolute left-1/2 -ml-32 bottom-0 h-20 w-64 border-2 border-white border-b-0" />
-        </div>
-        {FORMATIONS[formation].map((pos) => {
-          const slot = lineup.find(
-            (p) => p.role === "field" && p.position === pos
-          );
-          const coords = POSITION_COORDS[pos];
-          const player = slot
-            ? players.find((p) => p.id === slot.playerId)
-            : null;
-          return (
-            <div
-              key={pos}
-              className="absolute z-10 flex flex-col items-center"
-              style={{
-                left: `${coords.x}%`,
-                top: `${coords.y}%`,
-                transform: "translate(-50%, -50%)",
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDropPosition(pos, slot?.playerId)}
-            >
-              {slot ? (
-                <div
-                  draggable
-                  onDragStart={(ev) => handleDragStart(ev, slot.playerId)}
-                  onDragEnd={() => setDragging(null)}
-                  className={`flex flex-col items-center cursor-grab ${
-                    dragging === slot.playerId ? "opacity-50 cursor-grabbing" : ""
-                  }`}
-                >
-                  <div className="relative">
-                    <div
-                      className={`flex h-12 w-12 items-center justify-center rounded-full border-2 border-black text-sm font-bold text-white ${
-                        slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR
-                      }`}
-                    >
-                      {slot.number ?? ""}
-                    </div>
-                    <div className="absolute -top-1 -right-1">
-                      {renderEventIcons(slot.playerId)}
-                    </div>
-                  </div>
-                  <span className="mt-1 w-20 text-center text-xs text-white">
-                    {player?.nombre}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-dashed border-white" />
-              )}
-            </div>
-          );
-        })}
+      {/* Event toolbar */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
+        {EVENT_ICONS.map(({ type, icon }) => (
+          <div
+            key={type}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setDragImage(new Image(), 0, 0);
+              setDraggingEvent(type);
+            }}
+            onDragEnd={() => setDraggingEvent(null)}
+            className="cursor-grab"
+          >
+            {icon}
+          </div>
+        ))}
       </div>
     </div>
   );
 }
+
