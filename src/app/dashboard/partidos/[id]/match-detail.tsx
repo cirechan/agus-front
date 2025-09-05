@@ -1,6 +1,12 @@
 "use client";
 
-import { useRef, useState, useEffect, useMemo, useCallback } from "react";
+import {
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,7 +48,7 @@ const EVENT_ICONS = [
   { type: "roja", icon: "🟥" },
 ];
 
-const PLAYER_COLOR = "#1d4ed8"; // blue-700
+const PLAYER_COLOR = "#dc2626"; // red-600
 const GOALKEEPER_COLOR = "#16a34a"; // green-600
 
 const DEFAULT_FORMATION = [
@@ -62,14 +68,14 @@ const DEFAULT_FORMATION = [
 interface Player {
   id: number;
   nombre: string;
+  dorsal?: number | null;
 }
 
-interface CanvasPlayer {
-  playerId: number;
-  name: string;
-  x: number; // percentage
-  y: number; // percentage
-  isGK: boolean;
+interface LineupSlot {
+  position: string;
+  x: number;
+  y: number;
+  playerId: number | null;
 }
 
 interface MatchDetailProps {
@@ -91,45 +97,58 @@ export default function MatchDetail({
 }: MatchDetailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const initialLineup: CanvasPlayer[] = useMemo(() => {
+
+  const initialLineup: LineupSlot[] = useMemo(() => {
     if (match.lineup.length) {
       return match.lineup.map((slot: PlayerSlot) => {
         const coords =
           slot.position && POSITION_COORDS[slot.position]
             ? POSITION_COORDS[slot.position]
             : { x: 50, y: 50 };
-        const name =
-          players.find((p) => p.id === slot.playerId)?.nombre ||
-          String(slot.playerId);
         return {
-          playerId: slot.playerId,
-          name,
+          position: slot.position || "",
           x: coords.x,
           y: coords.y,
-          isGK: slot.position === "GK",
+          playerId: slot.playerId,
         };
       });
     }
-    // Default: first 11 players in a basic formation
-    return players.slice(0, DEFAULT_FORMATION.length).map((pl, idx) => {
-      const pos = DEFAULT_FORMATION[idx];
-      const coords = POSITION_COORDS[pos] || { x: 50, y: 50 };
+    return DEFAULT_FORMATION.map((pos, idx) => {
+      const coords = POSITION_COORDS[pos];
       return {
-        playerId: pl.id,
-        name: pl.nombre,
+        position: pos,
         x: coords.x,
         y: coords.y,
-        isGK: pos === "GK",
+        playerId: players[idx] ? players[idx].id : null,
       };
     });
   }, [match.lineup, players]);
 
-  const [lineup, setLineup] = useState<CanvasPlayer[]>(initialLineup);
+  const playerMap = useMemo(() => {
+    const map: Record<number, Player> = {};
+    players.forEach((p) => {
+      map[p.id] = p;
+    });
+    return map;
+  }, [players]);
+
+  const [lineup, setLineup] = useState<LineupSlot[]>(initialLineup);
   const [bench, setBench] = useState<Player[]>(() =>
     players.filter((p) => !initialLineup.some((l) => l.playerId === p.id))
   );
-  const [draggingPlayer, setDraggingPlayer] = useState<number | null>(null);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+
+  const initialStats = useMemo(() => {
+    const stats: Record<number, { minutes: number; enterSecond?: number }> = {};
+    players.forEach((p) => {
+      const isStarter = initialLineup.some((l) => l.playerId === p.id);
+      stats[p.id] = { minutes: 0, ...(isStarter ? { enterSecond: 0 } : {}) };
+    });
+    return stats;
+  }, [players, initialLineup]);
+  const [playerStats, setPlayerStats] = useState(
+    initialStats
+  );
+
   const [draggingEvent, setDraggingEvent] = useState<string | null>(null);
   const [events, setEvents] = useState<MatchEvent[]>(match.events);
   const [seconds, setSeconds] = useState(0);
@@ -168,26 +187,21 @@ export default function MatchDetail({
     const w = canvas.width;
     const h = canvas.height;
 
-    // grass
     for (let i = 0; i < w; i += 80) {
       ctx.fillStyle = i % 160 === 0 ? "#15803d" : "#166534";
       ctx.fillRect(i, 0, 80, h);
     }
 
-    // outer lines
     ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
     ctx.strokeRect(40, 40, w - 80, h - 80);
-    // mid line
     ctx.beginPath();
     ctx.moveTo(w / 2, 40);
     ctx.lineTo(w / 2, h - 40);
     ctx.stroke();
-    // center circle
     ctx.beginPath();
     ctx.arc(w / 2, h / 2, 60, 0, Math.PI * 2);
     ctx.stroke();
-    // penalty areas
     ctx.strokeRect(40, h / 2 - 100, 120, 200);
     ctx.strokeRect(w - 160, h / 2 - 100, 120, 200);
   }, []);
@@ -204,48 +218,6 @@ export default function MatchDetail({
     onResize();
     return () => window.removeEventListener("resize", onResize);
   }, [paint]);
-
-  function handlePlayerPointerDown(
-    e: React.PointerEvent<HTMLDivElement>,
-    id: number
-  ) {
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const player = lineup.find((p) => p.playerId === id);
-    if (!player) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    setDraggingPlayer(id);
-    setOffset({
-      x: x - (player.x / 100) * rect.width,
-      y: y - (player.y / 100) * rect.height,
-    });
-  }
-
-  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (draggingPlayer == null) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left - offset.x;
-    const y = e.clientY - rect.top - offset.y;
-    setLineup((prev) =>
-      prev.map((p) =>
-        p.playerId === draggingPlayer
-          ? {
-              ...p,
-              x: (x / rect.width) * 100,
-              y: (y / rect.height) * 100,
-            }
-          : p
-      )
-    );
-  }
-
-  function handlePointerUp() {
-    setDraggingPlayer(null);
-  }
 
   async function quickAddEvent(playerId: number, type: string) {
     const fd = new FormData();
@@ -279,12 +251,11 @@ export default function MatchDetail({
     toast("Último evento deshecho");
   }
 
-  function handleDragOver(e: React.DragEvent) {
+  function handleFieldDrop(e: React.DragEvent) {
     e.preventDefault();
-  }
-
-  async function handleDrop(e: React.DragEvent) {
-    e.preventDefault();
+    const fromPos = e.dataTransfer.getData("fromPosition");
+    if (fromPos) return; // player drop
+    if (!draggingEvent) return;
     const container = containerRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
@@ -292,94 +263,162 @@ export default function MatchDetail({
     const y = e.clientY - rect.top;
     const w = rect.width;
     const h = rect.height;
-
-    const playerIdData = e.dataTransfer.getData("playerId");
-    if (playerIdData) {
-      const pid = Number(playerIdData);
-      const name =
-        players.find((pl) => pl.id === pid)?.nombre || String(pid);
-      setBench((prev) => prev.filter((p) => p.id !== pid));
-      setLineup((prev) => {
-        const existing = prev.find((p) => p.playerId === pid);
-        const coords = { x: (x / w) * 100, y: (y / h) * 100 };
-        if (existing) {
-          return prev.map((p) =>
-            p.playerId === pid ? { ...p, ...coords } : p
-          );
-        }
-        return [...prev, { playerId: pid, name, isGK: false, ...coords }];
-      });
-      return;
-    }
-
-    if (!draggingEvent) return;
-    const target = lineup.find(
-      (p) =>
-        Math.hypot(x - (p.x / 100) * w, y - (p.y / 100) * h) < 20
-    );
-    if (target) {
-      await quickAddEvent(target.playerId, draggingEvent);
+    const target = lineup.find((p) => {
+      const px = (p.x / 100) * w;
+      const py = (p.y / 100) * h;
+      return Math.hypot(x - px, y - py) < 20 && p.playerId;
+    });
+    if (target && target.playerId) {
+      quickAddEvent(target.playerId, draggingEvent);
     }
     setDraggingEvent(null);
+  }
+
+  function handlePlayerDragStart(
+    position: string,
+    playerId: number,
+    e: React.DragEvent
+  ) {
+    e.dataTransfer.setData("playerId", String(playerId));
+    e.dataTransfer.setData("fromPosition", position);
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
+  }
+
+  function handleBenchDragStart(playerId: number, e: React.DragEvent) {
+    e.dataTransfer.setData("playerId", String(playerId));
+    e.dataTransfer.setData("fromPosition", "bench");
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
+  }
+
+  function substitute(playerInId: number, targetPos: string) {
+    const outgoingId = lineup.find((s) => s.position === targetPos)?.playerId;
+    setLineup((prev) =>
+      prev.map((s) =>
+        s.position === targetPos ? { ...s, playerId: playerInId } : s
+      )
+    );
+    setBench((prev) => {
+      const filtered = prev.filter((p) => p.id !== playerInId);
+      return outgoingId && playerMap[outgoingId]
+        ? [...filtered, playerMap[outgoingId]]
+        : filtered;
+    });
+    setPlayerStats((prev) => {
+      const stats = { ...prev };
+      if (outgoingId && stats[outgoingId]?.enterSecond != null) {
+        stats[outgoingId].minutes +=
+          seconds - (stats[outgoingId].enterSecond as number);
+        delete stats[outgoingId].enterSecond;
+      }
+      stats[playerInId] = {
+        ...stats[playerInId],
+        enterSecond: seconds,
+      };
+      return stats;
+    });
+  }
+
+  function swapPlayers(fromPos: string, toPos: string) {
+    setLineup((prev) => {
+      const arr = [...prev];
+      const i1 = arr.findIndex((s) => s.position === fromPos);
+      const i2 = arr.findIndex((s) => s.position === toPos);
+      if (i1 === -1 || i2 === -1) return prev;
+      const temp = arr[i1].playerId;
+      arr[i1].playerId = arr[i2].playerId;
+      arr[i2].playerId = temp;
+      return arr;
+    });
+  }
+
+  function handleSlotDrop(position: string, e: React.DragEvent) {
+    e.preventDefault();
+    const fromPos = e.dataTransfer.getData("fromPosition");
+    const playerIdStr = e.dataTransfer.getData("playerId");
+    if (!playerIdStr) return;
+    const playerId = Number(playerIdStr);
+    if (fromPos === "bench") {
+      substitute(playerId, position);
+    } else if (fromPos && fromPos !== position) {
+      swapPlayers(fromPos, position);
+    }
   }
 
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full"
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={handleFieldDrop}
     >
       <canvas ref={canvasRef} className="w-full h-full touch-none" />
 
-      {lineup.map((p) => (
-        <div
-          key={p.playerId}
-          className="absolute"
-          style={{ left: `${p.x}%`, top: `${p.y}%` }}
-        >
-          <Popover>
-            <PopoverTrigger asChild>
-              <div
-                onPointerDown={(e) => handlePlayerPointerDown(e, p.playerId)}
-                className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-white border-2 cursor-pointer select-none"
-                style={{
-                  backgroundColor: p.isGK ? GOALKEEPER_COLOR : PLAYER_COLOR,
-                }}
-              >
-                {p.name.split(" ")[0]}
-              </div>
-            </PopoverTrigger>
-            <PopoverContent className="flex gap-2" side="top">
-              {EVENT_ICONS.map(({ type, icon }) => (
-                <Button
-                  key={type}
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => quickAddEvent(p.playerId, type)}
-                >
-                  {icon}
-                </Button>
-              ))}
-            </PopoverContent>
-          </Popover>
-          <div className="flex justify-center mt-1 space-x-1 text-lg">
-            {events
-              .filter((e) => e.playerId === p.playerId)
-              .map((e) => (
-                <span key={e.id}>
-                  {e.type === "gol"
-                    ? "⚽"
-                    : e.type === "amarilla"
-                    ? "🟨"
-                    : "🟥"}
-                </span>
-              ))}
+      {lineup.map((slot) => {
+        const player = slot.playerId ? playerMap[slot.playerId] : null;
+        return (
+          <div
+            key={slot.position}
+            className="absolute"
+            style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => handleSlotDrop(slot.position, e)}
+          >
+            {player && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <div
+                    draggable
+                    onDragStart={(e) =>
+                      handlePlayerDragStart(slot.position, player.id, e)
+                    }
+                    className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-white border-2 cursor-grab select-none"
+                    style={{
+                      backgroundColor:
+                        slot.position === "GK"
+                          ? GOALKEEPER_COLOR
+                          : PLAYER_COLOR,
+                    }}
+                  >
+                    {player.dorsal ?? ""}
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="flex gap-2" side="top">
+                  {EVENT_ICONS.map(({ type, icon }) => (
+                    <Button
+                      key={type}
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => quickAddEvent(player.id, type)}
+                    >
+                      {icon}
+                    </Button>
+                  ))}
+                </PopoverContent>
+              </Popover>
+            )}
+            {player && (
+              <>
+                <div className="mt-1 text-center text-xs w-20 -ml-10">
+                  {player.nombre}
+                </div>
+                <div className="flex justify-center mt-1 space-x-1 text-lg -ml-5">
+                  {events
+                    .filter((e) => e.playerId === player.id)
+                    .map((e) => (
+                      <span key={e.id}>
+                        {e.type === "gol"
+                          ? "⚽"
+                          : e.type === "amarilla"
+                          ? "🟨"
+                          : "🟥"}
+                      </span>
+                    ))}
+                </div>
+              </>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <Drawer>
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
@@ -404,7 +443,8 @@ export default function MatchDetail({
               {running ? "Pausar" : "Iniciar"}
             </Button>
             <span className="tabular-nums text-xl">
-              {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+              {String(Math.floor(seconds / 60)).padStart(2, "0")}
+              :
               {String(seconds % 60).padStart(2, "0")}
             </span>
             <Button size="sm" variant="destructive" onClick={undoLastEvent}>
@@ -428,10 +468,7 @@ export default function MatchDetail({
               <div
                 key={pl.id}
                 draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("playerId", String(pl.id));
-                  e.dataTransfer.setDragImage(new Image(), 0, 0);
-                }}
+                onDragStart={(e) => handleBenchDragStart(pl.id, e)}
                 className="text-sm cursor-grab rounded-md border p-2"
               >
                 {pl.nombre}
@@ -441,7 +478,6 @@ export default function MatchDetail({
         </DrawerContent>
       </Drawer>
 
-      {/* Event toolbar */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
         {EVENT_ICONS.map(({ type, icon }) => (
           <div
