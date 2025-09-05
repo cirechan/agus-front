@@ -3,6 +3,20 @@
 import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
 import { Button } from "@/components/ui/button";
+import {
+  Drawer,
+  DrawerTrigger,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 50, y: 90 },
@@ -62,6 +76,7 @@ export default function MatchDetail({
   awayTeamName,
 }: MatchDetailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [lineup, setLineup] = useState<CanvasPlayer[]>(() =>
     match.lineup.map((slot: PlayerSlot) => {
       const coords =
@@ -109,11 +124,12 @@ export default function MatchDetail({
 
   const paint = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
 
     const w = canvas.width;
     const h = canvas.height;
@@ -140,32 +156,7 @@ export default function MatchDetail({
     // penalty areas
     ctx.strokeRect(40, h / 2 - 100, 120, 200);
     ctx.strokeRect(w - 160, h / 2 - 100, 120, 200);
-
-    lineup.forEach((p) => {
-      const px = (p.x / 100) * w;
-      const py = (p.y / 100) * h;
-      ctx.fillStyle = p.isGK ? GOALKEEPER_COLOR : PLAYER_COLOR;
-      ctx.beginPath();
-      ctx.arc(px, py, 20, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = "#fff";
-      ctx.stroke();
-      ctx.fillStyle = "#fff";
-      ctx.font = "12px sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(p.name.split(" ")[0], px, py - 28);
-
-      let offset = 24;
-      events
-        .filter((e) => e.playerId === p.playerId)
-        .forEach((e) => {
-          const icon =
-            e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥";
-          ctx.fillText(icon, px, py + offset);
-          offset += 14;
-        });
-    });
-  }, [lineup, events]);
+  }, []);
 
   useEffect(() => {
     paint();
@@ -180,44 +171,39 @@ export default function MatchDetail({
     return () => window.removeEventListener("resize", onResize);
   }, [paint]);
 
-  function handlePointerDown(
-    e: React.PointerEvent<HTMLCanvasElement>
+  function handlePlayerPointerDown(
+    e: React.PointerEvent<HTMLDivElement>,
+    id: number
   ) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const player = lineup.find((p) => p.playerId === id);
+    if (!player) return;
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const w = canvas.width;
-    const h = canvas.height;
-    const found = lineup.find(
-      (p) =>
-        Math.hypot(x - (p.x / 100) * w, y - (p.y / 100) * h) < 20
-    );
-    if (found) {
-      setDraggingPlayer(found.playerId);
-      setOffset({
-        x: x - (found.x / 100) * w,
-        y: y - (found.y / 100) * h,
-      });
-    }
+    setDraggingPlayer(id);
+    setOffset({
+      x: x - (player.x / 100) * rect.width,
+      y: y - (player.y / 100) * rect.height,
+    });
   }
 
-  function handlePointerMove(
-    e: React.PointerEvent<HTMLCanvasElement>
-  ) {
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
     if (draggingPlayer == null) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left - offset.x;
     const y = e.clientY - rect.top - offset.y;
-    const w = canvas.width;
-    const h = canvas.height;
     setLineup((prev) =>
       prev.map((p) =>
         p.playerId === draggingPlayer
-          ? { ...p, x: (x / w) * 100, y: (y / h) * 100 }
+          ? {
+              ...p,
+              x: (x / rect.width) * 100,
+              y: (y / rect.height) * 100,
+            }
           : p
       )
     );
@@ -235,6 +221,7 @@ export default function MatchDetail({
     fd.append("minute", String(Math.floor(seconds / 60)));
     const created = await addEvent(fd);
     setEvents((prev) => [...prev, created]);
+    toast(`Evento ${type} añadido`);
   }
 
   async function addTeamGoal(side: "home" | "away") {
@@ -247,6 +234,7 @@ export default function MatchDetail({
     );
     const created = await addEvent(fd);
     setEvents((prev) => [...prev, created]);
+    toast("Gol añadido");
   }
 
   async function undoLastEvent() {
@@ -254,6 +242,7 @@ export default function MatchDetail({
     if (!last) return;
     await deleteEvent(last.id);
     setEvents((prev) => prev.slice(0, -1));
+    toast("Último evento deshecho");
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -263,13 +252,13 @@ export default function MatchDetail({
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     if (!draggingEvent) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    const container = containerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const w = canvas.width;
-    const h = canvas.height;
+    const w = rect.width;
+    const h = rect.height;
     const target = lineup.find(
       (p) =>
         Math.hypot(x - (p.x / 100) * w, y - (p.y / 100) * h) < 20
@@ -281,42 +270,114 @@ export default function MatchDetail({
   }
 
   return (
-    <div className="relative w-full h-full">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full touch-none"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      />
+    <div
+      ref={containerRef}
+      className="relative w-full h-full"
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <canvas ref={canvasRef} className="w-full h-full touch-none" />
 
-      {/* Scoreboard */}
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
-        <div className="flex items-center space-x-2">
-          <span className="font-semibold">{homeTeamName}</span>
-          <Button size="sm" onClick={() => addTeamGoal("home")}>Gol</Button>
-          <span className="text-2xl font-bold">{homeGoals}</span>
+      {lineup.map((p) => (
+        <div
+          key={p.playerId}
+          className="absolute"
+          style={{ left: `${p.x}%`, top: `${p.y}%` }}
+        >
+          <Popover>
+            <PopoverTrigger asChild>
+              <div
+                onPointerDown={(e) => handlePlayerPointerDown(e, p.playerId)}
+                className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-white border-2 cursor-pointer select-none"
+                style={{
+                  backgroundColor: p.isGK ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                }}
+              >
+                {p.name.split(" ")[0]}
+              </div>
+            </PopoverTrigger>
+            <PopoverContent className="flex gap-2" side="top">
+              {EVENT_ICONS.map(({ type, icon }) => (
+                <Button
+                  key={type}
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => quickAddEvent(p.playerId, type)}
+                >
+                  {icon}
+                </Button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          <div className="flex justify-center mt-1 space-x-1 text-lg">
+            {events
+              .filter((e) => e.playerId === p.playerId)
+              .map((e) => (
+                <span key={e.id}>
+                  {e.type === "gol"
+                    ? "⚽"
+                    : e.type === "amarilla"
+                    ? "🟨"
+                    : "🟥"}
+                </span>
+              ))}
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <Button size="sm" variant="outline" onClick={() => setRunning(!running)}>
-            {running ? "Pausar" : "Iniciar"}
-          </Button>
-          <span className="tabular-nums text-xl">
-            {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-            {String(seconds % 60).padStart(2, "0")}
-          </span>
-          <Button size="sm" variant="destructive" onClick={undoLastEvent}>
-            Deshacer
-          </Button>
+      ))}
+
+      <Drawer>
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
+          <div className="flex items-center gap-2">
+            <DrawerTrigger asChild>
+              <Button size="sm" variant="secondary">
+                Jugadores
+              </Button>
+            </DrawerTrigger>
+            <span className="font-semibold">{homeTeamName}</span>
+            <Button size="sm" onClick={() => addTeamGoal("home")}>
+              Gol
+            </Button>
+            <span className="text-2xl font-bold">{homeGoals}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setRunning(!running)}
+            >
+              {running ? "Pausar" : "Iniciar"}
+            </Button>
+            <span className="tabular-nums text-xl">
+              {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+              {String(seconds % 60).padStart(2, "0")}
+            </span>
+            <Button size="sm" variant="destructive" onClick={undoLastEvent}>
+              Deshacer
+            </Button>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-2xl font-bold">{awayGoals}</span>
+            <Button size="sm" onClick={() => addTeamGoal("away")}>
+              Gol
+            </Button>
+            <span className="font-semibold">{awayTeamName}</span>
+          </div>
         </div>
-        <div className="flex items-center space-x-2">
-          <span className="text-2xl font-bold">{awayGoals}</span>
-          <Button size="sm" onClick={() => addTeamGoal("away")}>Gol</Button>
-          <span className="font-semibold">{awayTeamName}</span>
-        </div>
-      </div>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Jugadores</DrawerTitle>
+          </DrawerHeader>
+          <div className="p-4 grid grid-cols-2 gap-2">
+            {players.map((pl) => (
+              <div key={pl.id} className="text-sm">
+                {pl.nombre}
+              </div>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Event toolbar */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
@@ -335,6 +396,8 @@ export default function MatchDetail({
           </div>
         ))}
       </div>
+
+      <Toaster />
     </div>
   );
 }
