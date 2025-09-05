@@ -10,13 +10,6 @@ import {
 import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
 import { Button } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerTrigger,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
-import {
   Popover,
   PopoverTrigger,
   PopoverContent,
@@ -25,21 +18,21 @@ import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
-  GK: { x: 50, y: 90 },
-  LB: { x: 15, y: 70 },
-  LCB: { x: 35, y: 70 },
-  RCB: { x: 65, y: 70 },
-  RB: { x: 85, y: 70 },
-  LM: { x: 20, y: 50 },
-  LCM: { x: 40, y: 50 },
+  GK: { x: 10, y: 50 },
+  LB: { x: 30, y: 20 },
+  LCB: { x: 30, y: 40 },
+  RCB: { x: 30, y: 60 },
+  RB: { x: 30, y: 80 },
+  LM: { x: 50, y: 20 },
+  LCM: { x: 50, y: 40 },
   CM: { x: 50, y: 50 },
-  RCM: { x: 60, y: 50 },
-  RM: { x: 80, y: 50 },
-  LW: { x: 25, y: 30 },
-  LS: { x: 40, y: 30 },
-  ST: { x: 50, y: 30 },
-  RS: { x: 60, y: 30 },
-  RW: { x: 75, y: 30 },
+  RCM: { x: 50, y: 60 },
+  RM: { x: 50, y: 80 },
+  LW: { x: 70, y: 20 },
+  LS: { x: 70, y: 40 },
+  ST: { x: 70, y: 50 },
+  RS: { x: 70, y: 60 },
+  RW: { x: 70, y: 80 },
 };
 
 const EVENT_ICONS = [
@@ -100,18 +93,20 @@ export default function MatchDetail({
 
   const initialLineup: LineupSlot[] = useMemo(() => {
     if (match.lineup.length) {
-      return match.lineup.map((slot: PlayerSlot) => {
-        const coords =
-          slot.position && POSITION_COORDS[slot.position]
-            ? POSITION_COORDS[slot.position]
-            : { x: 50, y: 50 };
-        return {
-          position: slot.position || "",
-          x: coords.x,
-          y: coords.y,
-          playerId: slot.playerId,
-        };
-      });
+      return match.lineup
+        .filter((slot) => slot.role === "field")
+        .map((slot: PlayerSlot) => {
+          const coords =
+            slot.position && POSITION_COORDS[slot.position]
+              ? POSITION_COORDS[slot.position]
+              : { x: 50, y: 50 };
+          return {
+            position: slot.position || "",
+            x: coords.x,
+            y: coords.y,
+            playerId: slot.playerId,
+          };
+        });
     }
     return DEFAULT_FORMATION.map((pos, idx) => {
       const coords = POSITION_COORDS[pos];
@@ -132,10 +127,31 @@ export default function MatchDetail({
     return map;
   }, [players]);
 
+  const benchInitial = useMemo(() => {
+    if (match.lineup.length) {
+      return match.lineup
+        .filter((slot) => slot.role === "bench")
+        .map((slot) => playerMap[slot.playerId])
+        .filter(Boolean) as Player[];
+    }
+    return players.slice(initialLineup.length);
+  }, [match.lineup, players, playerMap, initialLineup.length]);
+
+  const initialBenchPositions = useMemo(() => {
+    const map: Record<number, string | undefined> = {};
+    match.lineup
+      .filter((slot) => slot.role === "bench")
+      .forEach((slot) => {
+        map[slot.playerId] = slot.position;
+      });
+    return map;
+  }, [match.lineup]);
+
   const [lineup, setLineup] = useState<LineupSlot[]>(initialLineup);
-  const [bench, setBench] = useState<Player[]>(() =>
-    players.filter((p) => !initialLineup.some((l) => l.playerId === p.id))
-  );
+  const [bench, setBench] = useState<Player[]>(benchInitial);
+  const [benchPositions, setBenchPositions] = useState<
+    Record<number, string | undefined>
+  >(initialBenchPositions);
 
   const initialStats = useMemo(() => {
     const stats: Record<number, { minutes: number; enterSecond?: number }> = {};
@@ -153,6 +169,7 @@ export default function MatchDetail({
   const [events, setEvents] = useState<MatchEvent[]>(match.events);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+  const [subsMade, setSubsMade] = useState(0);
 
   const homeGoals = useMemo(
     () =>
@@ -303,6 +320,14 @@ export default function MatchDetail({
         ? [...filtered, playerMap[outgoingId]]
         : filtered;
     });
+    setBenchPositions((prev) => {
+      const map = { ...prev };
+      delete map[playerInId];
+      if (outgoingId) {
+        map[outgoingId] = targetPos;
+      }
+      return map;
+    });
     setPlayerStats((prev) => {
       const stats = { ...prev };
       if (outgoingId && stats[outgoingId]?.enterSecond != null) {
@@ -316,6 +341,7 @@ export default function MatchDetail({
       };
       return stats;
     });
+    setSubsMade((c) => c + 1);
   }
 
   function swapPlayers(fromPos: string, toPos: string) {
@@ -398,7 +424,7 @@ export default function MatchDetail({
             )}
             {player && (
               <>
-                <div className="mt-1 text-center text-xs w-20 -ml-10">
+                <div className="mt-1 text-center text-xs w-20 -ml-10 text-white">
                   {player.nombre}
                 </div>
                 <div className="flex justify-center mt-1 space-x-1 text-lg -ml-5">
@@ -420,65 +446,68 @@ export default function MatchDetail({
         );
       })}
 
-      <Drawer>
-        <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
-          <div className="flex items-center gap-2">
-            <DrawerTrigger asChild>
-              <Button size="sm" variant="secondary">
-                Jugadores
-              </Button>
-            </DrawerTrigger>
-            <span className="font-semibold">{homeTeamName}</span>
-            <Button size="sm" onClick={() => addTeamGoal("home")}>
-              Gol
-            </Button>
-            <span className="text-2xl font-bold">{homeGoals}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setRunning(!running)}
-            >
-              {running ? "Pausar" : "Iniciar"}
-            </Button>
-            <span className="tabular-nums text-xl">
-              {String(Math.floor(seconds / 60)).padStart(2, "0")}
-              :
-              {String(seconds % 60).padStart(2, "0")}
-            </span>
-            <Button size="sm" variant="destructive" onClick={undoLastEvent}>
-              Deshacer
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">{awayGoals}</span>
-            <Button size="sm" onClick={() => addTeamGoal("away")}>
-              Gol
-            </Button>
-            <span className="font-semibold">{awayTeamName}</span>
-          </div>
+      <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{homeTeamName}</span>
+          <Button size="sm" onClick={() => addTeamGoal("home")}>
+            Gol
+          </Button>
+          <span className="text-2xl font-bold">{homeGoals}</span>
         </div>
-        <DrawerContent>
-          <DrawerHeader>
-            <DrawerTitle>Jugadores</DrawerTitle>
-          </DrawerHeader>
-          <div className="p-4 grid grid-cols-2 gap-2">
-            {bench.map((pl) => (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setRunning(!running)}
+          >
+            {running ? "Pausar" : "Iniciar"}
+          </Button>
+          <span className="tabular-nums text-xl">
+            {String(Math.floor(seconds / 60)).padStart(2, "0")}
+            :
+            {String(seconds % 60).padStart(2, "0")}
+          </span>
+          <Button size="sm" variant="destructive" onClick={undoLastEvent}>
+            Deshacer
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-2xl font-bold">{awayGoals}</span>
+          <Button size="sm" onClick={() => addTeamGoal("away")}>
+            Gol
+          </Button>
+          <span className="font-semibold">{awayTeamName}</span>
+        </div>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-white">
+        <div className="absolute right-2 top-1 text-xs">{subsMade}/5</div>
+        <div className="flex justify-center flex-wrap gap-4">
+          {bench.map((pl) => (
+            <div key={pl.id} className="flex flex-col items-center">
               <div
-                key={pl.id}
                 draggable
                 onDragStart={(e) => handleBenchDragStart(pl.id, e)}
-                className="text-sm cursor-grab rounded-md border p-2"
+                className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab"
+                style={{
+                  backgroundColor:
+                    benchPositions[pl.id] === "GK"
+                      ? GOALKEEPER_COLOR
+                      : PLAYER_COLOR,
+                  color: "white",
+                }}
               >
-                {pl.nombre}
+                {pl.dorsal ?? ""}
               </div>
-            ))}
-          </div>
-        </DrawerContent>
-      </Drawer>
+              <span className="mt-1 text-xs text-white w-20 text-center">
+                {pl.nombre}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
+      <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
         {EVENT_ICONS.map(({ type, icon }) => (
           <div
             key={type}

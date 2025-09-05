@@ -14,7 +14,9 @@ export default async function MatchPage({ params }: MatchPageProps) {
   if (!match) {
     return <div className="p-4">Partido no encontrado</div>;
   }
-  const players = await jugadoresService.getByEquipo(1);
+  const allPlayers = await jugadoresService.getByEquipo(1);
+  const selectedIds = match.lineup.map((l) => l.playerId);
+  const players = allPlayers.filter((p) => selectedIds.includes(p.id));
   const homeTeam = await equiposService.getById(match.homeTeamId);
   const awayTeam = await equiposService.getById(match.awayTeamId);
 
