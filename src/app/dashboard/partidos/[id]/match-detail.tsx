@@ -19,21 +19,21 @@ import { toast } from "sonner";
 import Link from "next/link";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
-  GK: { x: 50, y: 90 },
-  LB: { x: 20, y: 70 },
-  LCB: { x: 40, y: 70 },
-  RCB: { x: 60, y: 70 },
-  RB: { x: 80, y: 70 },
-  LM: { x: 30, y: 50 },
-  LCM: { x: 40, y: 50 },
+  GK: { x: 10, y: 50 },
+  LB: { x: 30, y: 25 },
+  LCB: { x: 30, y: 40 },
+  RCB: { x: 30, y: 60 },
+  RB: { x: 30, y: 75 },
+  LM: { x: 50, y: 30 },
+  LCM: { x: 50, y: 40 },
   CM: { x: 50, y: 50 },
-  RCM: { x: 60, y: 50 },
-  RM: { x: 70, y: 50 },
-  LW: { x: 25, y: 30 },
-  LS: { x: 40, y: 30 },
-  ST: { x: 50, y: 30 },
-  RS: { x: 60, y: 30 },
-  RW: { x: 75, y: 30 },
+  RCM: { x: 50, y: 60 },
+  RM: { x: 50, y: 70 },
+  LW: { x: 70, y: 25 },
+  LS: { x: 70, y: 40 },
+  ST: { x: 70, y: 50 },
+  RS: { x: 70, y: 60 },
+  RW: { x: 70, y: 75 },
 };
 
 const EVENT_ICONS = [
@@ -167,10 +167,10 @@ export default function MatchDetail({
     initialStats
   );
 
-  const [draggingEvent, setDraggingEvent] = useState<string | null>(null);
   const [events, setEvents] = useState<MatchEvent[]>(match.events);
   const [seconds, setSeconds] = useState(0);
   const [running, setRunning] = useState(false);
+  const [half, setHalf] = useState(1);
   const [subsMade, setSubsMade] = useState(0);
 
   const homeGoals = useMemo(
@@ -249,48 +249,12 @@ export default function MatchDetail({
     toast(`Evento ${type} añadido`);
   }
 
-  async function addTeamGoal(side: "home" | "away") {
-    const fd = new FormData();
-    fd.append("type", "gol");
-    fd.append("minute", String(Math.floor(seconds / 60)));
-    fd.append(
-      "teamId",
-      String(side === "home" ? match.homeTeamId : match.awayTeamId)
-    );
-    const created = await addEvent(fd);
-    setEvents((prev) => [...prev, created]);
-    toast("Gol añadido");
-  }
-
   async function undoLastEvent() {
     const last = events[events.length - 1];
     if (!last) return;
     await deleteEvent(last.id);
     setEvents((prev) => prev.slice(0, -1));
     toast("Último evento deshecho");
-  }
-
-  function handleFieldDrop(e: React.DragEvent) {
-    e.preventDefault();
-    const fromPos = e.dataTransfer.getData("fromPosition");
-    if (fromPos) return; // player drop
-    if (!draggingEvent) return;
-    const container = containerRef.current;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const w = rect.width;
-    const h = rect.height;
-    const target = lineup.find((p) => {
-      const px = (p.x / 100) * w;
-      const py = (p.y / 100) * h;
-      return Math.hypot(x - px, y - py) < 20 && p.playerId;
-    });
-    if (target && target.playerId) {
-      quickAddEvent(target.playerId, draggingEvent);
-    }
-    setDraggingEvent(null);
   }
 
   function handlePlayerDragStart(
@@ -381,7 +345,6 @@ export default function MatchDetail({
         <div className="h-12 bg-gray-900 text-white select-none flex items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="font-semibold">{homeTeamName}</span>
-            <Button size="sm" onClick={() => addTeamGoal("home")}>Gol</Button>
             <span className="text-2xl font-bold">{homeGoals}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -393,29 +356,32 @@ export default function MatchDetail({
               {running ? "Pausar" : "Iniciar"}
             </Button>
             <span className="tabular-nums text-xl">
-              {String(Math.floor(seconds / 60)).padStart(2, "0")}:
-              {String(seconds % 60).padStart(2, "0")}
+              {String(
+                Math.floor(seconds / 60) + (half - 1) * 40
+              ).padStart(2, "0")}
+              :{String(seconds % 60).padStart(2, "0")}
             </span>
+            {half === 1 && !running && (
+              <Button size="sm" onClick={() => { setHalf(2); setSeconds(0); }}>
+                2ª Parte
+              </Button>
+            )}
             <Button size="sm" variant="destructive" onClick={undoLastEvent}>
               Deshacer
             </Button>
-            <Button size="sm" variant="secondary" asChild>
-              <Link href={`/dashboard/partidos/${match.id}?setup=1`}>Configurar</Link>
-            </Button>
+            {half === 2 && !running && (
+              <Button size="sm" variant="secondary" asChild>
+                <Link href={`/dashboard/partidos/${match.id}/final`}>Finalizar</Link>
+              </Button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-2xl font-bold">{awayGoals}</span>
-            <Button size="sm" onClick={() => addTeamGoal("away")}>Gol</Button>
             <span className="font-semibold">{awayTeamName}</span>
           </div>
         </div>
 
-        <div
-          ref={containerRef}
-          className="relative flex-1"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={handleFieldDrop}
-        >
+        <div ref={containerRef} className="relative flex-1">
           <canvas ref={canvasRef} className="w-full h-full touch-none" />
 
           {lineup.map((slot) => {
@@ -484,23 +450,6 @@ export default function MatchDetail({
               </div>
             );
           })}
-
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-6 text-3xl">
-            {EVENT_ICONS.map(({ type, icon }) => (
-              <div
-                key={type}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setDragImage(new Image(), 0, 0);
-                  setDraggingEvent(type);
-                }}
-                onDragEnd={() => setDraggingEvent(null)}
-                className="cursor-grab"
-              >
-                {icon}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
       <div className="w-32 bg-black/60 text-white p-2 overflow-y-auto">
