@@ -447,42 +447,45 @@ export default function MatchDetail({
         );
       })}
 
-      <div className="absolute top-0 left-0 right-0 flex items-center justify-between bg-gray-900 text-white px-4 py-2 select-none">
-        <div className="flex items-center gap-2">
-          <span className="font-semibold">{homeTeamName}</span>
-          <Button size="sm" onClick={() => addTeamGoal("home")}>
-            Gol
-          </Button>
-          <span className="text-2xl font-bold">{homeGoals}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setRunning(!running)}
-          >
-            {running ? "Pausar" : "Iniciar"}
-          </Button>
-          <span className="tabular-nums text-xl">
-            {String(Math.floor(seconds / 60)).padStart(2, "0")}
-            :
-            {String(seconds % 60).padStart(2, "0")}
-          </span>
-          <Button size="sm" variant="destructive" onClick={undoLastEvent}>
-            Deshacer
-          </Button>
-          <Button size="sm" variant="secondary" asChild>
-            <Link href={`/dashboard/partidos/${match.id}?setup=1`}>
-              Configurar
-            </Link>
-          </Button>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-2xl font-bold">{awayGoals}</span>
-          <Button size="sm" onClick={() => addTeamGoal("away")}>
-            Gol
-          </Button>
-          <span className="font-semibold">{awayTeamName}</span>
+      <div className="absolute top-0 left-0 right-0 bg-gray-900 text-white select-none">
+        <div className="max-w-4xl mx-auto flex items-center justify-between p-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">{homeTeamName}</span>
+            <span className="text-2xl font-bold">{homeGoals}</span>
+            <Button size="sm" onClick={() => addTeamGoal("home")}>
+              Gol
+            </Button>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <span className="tabular-nums text-xl">
+              {String(Math.floor(seconds / 60)).padStart(2, "0")}:
+              {String(seconds % 60).padStart(2, "0")}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setRunning(!running)}
+              >
+                {running ? "Pausar" : "Iniciar"}
+              </Button>
+              <Button size="sm" variant="destructive" onClick={undoLastEvent}>
+                Deshacer
+              </Button>
+              <Button size="sm" variant="secondary" asChild>
+                <Link href={`/dashboard/partidos/${match.id}?setup=1`}>
+                  Configurar
+                </Link>
+              </Button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" onClick={() => addTeamGoal("away")}>
+              Gol
+            </Button>
+            <span className="text-2xl font-bold">{awayGoals}</span>
+            <span className="font-semibold">{awayTeamName}</span>
+          </div>
         </div>
       </div>
 
