@@ -1,4 +1,4 @@
-import { getMatch, recordEvent, updateLineup, removeEvent } from "@/lib/api/matches";
+import { getMatch, recordEvent, removeEvent } from "@/lib/api/matches";
 import { jugadoresService, equiposService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 
@@ -17,14 +17,6 @@ export default async function MatchPage({ params }: MatchPageProps) {
   const players = await jugadoresService.getByEquipo(1);
   const homeTeam = await equiposService.getById(match.homeTeamId);
   const awayTeam = await equiposService.getById(match.awayTeamId);
-
-  async function saveLineup(formData: FormData) {
-    "use server";
-    const raw = formData.get("lineup") as string;
-    const lineup = JSON.parse(raw);
-    const notes = formData.get("opponentNotes");
-    await updateLineup(id, lineup, notes ? String(notes) : null);
-  }
 
   async function addEvent(formData: FormData) {
     "use server";
@@ -53,7 +45,6 @@ export default async function MatchPage({ params }: MatchPageProps) {
     <MatchDetail
       match={match}
       players={players}
-      saveLineup={saveLineup}
       addEvent={addEvent}
       deleteEvent={deleteEventById}
       homeTeamName={homeTeam?.nombre ?? "Local"}
