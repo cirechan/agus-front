@@ -43,8 +43,16 @@ const EVENT_ICONS = [
   { type: "roja", icon: "🟥" },
 ];
 
-const PLAYER_COLOR = "#dc2626"; // red-600
 const GOALKEEPER_COLOR = "#16a34a"; // green-600
+
+function getContrastColor(hex: string) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? '#000' : '#fff';
+}
 
 const DEFAULT_FORMATION = [
   "GK",
@@ -81,6 +89,8 @@ interface MatchDetailProps {
   saveLineup: (lineup: PlayerSlot[]) => Promise<void>;
   homeTeamName: string;
   awayTeamName: string;
+  homeTeamColor: string;
+  awayTeamColor: string;
 }
 
 export default function MatchDetail({
@@ -91,10 +101,17 @@ export default function MatchDetail({
   saveLineup,
   homeTeamName,
   awayTeamName,
+  homeTeamColor,
+  awayTeamColor,
 }: MatchDetailProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const PLAYER_COLOR = homeTeamColor;
+  const playerTextColor = getContrastColor(PLAYER_COLOR);
+  const homeTextColor = getContrastColor(homeTeamColor);
+  const awayTextColor = getContrastColor(awayTeamColor);
 
   const initialLineup: LineupSlot[] = useMemo(() => {
     if (match.lineup.length) {
@@ -420,15 +437,22 @@ export default function MatchDetail({
   return (
     <div className="flex w-full h-full">
       <div className="flex-1 flex flex-col">
-        <div className="h-12 bg-gray-900 text-white select-none flex items-center justify-between px-4">
-          <div className="flex items-center gap-2">
+        <div className="h-12 text-white select-none flex">
+          <div
+            className="flex items-center gap-2 px-4"
+            style={{ backgroundColor: homeTeamColor, color: homeTextColor }}
+          >
+            <span className="text-2xl font-bold">{homeGoals}</span>
             <span className="font-semibold">{homeTeamName}</span>
-            <Button size="sm" onClick={() => quickAddEvent({ type: "gol", teamId: match.homeTeamId })}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => quickAddEvent({ type: "gol", teamId: match.homeTeamId })}
+            >
               Gol
             </Button>
-            <span className="text-2xl font-bold">{homeGoals}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 justify-center bg-gray-900 px-4">
             <Button size="sm" variant="outline" onClick={toggleRunning}>
               {running ? "Pausar" : "Iniciar"}
             </Button>
@@ -473,12 +497,19 @@ export default function MatchDetail({
               </Button>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold">{awayGoals}</span>
-            <Button size="sm" onClick={() => quickAddEvent({ type: "gol", teamId: match.awayTeamId })}>
+          <div
+            className="flex items-center gap-2 px-4"
+            style={{ backgroundColor: awayTeamColor, color: awayTextColor }}
+          >
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => quickAddEvent({ type: "gol", teamId: match.awayTeamId })}
+            >
               Gol
             </Button>
             <span className="font-semibold">{awayTeamName}</span>
+            <span className="text-2xl font-bold">{awayGoals}</span>
           </div>
         </div>
 
@@ -503,12 +534,16 @@ export default function MatchDetail({
                         onDragStart={(e) =>
                           handlePlayerDragStart(slot.position, player.id, e)
                         }
-                        className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center text-white border-2 cursor-grab select-none"
+                        className="w-10 h-10 -ml-5 -mt-5 rounded-full flex items-center justify-center border-2 cursor-grab select-none"
                         style={{
                           backgroundColor:
                             slot.position === "GK"
                               ? GOALKEEPER_COLOR
                               : PLAYER_COLOR,
+                          color:
+                            slot.position === "GK"
+                              ? '#fff'
+                              : playerTextColor,
                         }}
                       >
                         {player.dorsal ?? ""}
@@ -576,7 +611,10 @@ export default function MatchDetail({
                     benchPositions[pl.id] === "GK"
                       ? GOALKEEPER_COLOR
                       : PLAYER_COLOR,
-                  color: "white",
+                  color:
+                    benchPositions[pl.id] === "GK"
+                      ? '#fff'
+                      : playerTextColor,
                 }}
               >
                 {pl.dorsal ?? ""}

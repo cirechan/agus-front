@@ -73,8 +73,13 @@ export const equiposService = {
 
   create: async (equipoData) => {
     const result = await run(
-      'INSERT INTO equipos (nombre, categoria, temporadaId) VALUES ($1, $2, $3) RETURNING id',
-      [equipoData.nombre, equipoData.categoria, equipoData.temporadaId]
+      'INSERT INTO equipos (nombre, categoria, temporadaId, color) VALUES ($1, $2, $3, $4) RETURNING id',
+      [
+        equipoData.nombre,
+        equipoData.categoria,
+        equipoData.temporadaId,
+        equipoData.color || '#dc2626'
+      ]
     );
     return { id: result.id, ...equipoData };
   },
@@ -84,8 +89,14 @@ export const equiposService = {
     if (!existing) return null;
     const updated = { ...existing, ...equipoData };
     await run(
-      'UPDATE equipos SET nombre = $1, categoria = $2, temporadaId = $3 WHERE id = $4',
-      [updated.nombre, updated.categoria, updated.temporadaId, id]
+      'UPDATE equipos SET nombre = $1, categoria = $2, temporadaId = $3, color = $4 WHERE id = $5',
+      [
+        updated.nombre,
+        updated.categoria,
+        updated.temporadaId,
+        updated.color || '#dc2626',
+        id
+      ]
     );
     return updated;
   },

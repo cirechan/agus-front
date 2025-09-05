@@ -10,6 +10,15 @@ export default async function NuevoPartidoPage() {
   const nuestro = equipos.find((e: any) => e.id === 1);
   const rivales = equipos.filter((e: any) => e.id !== 1);
 
+  const TEAM_COLORS = [
+    { value: '#dc2626', label: 'Rojo' },
+    { value: '#1d4ed8', label: 'Azul' },
+    { value: '#15803d', label: 'Verde' },
+    { value: '#f59e0b', label: 'Amarillo' },
+    { value: '#000000', label: 'Negro' },
+    { value: '#ffffff', label: 'Blanco' },
+  ];
+
   async function crearPartido(formData: FormData) {
     "use server";
     const condicion = formData.get("condicion") as string; // home or away
@@ -38,7 +47,13 @@ export default async function NuevoPartidoPage() {
   async function crearEquipo(formData: FormData) {
     "use server";
     const nombre = formData.get("nombre") as string;
-    await equiposService.create({ nombre, categoria: null, temporadaId: null });
+    const color = formData.get("color") as string;
+    await equiposService.create({
+      nombre,
+      categoria: null,
+      temporadaId: null,
+      color,
+    });
     revalidatePath("/dashboard/partidos/new");
   }
 
@@ -55,6 +70,13 @@ export default async function NuevoPartidoPage() {
         </p>
         <form action={crearEquipo} className="space-y-4">
           <Input name="nombre" placeholder="Nombre del equipo" required />
+          <select name="color" className="w-full rounded border p-2" required>
+            {TEAM_COLORS.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+          </select>
           <Button type="submit">Crear equipo</Button>
         </form>
       </div>
@@ -101,6 +123,13 @@ export default async function NuevoPartidoPage() {
           ¿No aparece el rival? Añádelo rápidamente:
         </p>
         <Input name="nombre" placeholder="Nombre del equipo" required />
+        <select name="color" className="w-full rounded border p-2" required>
+          {TEAM_COLORS.map((c) => (
+            <option key={c.value} value={c.value}>
+              {c.label}
+            </option>
+          ))}
+        </select>
         <Button type="submit" variant="secondary">
           Añadir equipo
         </Button>

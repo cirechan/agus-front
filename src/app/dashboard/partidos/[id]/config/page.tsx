@@ -15,6 +15,18 @@ export default async function ConfigMatchPage({ params }: { params: { id: string
   const players = await jugadoresService.getByEquipo(1);
   const homeTeam = await equiposService.getById(match.homeTeamId);
   const awayTeam = await equiposService.getById(match.awayTeamId);
+  const teamColor = homeTeam?.color || '#dc2626';
+  const GOALKEEPER_COLOR = '#16a34a';
+
+  function getContrastColor(hex: string) {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? '#000' : '#fff';
+  }
+  const textColor = getContrastColor(teamColor);
   const currentStarters = new Set(
     match.lineup.filter((l) => l.role === "field").map((l) => l.playerId)
   );
@@ -85,9 +97,13 @@ export default async function ConfigMatchPage({ params }: { params: { id: string
               />
               <div className="border rounded-md p-2 flex flex-col items-center gap-2 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground">
                 <div
-                  className={`w-12 h-12 flex items-center justify-center text-white rounded ${
-                    p.posicion === "Portero" ? "bg-green-600" : "bg-red-600"
-                  }`}
+                  className="w-12 h-12 flex items-center justify-center rounded"
+                  style={{
+                    backgroundColor:
+                      p.posicion === 'Portero' ? GOALKEEPER_COLOR : teamColor,
+                    color:
+                      p.posicion === 'Portero' ? '#fff' : textColor,
+                  }}
                 >
                   {p.dorsal ?? "-"}
                 </div>

@@ -61,6 +61,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
       saveLineup={saveLineupServer}
       homeTeamName={homeTeam?.nombre ?? "Local"}
       awayTeamName={awayTeam?.nombre ?? "Rival"}
+      homeTeamColor={homeTeam?.color ?? '#dc2626'}
+      awayTeamColor={awayTeam?.color ?? '#1d4ed8'}
     />
   );
 }
