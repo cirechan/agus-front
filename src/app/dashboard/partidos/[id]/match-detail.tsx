@@ -244,7 +244,8 @@ export default function MatchDetail({
     setLineup((prev) => prev.filter((p) => p.playerId !== playerId));
   }
 
-  function handleDragStart(id: number) {
+  function handleDragStart(e: React.DragEvent, id: number) {
+    e.dataTransfer.setDragImage(new Image(), 0, 0);
     setDragging(id);
   }
   function handleDropField() {
@@ -376,9 +377,8 @@ export default function MatchDetail({
   );
 
   return (
-    <div className="space-y-4 p-4 lg:p-6">
-      <h1 className="text-2xl font-semibold">Partido</h1>
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <div className="flex h-screen w-screen flex-col overflow-hidden">
+      <div className="flex flex-none flex-col items-center space-y-4 p-4">
         <div className="flex items-center space-x-4">
           <div className="flex items-baseline space-x-2">
             <span className="font-mono text-3xl">{formatTime(seconds)}</span>
@@ -396,135 +396,139 @@ export default function MatchDetail({
           >
             +1&apos;
           </Button>
-      </div>
-      <div className="w-32">
-        <Select value={formation} onValueChange={changeFormation}>
-          <SelectTrigger>
-            <SelectValue placeholder="Formación" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.keys(FORMATIONS).map((f) => (
-                <SelectItem key={f} value={f}>
-                  {f}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="mx-auto flex w-full max-w-[600px] justify-center space-x-4">
-        {EVENT_ICONS.map((e) => (
-          <div
-            key={e.type}
-            draggable
-            onDragStart={() => setDraggingEvent(e.type)}
-            onDragEnd={() => setDraggingEvent(null)}
-            className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white cursor-grab ${draggingEvent === e.type ? "opacity-50 cursor-grabbing" : ""}`}
-            title={EVENT_LABELS[e.type]}
-          >
-            {e.icon}
+          <div className="w-32">
+            <Select value={formation} onValueChange={changeFormation}>
+              <SelectTrigger>
+                <SelectValue placeholder="Formación" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.keys(FORMATIONS).map((f) => (
+                  <SelectItem key={f} value={f}>
+                    {f}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        ))}
-      </div>
-
-      <div className="mx-auto flex w-full max-w-xs items-center justify-between rounded-md bg-gray-900 px-4 py-2 text-white md:max-w-md">
-        <div className="flex flex-col items-center">
-          <span className="text-xs md:text-sm">{homeTeamName}</span>
-          <Button size="sm" variant="secondary" onClick={() => addTeamGoal("home")}>Gol</Button>
         </div>
-        <div className="text-2xl font-bold md:text-3xl">
-          {homeGoals} - {awayGoals}
-        </div>
-        <div className="flex flex-col items-center">
-          <span className="text-xs md:text-sm">{awayTeamName}</span>
-          <Button size="sm" variant="secondary" onClick={() => addTeamGoal("away")}>Gol</Button>
-        </div>
-      </div>
-      <div className="flex justify-center">
-        <Button size="sm" variant="outline" onClick={undoLastEvent}>
-          Deshacer último
-        </Button>
-      </div>
-
-      <div className="relative mx-auto mt-4 h-[500px] w-full max-w-[600px] overflow-hidden rounded-lg bg-green-600">
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(to_right,#15803d,#15803d_20px,#16a34a_20px,#16a34a_40px)]" />
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 rounded-lg border-2 border-white" />
-          <div className="absolute left-1/2 top-0 h-full w-px -ml-px bg-white" />
-          <div className="absolute left-1/2 top-1/2 h-24 w-24 -ml-12 -mt-12 rounded-full border-2 border-white" />
-          <div className="absolute left-1/2 -ml-32 top-0 h-20 w-64 border-2 border-white border-t-0" />
-          <div className="absolute left-1/2 -ml-32 bottom-0 h-20 w-64 border-2 border-white border-b-0" />
-        </div>
-        {FORMATIONS[formation].map((pos) => {
-          const slot = lineup.find(
-            (p) => p.role === "field" && p.position === pos
-          );
-          const coords = POSITION_COORDS[pos];
-          const player = slot
-            ? players.find((p) => p.id === slot.playerId)
-            : null;
-          return (
+        <div className="flex justify-center space-x-4">
+          {EVENT_ICONS.map((e) => (
             <div
-              key={pos}
-              className="absolute z-10 flex flex-col items-center"
-              style={{
-                left: `${coords.x}%`,
-                top: `${coords.y}%`,
-                transform: "translate(-50%, -50%)",
+              key={e.type}
+              draggable
+              onDragStart={(ev) => {
+                ev.dataTransfer.setDragImage(new Image(), 0, 0);
+                setDraggingEvent(e.type);
               }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDropPosition(pos, slot?.playerId)}
+              onDragEnd={() => setDraggingEvent(null)}
+              className={`flex h-8 w-8 items-center justify-center rounded-full border bg-white cursor-grab ${
+                draggingEvent === e.type ? "opacity-50 cursor-grabbing" : ""
+              }`}
+              title={EVENT_LABELS[e.type]}
             >
-              {slot ? (
-                <div
-                  draggable
-                  onDragStart={() => handleDragStart(slot.playerId)}
-                  onDragEnd={() => setDragging(null)}
-                  className={`flex flex-col items-center cursor-grab ${dragging === slot.playerId ? "opacity-50 cursor-grabbing" : ""}`}
-                >
-                  <div className="relative">
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-black text-sm font-bold text-white ${slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR}`}
-                    >
-                      {slot.number ?? ""}
-                    </div>
-                    <div className="absolute -top-1 -right-1">
-                      {renderEventIcons(slot.playerId)}
-                    </div>
-                  </div>
-                  <span className="mt-1 text-center text-xs text-white">
-                    {player?.nombre}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white" />
-              )}
+              {e.icon}
             </div>
-          );
-        })}
+          ))}
+        </div>
+        <div className="flex items-center space-x-4 rounded-md bg-gray-900 px-4 py-2 text-white">
+          <div className="flex flex-col items-center">
+            <span className="text-xs md:text-sm">{homeTeamName}</span>
+            <Button size="sm" variant="secondary" onClick={() => addTeamGoal("home")}>Gol</Button>
+          </div>
+          <div className="text-2xl font-bold md:text-3xl">
+            {homeGoals} - {awayGoals}
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-xs md:text-sm">{awayTeamName}</span>
+            <Button size="sm" variant="secondary" onClick={() => addTeamGoal("away")}>Gol</Button>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={undoLastEvent}
+            className="ml-4"
+          >
+            Deshacer
+          </Button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropField}>
-          <CardHeader>
-            <CardTitle>Titulares</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+      <div className="flex flex-grow overflow-hidden">
+        <div className="relative flex-grow overflow-hidden bg-green-600">
+          <div className="absolute inset-0 bg-[repeating-linear-gradient(to_right,#15803d,#15803d_20px,#16a34a_20px,#16a34a_40px)]" />
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute inset-0 border-2 border-white" />
+            <div className="absolute left-1/2 top-0 h-full w-px -ml-px bg-white" />
+            <div className="absolute left-1/2 top-1/2 h-24 w-24 -ml-12 -mt-12 rounded-full border-2 border-white" />
+            <div className="absolute left-1/2 -ml-32 top-0 h-20 w-64 border-2 border-white border-t-0" />
+            <div className="absolute left-1/2 -ml-32 bottom-0 h-20 w-64 border-2 border-white border-b-0" />
+          </div>
+          {FORMATIONS[formation].map((pos) => {
+            const slot = lineup.find(
+              (p) => p.role === "field" && p.position === pos
+            );
+            const coords = POSITION_COORDS[pos];
+            const player = slot
+              ? players.find((p) => p.id === slot.playerId)
+              : null;
+            return (
+              <div
+                key={pos}
+                className="absolute z-10 flex flex-col items-center"
+                style={{
+                  left: `${coords.x}%`,
+                  top: `${coords.y}%`,
+                  transform: "translate(-50%, -50%)",
+                }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => handleDropPosition(pos, slot?.playerId)}
+              >
+                {slot ? (
+                  <div
+                    draggable
+                    onDragStart={(ev) => handleDragStart(ev, slot.playerId)}
+                    onDragEnd={() => setDragging(null)}
+                    className={`flex flex-col items-center cursor-grab ${
+                      dragging === slot.playerId
+                        ? "opacity-50 cursor-grabbing"
+                        : ""
+                    }`}
+                  >
+                    <div className="relative">
+                      <div
+                        className={`flex h-10 w-10 items-center justify-center rounded-full border-2 border-black text-sm font-bold text-white ${
+                          slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR
+                        }`}
+                      >
+                        {slot.number ?? ""}
+                      </div>
+                      <div className="absolute -top-1 -right-1">
+                        {renderEventIcons(slot.playerId)}
+                      </div>
+                    </div>
+                    <span className="mt-1 text-center text-xs text-white">
+                      {player?.nombre}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white" />
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex w-80 flex-none flex-col space-y-4 overflow-y-auto bg-white p-4">
+          <div onDragOver={(e) => e.preventDefault()} onDrop={handleDropField}>
+            <h2 className="mb-2 font-semibold">Titulares</h2>
             {starters.map((s) => (
               <div
                 key={s.playerId}
-                className={`flex items-center justify-between cursor-grab ${dragging === s.playerId ? "opacity-50 cursor-grabbing" : ""}`}
+                className={`flex items-center justify-between cursor-grab ${
+                  dragging === s.playerId ? "opacity-50 cursor-grabbing" : ""
+                }`}
                 draggable
-                onDragStart={() => handleDragStart(s.playerId)}
+                onDragStart={(ev) => handleDragStart(ev, s.playerId)}
                 onDragEnd={() => setDragging(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggingEvent) {
-                    void quickAddEvent(s.playerId, draggingEvent);
-                    setDraggingEvent(null);
-                  }
-                }}
               >
                 <div className="flex w-28 items-center space-x-1 truncate">
                   <span className="truncate">
@@ -533,27 +537,6 @@ export default function MatchDetail({
                   {renderEventIcons(s.playerId)}
                 </div>
                 <div className="flex items-center space-x-2">
-                  <Select
-                    value={s.position}
-                    onValueChange={(val) => setPosition(s.playerId, val)}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue placeholder="Pos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FORMATIONS[formation].map((pos) => (
-                        <SelectItem
-                          key={pos}
-                          value={pos}
-                          disabled={
-                            usedPositions.includes(pos) && pos !== s.position
-                          }
-                        >
-                          {pos}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
                   <Popover>
                     <PopoverTrigger asChild>
@@ -563,11 +546,7 @@ export default function MatchDetail({
                     </PopoverTrigger>
                     <PopoverContent className="w-56">
                       <form action={handleAddEvent} className="space-y-2">
-                        <input
-                          type="hidden"
-                          name="playerId"
-                          value={s.playerId}
-                        />
+                        <input type="hidden" name="playerId" value={s.playerId} />
                         <input type="hidden" name="teamId" value={match.homeTeamId} />
                         <Input
                           name="minute"
@@ -576,10 +555,7 @@ export default function MatchDetail({
                           min="0"
                           defaultValue={Math.floor(seconds / 60)}
                         />
-                        <select
-                          name="type"
-                          className="w-full rounded border p-1"
-                        >
+                        <select name="type" className="w-full rounded border p-1">
                           <option value="gol">Gol</option>
                           <option value="amarilla">Tarjeta amarilla</option>
                           <option value="roja">Tarjeta roja</option>
@@ -602,96 +578,17 @@ export default function MatchDetail({
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
-        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropBench}>
-          <CardHeader>
-            <CardTitle>Suplentes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {bench.map((s) => (
-              <div
-                key={s.playerId}
-                className={`flex items-center justify-between cursor-grab ${dragging === s.playerId ? "opacity-50 cursor-grabbing" : ""}`}
-                draggable
-                onDragStart={() => handleDragStart(s.playerId)}
-                onDragEnd={() => setDragging(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggingEvent) {
-                    void quickAddEvent(s.playerId, draggingEvent);
-                    setDraggingEvent(null);
-                  }
-                }}
-              >
-                <div className="flex w-28 items-center space-x-1 truncate">
-                  <span className="truncate">
-                    {players.find((p) => p.id === s.playerId)?.nombre}
-                  </span>
-                  {renderEventIcons(s.playerId)}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        Evento
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56">
-                      <form action={handleAddEvent} className="space-y-2">
-                        <input
-                          type="hidden"
-                          name="playerId"
-                          value={s.playerId}
-                        />
-                        <input type="hidden" name="teamId" value={match.homeTeamId} />
-                        <Input
-                          name="minute"
-                          placeholder="Minuto"
-                          type="number"
-                          min="0"
-                          defaultValue={Math.floor(seconds / 60)}
-                        />
-                        <select
-                          name="type"
-                          className="w-full rounded border p-1"
-                        >
-                          <option value="gol">Gol</option>
-                          <option value="amarilla">Tarjeta amarilla</option>
-                          <option value="roja">Tarjeta roja</option>
-                          <option value="falta">Falta</option>
-                          <option value="penalti">Penalti</option>
-                        </select>
-                        <Button type="submit" size="sm">
-                          Guardar
-                        </Button>
-                      </form>
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removePlayer(s.playerId)}
-                  >
-                    Quitar
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropAvailable}>
-          <CardHeader>
-            <CardTitle>Disponibles</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
+          </div>
+          <div onDragOver={(e) => e.preventDefault()} onDrop={handleDropAvailable}>
+            <h2 className="mb-2 font-semibold">Disponibles</h2>
             {available.map((p) => (
               <div
                 key={p.id}
-                className={`flex items-center justify-between cursor-grab ${dragging === p.id ? "opacity-50 cursor-grabbing" : ""}`}
+                className={`flex items-center justify-between cursor-grab ${
+                  dragging === p.id ? "opacity-50 cursor-grabbing" : ""
+                }`}
                 draggable
-                onDragStart={() => handleDragStart(p.id)}
+                onDragStart={(ev) => handleDragStart(ev, p.id)}
                 onDragEnd={() => setDragging(null)}
               >
                 <span className="w-28 truncate">{p.nombre}</span>
@@ -709,40 +606,37 @@ export default function MatchDetail({
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+          <Button onClick={handleSave}>Guardar alineación</Button>
+          <div>
+            <h2 className="mb-1 text-xl font-semibold">Eventos</h2>
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {events.map((e) => (
+                <li key={e.id}>
+                  {e.minute}&apos; {EVENT_LABELS[e.type] ?? e.type}
+                  {e.playerId
+                    ? ` (${players.find((p) => p.id === e.playerId)?.nombre})`
+                    : e.teamId === match.awayTeamId
+                    ? " (rival)"
+                    : ""}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Notas del rival</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Observaciones sobre el rival"
+              />
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      <Button onClick={handleSave}>Guardar alineación</Button>
-
-      <div className="mt-4">
-        <h2 className="text-xl font-semibold">Eventos</h2>
-        <ul className="list-disc space-y-1 pl-5 text-sm">
-          {events.map((e) => (
-            <li key={e.id}>
-              {e.minute}&apos; {EVENT_LABELS[e.type] ?? e.type}
-              {e.playerId
-                ? ` (${players.find((p) => p.id === e.playerId)?.nombre})`
-                : e.teamId === match.awayTeamId
-                ? " (rival)"
-                : ""}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Notas del rival</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Observaciones sobre el rival"
-          />
-        </CardContent>
-      </Card>
     </div>
   );
 }
