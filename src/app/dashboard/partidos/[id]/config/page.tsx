@@ -49,9 +49,10 @@ export default async function ConfigMatchPage({ params }: { params: { id: string
       "ST",
       "RW",
     ];
+    const allPlayers = await jugadoresService.getByEquipo(1);
     const lineup: PlayerSlot[] = [];
     starters.slice(0, formation.length).forEach((id, idx) => {
-      const pl = players.find((p: any) => p.id === id);
+      const pl = allPlayers.find((p: any) => p.id === id);
       lineup.push({
         playerId: id,
         number: pl?.dorsal ?? undefined,
@@ -60,7 +61,7 @@ export default async function ConfigMatchPage({ params }: { params: { id: string
         minutes: 0,
       });
     });
-    players
+    allPlayers
       .filter((p: any) => !starters.includes(p.id))
       .forEach((p: any) => {
         lineup.push({

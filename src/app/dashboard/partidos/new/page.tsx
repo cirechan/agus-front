@@ -1,14 +1,28 @@
-import { equiposService } from "@/lib/api/services";
+import { equiposService, jugadoresService } from "@/lib/api/services";
 import { createMatch } from "@/lib/api/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import type { PlayerSlot } from "@/types/match";
 
 export default async function NuevoPartidoPage() {
   const equipos = await equiposService.getAll();
   const nuestro = equipos.find((e: any) => e.id === 1);
   const rivales = equipos.filter((e: any) => e.id !== 1);
+  const players = await jugadoresService.getByEquipo(1);
+  const teamColor = nuestro?.color || '#dc2626';
+  const GOALKEEPER_COLOR = '#16a34a';
+
+  function getContrastColor(hex: string) {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 128 ? '#000' : '#fff';
+  }
+  const textColor = getContrastColor(teamColor);
 
   const TEAM_COLORS = [
     { value: '#dc2626', label: 'Rojo' },
@@ -27,9 +41,47 @@ export default async function NuevoPartidoPage() {
     const competition = formData.get("competition") as 'liga' | 'playoff' | 'copa' | 'amistoso';
     const matchdayRaw = formData.get("matchday");
     const matchday = matchdayRaw ? Number(matchdayRaw) : null;
+    const starters = formData.getAll("starter").map((v) => Number(v));
 
     const homeTeamId = condicion === "home" ? 1 : opponentId;
     const awayTeamId = condicion === "home" ? opponentId : 1;
+
+    const allPlayers = await jugadoresService.getByEquipo(1);
+    const formation = [
+      "GK",
+      "LB",
+      "LCB",
+      "RCB",
+      "RB",
+      "LM",
+      "CM",
+      "RM",
+      "LW",
+      "ST",
+      "RW",
+    ];
+    const lineup: PlayerSlot[] = [];
+    starters.slice(0, formation.length).forEach((id, idx) => {
+      const pl = allPlayers.find((p: any) => p.id === id);
+      lineup.push({
+        playerId: id,
+        number: pl?.dorsal ?? undefined,
+        role: "field",
+        position: formation[idx],
+        minutes: 0,
+      });
+    });
+    allPlayers
+      .filter((p: any) => !starters.includes(p.id))
+      .forEach((p: any) => {
+        lineup.push({
+          playerId: p.id,
+          number: p.dorsal ?? undefined,
+          role: "bench",
+          position: undefined,
+          minutes: 0,
+        });
+      });
 
     await createMatch({
       homeTeamId,
@@ -37,7 +89,7 @@ export default async function NuevoPartidoPage() {
       kickoff,
       competition,
       matchday,
-      lineup: [],
+      lineup,
       events: [],
     });
     revalidatePath("/dashboard/partidos");
@@ -116,6 +168,34 @@ export default async function NuevoPartidoPage() {
         </div>
         <Input type="number" name="matchday" placeholder="Jornada" />
         <Input type="datetime-local" name="kickoff" required />
+        <h2 className="font-medium">Selecciona titulares</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {players.map((p: any) => (
+            <label key={p.id} className="cursor-pointer">
+              <input
+                type="checkbox"
+                name="starter"
+                value={p.id}
+                className="sr-only peer"
+              />
+              <div className="border rounded-md p-2 flex flex-col items-center gap-2 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground">
+                <div
+                  className="w-12 h-12 flex items-center justify-center rounded"
+                  style={{
+                    backgroundColor:
+                      p.posicion === 'Portero' ? GOALKEEPER_COLOR : teamColor,
+                    color: p.posicion === 'Portero' ? '#fff' : textColor,
+                  }}
+                >
+                  {p.dorsal ?? '-'}
+                </div>
+                <span className="text-xs text-center leading-tight">
+                  {p.nombre}
+                </span>
+              </div>
+            </label>
+          ))}
+        </div>
         <Button type="submit">Crear</Button>
       </form>
       <form action={crearEquipo} className="mt-4 space-y-2 border-t pt-4">
