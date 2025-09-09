@@ -2,6 +2,7 @@ import { equiposService, jugadoresService } from "@/lib/api/services";
 import { createMatch } from "@/lib/api/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import PlayerSelector from "./player-selector";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
@@ -41,25 +42,14 @@ export default async function NuevoPartidoPage() {
     const competition = formData.get("competition") as 'liga' | 'playoff' | 'copa' | 'amistoso';
     const matchdayRaw = formData.get("matchday");
     const matchday = matchdayRaw ? Number(matchdayRaw) : null;
-    const starters = formData.getAll("starter").map((v) => Number(v));
+    const starters = formData.getAll("starters").map((v) => Number(v));
+    const bench = formData.getAll("bench").map((v) => Number(v));
 
     const homeTeamId = condicion === "home" ? 1 : opponentId;
     const awayTeamId = condicion === "home" ? opponentId : 1;
 
     const allPlayers = await jugadoresService.getByEquipo(1);
-    const formation = [
-      "GK",
-      "LB",
-      "LCB",
-      "RCB",
-      "RB",
-      "LM",
-      "CM",
-      "RM",
-      "LW",
-      "ST",
-      "RW",
-    ];
+    const formation = ["GK", "LB", "LCB", "RCB", "RB", "LM", "CM", "RM", "LW", "ST", "RW"];
     const lineup: PlayerSlot[] = [];
     starters.slice(0, formation.length).forEach((id, idx) => {
       const pl = allPlayers.find((p: any) => p.id === id);
@@ -71,17 +61,18 @@ export default async function NuevoPartidoPage() {
         minutes: 0,
       });
     });
-    allPlayers
-      .filter((p: any) => !starters.includes(p.id))
-      .forEach((p: any) => {
+    bench.forEach((id) => {
+      const pl = allPlayers.find((p: any) => p.id === id);
+      if (pl) {
         lineup.push({
-          playerId: p.id,
-          number: p.dorsal ?? undefined,
+          playerId: id,
+          number: pl.dorsal ?? undefined,
           role: "bench",
           position: undefined,
           minutes: 0,
         });
-      });
+      }
+    });
 
     await createMatch({
       homeTeamId,
@@ -136,69 +127,68 @@ export default async function NuevoPartidoPage() {
   }
 
   return (
-    <div className="space-y-4 p-4 lg:p-6 max-w-md">
+    <div className="p-4 lg:p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Nuevo Partido</h1>
-      <form action={crearPartido} className="space-y-4">
-        <div className="space-y-1">
-          <label className="font-medium">Condición</label>
-          <select name="condicion" className="w-full rounded border p-2" required>
-            <option value="home">Local</option>
-            <option value="away">Visitante</option>
-          </select>
+      <form action={crearPartido} className="flex flex-col lg:flex-row gap-6">
+        <div className="flex-1">
+          <PlayerSelector
+            players={players}
+            teamColor={teamColor}
+            goalkeeperColor={GOALKEEPER_COLOR}
+            textColor={textColor}
+          />
         </div>
-        <div className="space-y-1">
-          <label className="font-medium">Rival</label>
-          <select name="opponentId" className="w-full rounded border p-2" required>
-            <option value="">Seleccione rival</option>
-            {rivales.map((e: any) => (
-              <option key={e.id} value={e.id}>
-                {e.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="space-y-1">
-          <label className="font-medium">Tipo de competición</label>
-          <select name="competition" className="w-full rounded border p-2" required>
-            <option value="liga">Liga</option>
-            <option value="playoff">Play Off</option>
-            <option value="copa">Copa</option>
-            <option value="amistoso">Amistoso</option>
-          </select>
-        </div>
-        <Input type="number" name="matchday" placeholder="Jornada" />
-        <Input type="datetime-local" name="kickoff" required />
-        <h2 className="font-medium">Selecciona titulares</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {players.map((p: any) => (
-            <label key={p.id} className="cursor-pointer">
-              <input
-                type="checkbox"
-                name="starter"
-                value={p.id}
-                className="sr-only peer"
-              />
-              <div className="border rounded-md p-2 flex flex-col items-center gap-2 peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground">
-                <div
-                  className="w-12 h-12 flex items-center justify-center rounded"
-                  style={{
-                    backgroundColor:
-                      p.posicion === 'Portero' ? GOALKEEPER_COLOR : teamColor,
-                    color: p.posicion === 'Portero' ? '#fff' : textColor,
-                  }}
-                >
-                  {p.dorsal ?? '-'}
-                </div>
-                <span className="text-xs text-center leading-tight">
-                  {p.nombre}
-                </span>
-              </div>
+        <div className="w-full max-w-xs space-y-4">
+          <h2 className="font-semibold">Información del partido</h2>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">
+              ¿Dónde se juega el partido?
             </label>
-          ))}
+            <select
+              name="condicion"
+              className="w-full rounded border p-2"
+              required
+            >
+              <option value="home">Local</option>
+              <option value="away">Visitante</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Rival</label>
+            <select
+              name="opponentId"
+              className="w-full rounded border p-2"
+              required
+            >
+              <option value="">Seleccione rival</option>
+              {rivales.map((e: any) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Tipo de competición</label>
+            <select
+              name="competition"
+              className="w-full rounded border p-2"
+              required
+            >
+              <option value="liga">Liga</option>
+              <option value="playoff">Play Off</option>
+              <option value="copa">Copa</option>
+              <option value="amistoso">Amistoso</option>
+            </select>
+          </div>
+          <Input type="number" name="matchday" placeholder="Jornada" />
+          <Input type="datetime-local" name="kickoff" required />
+          <Button type="submit" className="w-full">
+            Continuar
+          </Button>
         </div>
-        <Button type="submit">Crear</Button>
       </form>
-      <form action={crearEquipo} className="mt-4 space-y-2 border-t pt-4">
+      <form action={crearEquipo} className="max-w-xs space-y-2 border-t pt-4">
         <p className="text-sm text-muted-foreground">
           ¿No aparece el rival? Añádelo rápidamente:
         </p>
@@ -210,7 +200,7 @@ export default async function NuevoPartidoPage() {
             </option>
           ))}
         </select>
-        <Button type="submit" variant="secondary">
+        <Button type="submit" variant="secondary" className="w-full">
           Añadir equipo
         </Button>
       </form>
