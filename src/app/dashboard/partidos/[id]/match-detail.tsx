@@ -380,17 +380,24 @@ export default function MatchDetail({
   function handlePlayerDragStart(
     position: string,
     playerId: number,
-    e: React.DragEvent
+    e: React.DragEvent<HTMLDivElement>
   ) {
     e.dataTransfer.setData("playerId", String(playerId));
     e.dataTransfer.setData("fromPosition", position);
-    e.dataTransfer.setDragImage(new Image(), 0, 0);
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
   }
 
-  function handleBenchDragStart(playerId: number, e: React.DragEvent) {
+  function handleBenchDragStart(
+    playerId: number,
+    e: React.DragEvent<HTMLDivElement>
+  ) {
     e.dataTransfer.setData("playerId", String(playerId));
     e.dataTransfer.setData("fromPosition", "bench");
-    e.dataTransfer.setDragImage(new Image(), 0, 0);
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
   }
 
   function substitute(playerInId: number, targetPos: string) {
@@ -479,7 +486,12 @@ export default function MatchDetail({
             </Button>
           </div>
           <div className="flex items-center gap-2 flex-1 justify-center bg-gray-900 px-2 sm:px-4">
-            <Button size="icon" variant="outline" onClick={toggleRunning}>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="text-gray-900"
+              onClick={toggleRunning}
+            >
               {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </Button>
             <span className="tabular-nums text-sm sm:text-xl">
