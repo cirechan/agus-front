@@ -28,6 +28,17 @@ function camelize(row) {
   return res;
 }
 
+function safeJsonParse(value, fallback = {}) {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+  return value ?? fallback;
+}
+
 async function readJson(file) {
   const candidates = [runtimeDataDir, projectDataDir];
   for (const dir of candidates) {
@@ -136,10 +147,7 @@ export const jugadoresService = {
       const row = camelize(r);
       return {
         ...row,
-        logs:
-          row.logs && typeof row.logs === "string"
-            ? JSON.parse(row.logs)
-            : row.logs || {},
+        logs: safeJsonParse(row.logs),
       };
     });
   },
@@ -150,10 +158,7 @@ export const jugadoresService = {
     const mapped = camelize(row);
     return {
       ...mapped,
-      logs:
-        mapped.logs && typeof mapped.logs === "string"
-          ? JSON.parse(mapped.logs)
-          : mapped.logs || {},
+      logs: safeJsonParse(mapped.logs),
     };
   },
 
@@ -181,10 +186,7 @@ export const jugadoresService = {
       const porcentaje = total > 0 ? (presentes / total) * 100 : 0;
       return {
         ...row,
-        logs:
-          row.logs && typeof row.logs === "string"
-            ? JSON.parse(row.logs)
-            : row.logs || {},
+        logs: safeJsonParse(row.logs),
         asistenciasPresentes: presentes,
         asistenciasTotales: total,
         asistenciaPct: porcentaje,
