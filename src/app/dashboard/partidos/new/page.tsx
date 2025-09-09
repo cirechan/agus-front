@@ -3,6 +3,7 @@ import { createMatch } from "@/lib/api/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PlayerSelector from "./player-selector";
+import OpponentSelect from "./opponent-select";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
@@ -37,7 +38,21 @@ export default async function NuevoPartidoPage() {
   async function crearPartido(formData: FormData) {
     "use server";
     const condicion = formData.get("condicion") as string; // home or away
-    const opponentId = Number(formData.get("opponentId"));
+    const opponentIdRaw = formData.get("opponentId") as string;
+    let opponentId = Number(opponentIdRaw);
+
+    if (opponentIdRaw === "new") {
+      const nombre = formData.get("newTeamName") as string;
+      const color = formData.get("newTeamColor") as string;
+      const nuevo = await equiposService.create({
+        nombre,
+        categoria: null,
+        temporadaId: null,
+        color,
+      });
+      opponentId = nuevo.id;
+    }
+
     const kickoff = formData.get("kickoff") as string;
     const competition = formData.get("competition") as 'liga' | 'playoff' | 'copa' | 'amistoso';
     const matchdayRaw = formData.get("matchday");
@@ -87,43 +102,8 @@ export default async function NuevoPartidoPage() {
     redirect("/dashboard/partidos");
   }
 
-  async function crearEquipo(formData: FormData) {
-    "use server";
-    const nombre = formData.get("nombre") as string;
-    const color = formData.get("color") as string;
-    await equiposService.create({
-      nombre,
-      categoria: null,
-      temporadaId: null,
-      color,
-    });
-    revalidatePath("/dashboard/partidos/new");
-  }
-
   if (!nuestro) {
     return <div className="p-4">No se encuentra el equipo principal (ID 1)</div>;
-  }
-
-  if (rivales.length === 0) {
-    return (
-      <div className="space-y-4 p-4 lg:p-6 max-w-md">
-        <h1 className="text-2xl font-semibold">Nuevo Partido</h1>
-        <p className="text-sm text-muted-foreground">
-          No hay equipos rivales disponibles. Crea uno para continuar.
-        </p>
-        <form action={crearEquipo} className="space-y-4">
-          <Input name="nombre" placeholder="Nombre del equipo" required />
-          <select name="color" className="w-full rounded border p-2" required>
-            {TEAM_COLORS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
-          <Button type="submit">Crear equipo</Button>
-        </form>
-      </div>
-    );
   }
 
   return (
@@ -153,21 +133,7 @@ export default async function NuevoPartidoPage() {
               <option value="away">Visitante</option>
             </select>
           </div>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Rival</label>
-            <select
-              name="opponentId"
-              className="w-full rounded border p-2"
-              required
-            >
-              <option value="">Seleccione rival</option>
-              {rivales.map((e: any) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+          <OpponentSelect teams={rivales} colors={TEAM_COLORS} />
           <div className="space-y-1">
             <label className="text-sm font-medium">Tipo de competición</label>
             <select
@@ -187,22 +153,6 @@ export default async function NuevoPartidoPage() {
             Continuar
           </Button>
         </div>
-      </form>
-      <form action={crearEquipo} className="max-w-xs space-y-2 border-t pt-4">
-        <p className="text-sm text-muted-foreground">
-          ¿No aparece el rival? Añádelo rápidamente:
-        </p>
-        <Input name="nombre" placeholder="Nombre del equipo" required />
-        <select name="color" className="w-full rounded border p-2" required>
-          {TEAM_COLORS.map((c) => (
-            <option key={c.value} value={c.value}>
-              {c.label}
-            </option>
-          ))}
-        </select>
-        <Button type="submit" variant="secondary" className="w-full">
-          Añadir equipo
-        </Button>
       </form>
     </div>
   );
