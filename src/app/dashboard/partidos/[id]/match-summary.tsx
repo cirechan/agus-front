@@ -1,0 +1,66 @@
+import type { Match } from "@/types/match";
+interface Player {
+  id: number;
+  nombre: string;
+}
+
+interface Props {
+  match: Match;
+  players: Player[];
+}
+
+export default function MatchSummary({ match, players }: Props) {
+  const playerMap = Object.fromEntries(players.map((p) => [p.id, p]));
+  return (
+    <div className="p-4 space-y-6">
+      <section>
+        <h2 className="text-lg font-semibold">Timeline</h2>
+        <ol className="space-y-1">
+          {match.events.map((e) => (
+            <li key={e.id}>
+              {e.minute}&apos; {e.type}
+              {e.playerId ? ` - ${playerMap[e.playerId]?.nombre ?? ''}` : ''}
+            </li>
+          ))}
+        </ol>
+      </section>
+      <section>
+        <h2 className="text-lg font-semibold">Minutos jugados</h2>
+        <table className="w-full text-sm">
+          <tbody>
+            {match.lineup.map((slot) => {
+              const player = slot.playerId ? playerMap[slot.playerId] : null;
+              if (!player) return null;
+              return (
+                <tr key={slot.playerId} className="border-b last:border-b-0">
+                  <td className="py-1">{player.nombre}</td>
+                  <td className="py-1 text-right">{slot.minutes}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2 className="text-lg font-semibold">Valoraciones</h2>
+        <ul className="space-y-1">
+          {match.lineup
+            .filter((l) => l.playerId && l.minutes > 0)
+            .map((l) => {
+              const p = playerMap[l.playerId as number];
+              return (
+                <li key={l.playerId}>
+                  <a
+                    className="text-blue-600 underline"
+                    href={`/dashboard/valoraciones?jugador=${l.playerId}`}
+                  >
+                    Valorar a {p?.nombre}
+                  </a>
+                </li>
+              );
+            })}
+        </ul>
+      </section>
+    </div>
+  );
+}

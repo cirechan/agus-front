@@ -69,7 +69,8 @@ export const ready = (async () => {
       id SERIAL PRIMARY KEY,
       nombre TEXT NOT NULL,
       categoria TEXT,
-      temporadaId TEXT
+      temporadaId TEXT,
+      color TEXT DEFAULT '#dc2626'
     )`);
     await db.query(`CREATE TABLE IF NOT EXISTS jugadores (
       id SERIAL PRIMARY KEY,

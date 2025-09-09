@@ -23,14 +23,16 @@ function getSql() {
 function mapMatch(row: any, events: MatchEvent[] = []): Match {
   return {
     id: row.id,
-    homeTeamId: row.homeTeamId,
-    awayTeamId: row.awayTeamId,
+    teamId: row.teamId,
+    rivalId: row.rivalId,
+    isHome: row.condition === 'local',
     kickoff: row.kickoff,
     competition: row.competition,
     matchday: row.matchday,
     lineup: ((row.lineup ?? []) as any[]).map((s) => ({ minutes: 0, ...s })) as PlayerSlot[],
     events,
     opponentNotes: row.opponentNotes ?? null,
+    finished: row.finished ?? false,
   };
 }
 
@@ -42,6 +44,7 @@ function mapEvent(row: any): MatchEvent {
     type: row.type,
     playerId: row.playerId,
     teamId: row.teamId,
+    rivalId: row.rivalId,
     data: row.data,
   };
 }
@@ -50,13 +53,15 @@ export async function listMatches(): Promise<Match[]> {
   const sql = getSql();
   const rows = await sql`
     SELECT p.id,
-           p.equipo_local_id AS "homeTeamId",
-           p.equipo_visitante_id AS "awayTeamId",
+           p.equipo_id AS "teamId",
+           p.rival_id AS "rivalId",
+           p.condicion AS condition,
            p.inicio AS kickoff,
            p.competicion AS competition,
            p.jornada AS "matchday",
            p.alineacion AS lineup,
            p.notas_rival AS "opponentNotes",
+           p.finalizado AS finished,
            COALESCE(
              (SELECT json_agg(e ORDER BY e.minuto)
                 FROM eventos_partido e
@@ -79,13 +84,15 @@ export async function getMatch(id: number): Promise<Match | null> {
   const sql = getSql();
   const rows = await sql`
     SELECT p.id,
-           p.equipo_local_id AS "homeTeamId",
-           p.equipo_visitante_id AS "awayTeamId",
+           p.equipo_id AS "teamId",
+           p.rival_id AS "rivalId",
+           p.condicion AS condition,
            p.inicio AS kickoff,
            p.competicion AS competition,
            p.jornada AS "matchday",
            p.alineacion AS lineup,
-           p.notas_rival AS "opponentNotes"
+           p.notas_rival AS "opponentNotes",
+           p.finalizado AS finished
     FROM partidos p
     WHERE p.id = ${id}
   `;
@@ -99,6 +106,7 @@ export async function getMatch(id: number): Promise<Match | null> {
            tipo AS "type",
            jugador_id AS "playerId",
            equipo_id AS "teamId",
+           rival_id AS "rivalId",
            datos AS data
     FROM eventos_partido
     WHERE partido_id = ${id}
@@ -113,10 +121,11 @@ export async function getMatch(id: number): Promise<Match | null> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO partidos (equipo_local_id, equipo_visitante_id, inicio, competicion, jornada, alineacion, notas_rival)
+    INSERT INTO partidos (equipo_id, rival_id, condicion, inicio, competicion, jornada, alineacion, notas_rival)
     VALUES (
-      ${match.homeTeamId},
-      ${match.awayTeamId},
+      ${match.teamId},
+      ${match.rivalId},
+      ${match.isHome ? 'local' : 'visitante'},
       ${match.kickoff},
       ${match.competition},
       ${match.matchday ?? null},
@@ -124,13 +133,15 @@ export async function createMatch(match: NewMatch): Promise<Match> {
       ${match.opponentNotes ?? null}
     )
     RETURNING id,
-              equipo_local_id AS "homeTeamId",
-              equipo_visitante_id AS "awayTeamId",
+              equipo_id AS "teamId",
+              rival_id AS "rivalId",
+              condicion AS condition,
               inicio AS kickoff,
               competicion AS competition,
               jornada AS "matchday",
               alineacion AS lineup,
-              notas_rival AS "opponentNotes"
+              notas_rival AS "opponentNotes",
+              finalizado AS finished
   `;
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
 }
@@ -138,13 +149,14 @@ export async function createMatch(match: NewMatch): Promise<Match> {
 export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO eventos_partido (partido_id, minuto, tipo, jugador_id, equipo_id, datos)
+    INSERT INTO eventos_partido (partido_id, minuto, tipo, jugador_id, equipo_id, rival_id, datos)
     VALUES (
       ${event.matchId},
       ${event.minute},
       ${event.type},
       ${event.playerId ?? null},
       ${event.teamId ?? null},
+      ${event.rivalId ?? null},
       ${JSON.stringify(event.data ?? null)}
     )
     RETURNING id,
@@ -153,30 +165,40 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
               tipo AS "type",
               jugador_id AS "playerId",
               equipo_id AS "teamId",
+              rival_id AS "rivalId",
               datos AS data
   `;
   return mapEvent(row);
 }
 
+export async function removeEvent(id: number): Promise<void> {
+  const sql = getSql();
+  await sql`DELETE FROM eventos_partido WHERE id = ${id}`;
+}
+
 export async function updateLineup(
   matchId: number,
   lineup: PlayerSlot[],
-  opponentNotes: string | null = null
+  opponentNotes: string | null = null,
+  finished = false
 ): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
     UPDATE partidos
     SET alineacion = ${JSON.stringify(lineup)},
-        notas_rival = ${opponentNotes}
+        notas_rival = ${opponentNotes},
+        finalizado = ${finished}
     WHERE id = ${matchId}
     RETURNING id,
-              equipo_local_id AS "homeTeamId",
-              equipo_visitante_id AS "awayTeamId",
+              equipo_id AS "teamId",
+              rival_id AS "rivalId",
+              condicion AS condition,
               inicio AS kickoff,
               competicion AS competition,
               jornada AS "matchday",
               alineacion AS lineup,
-              notas_rival AS "opponentNotes"
+              notas_rival AS "opponentNotes",
+              finalizado AS finished
   `;
 
   const events = await sql`
@@ -186,6 +208,7 @@ export async function updateLineup(
            tipo AS "type",
            jugador_id AS "playerId",
            equipo_id AS "teamId",
+           rival_id AS "rivalId",
            datos AS data
     FROM eventos_partido
     WHERE partido_id = ${matchId}

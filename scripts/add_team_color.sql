@@ -1,0 +1,2 @@
+ALTER TABLE equipos ADD COLUMN IF NOT EXISTS color TEXT;
+UPDATE equipos SET color = '#dc2626' WHERE color IS NULL;

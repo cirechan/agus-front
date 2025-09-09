@@ -27,6 +27,7 @@ export interface MatchEvent {
   type: string;
   playerId?: number | null;
   teamId?: number | null;
+  rivalId?: number | null;
   /**
    * Additional event metadata stored as JSON in the database.
    */
@@ -35,8 +36,9 @@ export interface MatchEvent {
 
 export interface Match {
   id: number;
-  homeTeamId: number;
-  awayTeamId: number;
+  teamId: number;
+  rivalId: number;
+  isHome: boolean;
   /** ISO date string representing kickoff time. */
   kickoff: string;
   /** Tipo de competición: liga, playoff, copa o amistoso. */
@@ -47,7 +49,9 @@ export interface Match {
   events: MatchEvent[];
   /** Notes about the opponent or match context. */
   opponentNotes?: string | null;
+  /** Indicates whether the match has concluded. */
+  finished: boolean;
 }
 
-export type NewMatch = Omit<Match, 'id'>;
+export type NewMatch = Omit<Match, 'id' | 'finished'>;
 export type NewMatchEvent = Omit<MatchEvent, 'id'>;

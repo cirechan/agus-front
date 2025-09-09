@@ -1,21 +1,93 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import type { Match, PlayerSlot, MatchEvent } from "@/types/match";
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
+import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
+
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import {
+  Play,
+  Pause,
+  Menu,
+  Undo2,
+  ArrowRightCircle,
+  Plus,
+  Flag,
+  List,
+  LayoutGrid,
+} from "lucide-react";
+
+const POSITION_COORDS: Record<string, { x: number; y: number }> = {
+  GK: { x: 10, y: 50 },
+  LB: { x: 30, y: 25 },
+  LCB: { x: 30, y: 40 },
+  RCB: { x: 30, y: 60 },
+  RB: { x: 30, y: 75 },
+  LM: { x: 50, y: 30 },
+  LCM: { x: 50, y: 40 },
+  CM: { x: 50, y: 50 },
+  RCM: { x: 50, y: 60 },
+  RM: { x: 50, y: 70 },
+  LW: { x: 70, y: 25 },
+  LS: { x: 70, y: 40 },
+  ST: { x: 70, y: 50 },
+  RS: { x: 70, y: 60 },
+  RW: { x: 70, y: 75 },
+};
+
+const EVENT_ICONS = [
+  { type: "gol", icon: "⚽" },
+  { type: "amarilla", icon: "🟨" },
+  { type: "roja", icon: "🟥" },
+] as const;
+
+const GOALKEEPER_COLOR = "#16a34a"; // green-600
+
+function getContrastColor(hex: string) {
+  const c = hex.replace("#", "");
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  return yiq >= 128 ? "#000" : "#fff";
+}
+
+const DEFAULT_FORMATION = [
+  "GK",
+  "LB",
+  "LCB",
+  "RCB",
+  "RB",
+  "LM",
+  "CM",
+  "RM",
+  "LW",
+  "ST",
+  "RW",
+];
 
 const FORMATIONS: Record<string, string[]> = {
+  "4-3-3": DEFAULT_FORMATION,
   "4-4-2": [
     "GK",
     "LB",
@@ -29,134 +101,165 @@ const FORMATIONS: Record<string, string[]> = {
     "LS",
     "RS",
   ],
-  "4-3-3": [
-    "GK",
-    "LB",
-    "LCB",
-    "RCB",
-    "RB",
-    "LCM",
-    "CM",
-    "RCM",
-    "LW",
-    "ST",
-    "RW",
-  ],
 };
-
-const POSITION_COORDS: Record<string, { x: number; y: number }> = {
-  GK: { x: 50, y: 90 },
-  LB: { x: 15, y: 70 },
-  LCB: { x: 35, y: 70 },
-  RCB: { x: 65, y: 70 },
-  RB: { x: 85, y: 70 },
-  LM: { x: 20, y: 50 },
-  LCM: { x: 40, y: 50 },
-  CM: { x: 50, y: 50 },
-  RCM: { x: 60, y: 50 },
-  RM: { x: 80, y: 50 },
-  LW: { x: 25, y: 30 },
-  LS: { x: 40, y: 30 },
-  ST: { x: 50, y: 30 },
-  RS: { x: 60, y: 30 },
-  RW: { x: 75, y: 30 },
-};
-
-const EVENT_LABELS: Record<string, string> = {
-  gol: "Gol",
-  amarilla: "Tarjeta amarilla",
-  roja: "Tarjeta roja",
-  falta: "Falta",
-  penalti: "Penalti",
-};
-
-const EVENT_ICONS = [
-  { type: "gol", icon: "⚽" },
-  { type: "amarilla", icon: "🟨" },
-  { type: "roja", icon: "🟥" },
-];
 
 interface Player {
   id: number;
   nombre: string;
+  dorsal?: number | null;
+}
+
+interface LineupSlot {
+  position: string;
+  x: number;
+  y: number;
+  playerId: number | null;
 }
 
 interface MatchDetailProps {
   match: Match;
   players: Player[];
-  saveLineup: (formData: FormData) => Promise<void>;
-  addEvent: (formData: FormData) => Promise<void>;
+  addEvent: (formData: FormData) => Promise<MatchEvent>;
+  deleteEvent: (id: number) => Promise<void>;
+  saveLineup: (lineup: PlayerSlot[], finished?: boolean) => Promise<void>;
+  homeTeamName: string;
+  awayTeamName: string;
+  homeTeamColor: string;
+  awayTeamColor: string;
 }
 
-export default function MatchDetail({ match, players, saveLineup, addEvent }: MatchDetailProps) {
-  const [lineup, setLineup] = useState<PlayerSlot[]>(() =>
-    match.lineup.map((p) => ({
-      ...p,
-      enterSecond: p.role === "field" ? 0 : undefined,
-    }))
-  );
-  const [notes, setNotes] = useState(match.opponentNotes ?? "");
-  const [formation, setFormation] = useState<string>("4-4-2");
-  const [seconds, setSeconds] = useState(0);
-  const [running, setRunning] = useState(false);
-  const [added, setAdded] = useState(0);
-  const [dragging, setDragging] = useState<number | null>(null);
-  const [events, setEvents] = useState<MatchEvent[]>(match.events);
-  const [draggingEvent, setDraggingEvent] = useState<string | null>(null);
+export default function MatchDetail({
+  match,
+  players,
+  addEvent,
+  deleteEvent,
+  saveLineup,
+  homeTeamName,
+  awayTeamName,
+  homeTeamColor,
+  awayTeamColor,
+}: MatchDetailProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  const eventsByPlayer = useMemo(() => {
-    const map: Record<number, string[]> = {};
-    events.forEach((e) => {
-      if (e.playerId != null) {
-        map[e.playerId] = map[e.playerId] || [];
-        map[e.playerId].push(e.type);
-      }
+  const OUR_TEAM_COLOR = match.isHome ? homeTeamColor : awayTeamColor;
+  const PLAYER_COLOR = OUR_TEAM_COLOR || "#dc2626";
+  const playerTextColor = getContrastColor(PLAYER_COLOR);
+  const homeTextColor = getContrastColor(homeTeamColor);
+  const awayTextColor = getContrastColor(awayTeamColor);
+
+  const formationKeys = Object.keys(FORMATIONS);
+  const [formationIndex, setFormationIndex] = useState(0);
+
+  function cycleFormation() {
+    const next = (formationIndex + 1) % formationKeys.length;
+    setFormationIndex(next);
+    const formation = FORMATIONS[formationKeys[next]];
+    setLineup((prev) =>
+      prev.map((slot, idx) => {
+        const pos = formation[idx];
+        const coords = POSITION_COORDS[pos] || { x: 50, y: 50 };
+        return { ...slot, position: pos, x: coords.x, y: coords.y };
+      })
+    );
+  }
+
+  const initialLineup: LineupSlot[] = useMemo(() => {
+    if (match.lineup.length) {
+      return match.lineup
+        .filter((slot) => slot.role === "field")
+        .map((slot: PlayerSlot) => {
+          const coords =
+            slot.position && POSITION_COORDS[slot.position]
+              ? POSITION_COORDS[slot.position]
+              : { x: 50, y: 50 };
+          return {
+            position: slot.position || "",
+            x: coords.x,
+            y: coords.y,
+            playerId: slot.playerId,
+          };
+        });
+    }
+    return DEFAULT_FORMATION.map((pos, idx) => {
+      const coords = POSITION_COORDS[pos];
+      return {
+        position: pos,
+        x: coords.x,
+        y: coords.y,
+        playerId: players[idx] ? players[idx].id : null,
+      };
+    });
+  }, [match.lineup, players]);
+
+  const playerMap = useMemo(() => {
+    const map: Record<number, Player> = {};
+    players.forEach((p) => {
+      map[p.id] = p;
     });
     return map;
-  }, [events]);
+  }, [players]);
 
-  async function handleAddEvent(formData: FormData) {
-    await addEvent(formData);
-    const minute = Number(formData.get("minute"));
-    const type = formData.get("type") as string;
-    const playerIdRaw = formData.get("playerId");
-    const playerId = playerIdRaw ? Number(playerIdRaw) : null;
-    setEvents((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        matchId: match.id,
-        minute,
-        type,
-        playerId,
-        teamId: null,
-        data: null,
-      },
-    ]);
-  }
+  const benchInitial = useMemo(() => {
+    if (match.lineup.length) {
+      return match.lineup
+        .filter((slot) => slot.role === "bench")
+        .map((slot) => playerMap[slot.playerId as number])
+        .filter(Boolean) as Player[];
+    }
+    return players.slice(initialLineup.length);
+  }, [match.lineup, players, playerMap, initialLineup.length]);
 
-  async function quickAddEvent(playerId: number, type: string) {
-    const fd = new FormData();
-    fd.append("playerId", String(playerId));
-    fd.append("type", type);
-    fd.append("minute", String(Math.floor(seconds / 60)));
-    await handleAddEvent(fd);
-  }
+  const initialBenchPositions = useMemo(() => {
+    const map: Record<number, string | undefined> = {};
+    match.lineup
+      .filter((slot) => slot.role === "bench")
+      .forEach((slot) => {
+        if (slot.playerId != null) map[slot.playerId] = slot.position;
+      });
+    return map;
+  }, [match.lineup]);
 
-  function renderEventIcons(playerId: number) {
-    const playerEvents = eventsByPlayer[playerId];
-    if (!playerEvents) return null;
-    const icons: JSX.Element[] = [];
-    const yellows = playerEvents.filter((e) => e === "amarilla").length;
-    const reds = playerEvents.filter((e) => e === "roja").length;
-    const goals = playerEvents.filter((e) => e === "gol").length;
-    for (let i = 0; i < yellows; i++)
-      icons.push(<span key={`y${i}`} className="text-yellow-500">🟨</span>);
-    for (let i = 0; i < reds; i++)
-      icons.push(<span key={`r${i}`} className="text-red-600">🟥</span>);
-    for (let i = 0; i < goals; i++) icons.push(<span key={`g${i}`}>⚽</span>);
-    return <div className="flex space-x-0.5">{icons}</div>;
-  }
+  const [lineup, setLineup] = useState<LineupSlot[]>(initialLineup);
+  const [bench, setBench] = useState<Player[]>(benchInitial);
+  const [benchPositions, setBenchPositions] = useState<
+    Record<number, string | undefined>
+  >(initialBenchPositions);
+  const [subbedOut, setSubbedOut] = useState<number[]>([]);
+
+  const initialStats = useMemo(() => {
+    const stats: Record<number, { minutes: number; enterSecond?: number }> = {};
+    players.forEach((p) => {
+      const isStarter = initialLineup.some((l) => l.playerId === p.id);
+      stats[p.id] = { minutes: 0, ...(isStarter ? { enterSecond: 0 } : {}) };
+    });
+    return stats;
+  }, [players, initialLineup]);
+
+  const [playerStats, setPlayerStats] = useState(initialStats);
+
+  const [events, setEvents] = useState<MatchEvent[]>(match.events);
+  const [seconds, setSeconds] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [half, setHalf] = useState(1);
+  const [subsMade, setSubsMade] = useState(0);
+  const [eventsOpen, setEventsOpen] = useState(false);
+
+  const teamGoals = useMemo(
+    () =>
+      events.filter((e) => e.type === "gol" && e.teamId === match.teamId)
+        .length,
+    [events, match.teamId]
+  );
+  const rivalGoals = useMemo(
+    () =>
+      events.filter((e) => e.type === "gol" && e.rivalId === match.rivalId)
+        .length,
+    [events, match.rivalId]
+  );
+  const homeGoals = match.isHome ? teamGoals : rivalGoals;
+  const awayGoals = match.isHome ? rivalGoals : teamGoals;
 
   useEffect(() => {
     if (!running) return;
@@ -164,527 +267,471 @@ export default function MatchDetail({ match, players, saveLineup, addEvent }: Ma
     return () => clearInterval(id);
   }, [running]);
 
-  const starters = lineup.filter((p) => p.role === "field");
-  const bench = lineup.filter((p) => p.role === "bench");
-  const selectedIds = lineup.map((p) => p.playerId);
-  const available = players.filter((p) => !selectedIds.includes(p.id));
-  const usedPositions = starters.map((s) => s.position).filter(Boolean) as string[];
+  const paint = useCallback(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
 
-  function nextPosition(current: PlayerSlot[] = lineup): string | undefined {
-    const used = current
-      .filter((p) => p.role === "field" && p.position)
-      .map((p) => p.position as string);
-    return FORMATIONS[formation].find((pos) => !used.includes(pos));
-  }
+    const w = canvas.width;
+    const h = canvas.height;
 
-  function setRole(playerId: number, role: "field" | "bench") {
-    setLineup((prev) => {
-      const existing = prev.find((p) => p.playerId === playerId);
-      if (existing) {
-        if (role === "field") {
-          const pos = existing.position ?? nextPosition(prev);
-          const enterSecond = existing.enterSecond ?? seconds;
-          return prev.map((p) =>
-            p.playerId === playerId
-              ? { ...p, role: "field", position: pos, enterSecond }
-              : p
-          );
-        } else {
-          const played =
-            existing.role === "field"
-              ? existing.minutes +
-                Math.floor((seconds - (existing.enterSecond ?? 0)) / 60)
-              : existing.minutes;
-          return prev.map((p) =>
-            p.playerId === playerId
-              ? {
-                  ...p,
-                  role: "bench",
-                  position: undefined,
-                  minutes: played,
-                  enterSecond: undefined,
-                }
-              : p
-          );
-        }
-      }
-      const pos = role === "field" ? nextPosition(prev) : undefined;
-      return [
-        ...prev,
-        {
-          playerId,
-          role,
-          minutes: 0,
-          position: pos,
-          enterSecond: role === "field" ? seconds : undefined,
-        },
-      ];
-    });
-  }
-
-  function removePlayer(playerId: number) {
-    setLineup((prev) => prev.filter((p) => p.playerId !== playerId));
-  }
-
-  function handleDragStart(id: number) {
-    setDragging(id);
-  }
-  function handleDropField() {
-    if (dragging != null) {
-      setRole(dragging, "field");
-      setDragging(null);
+    // Césped
+    for (let i = 0; i < w; i += 80) {
+      ctx.fillStyle = i % 160 === 0 ? "#15803d" : "#166534";
+      ctx.fillRect(i, 0, 80, h);
     }
-  }
-  function handleDropBench() {
-    if (dragging != null) {
-      setRole(dragging, "bench");
-      setDragging(null);
+
+    // Líneas
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(40, 40, w - 80, h - 80);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 40);
+    ctx.lineTo(w / 2, h - 40);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, 60, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeRect(40, h / 2 - 100, 120, 200);
+    ctx.strokeRect(w - 160, h / 2 - 100, 120, 200);
+  }, []);
+
+  useEffect(() => {
+    paint();
+  }, [paint]);
+
+  useEffect(() => {
+    function onResize() {
+      paint();
     }
-  }
-  function handleDropAvailable() {
-    if (dragging != null) {
-      removePlayer(dragging);
-      setDragging(null);
-    }
-  }
+    window.addEventListener("resize", onResize);
+    onResize();
+    return () => window.removeEventListener("resize", onResize);
+  }, [paint]);
 
-  function handleDropPosition(position: string, playerAtPos?: number) {
-    if (draggingEvent) {
-      if (playerAtPos != null) {
-        void quickAddEvent(playerAtPos, draggingEvent);
-      }
-      setDraggingEvent(null);
-      return;
-    }
-    if (dragging != null) {
-      setLineup((prev) => {
-        let next = prev.map((p): PlayerSlot => {
-          if (p.position === position && p.role === "field") {
-            const played =
-              p.minutes + Math.floor((seconds - (p.enterSecond ?? 0)) / 60);
-            return {
-              ...p,
-              role: "bench",
-              position: undefined,
-              minutes: played,
-              enterSecond: undefined,
-            };
-          }
-          return p;
-        });
-        const existing = next.find((p) => p.playerId === dragging);
-        if (existing) {
-          next = next.map((p): PlayerSlot =>
-            p.playerId === dragging
-              ? {
-                  ...p,
-                  role: "field",
-                  position,
-                  enterSecond: existing.enterSecond ?? seconds,
-                }
-              : p
-          );
-        } else {
-          next.push({
-            playerId: dragging,
-            role: "field",
-            position,
-            minutes: 0,
-            enterSecond: seconds,
-          });
-        }
-        return next;
-      });
-      setDragging(null);
-    }
-  }
-
-  function displayMinutes(p: PlayerSlot) {
-    return p.role === "field"
-      ? p.minutes + Math.floor((seconds - (p.enterSecond ?? 0)) / 60)
-      : p.minutes;
-  }
-
-  function setPosition(playerId: number, position: string) {
-    setLineup((prev) =>
-      prev.map((p) => (p.playerId === playerId ? { ...p, position } : p))
-    );
-  }
-
-  function changeFormation(f: string) {
-    setFormation(f);
-    setLineup((prev) => {
-      const starters = prev.filter((p) => p.role === "field");
-      const bench = prev.filter((p) => p.role === "bench");
-      const positions = FORMATIONS[f];
-      const reassigned = starters.map((p, idx) => ({ ...p, position: positions[idx] }));
-      return [...reassigned, ...bench];
-    });
-  }
-
-  function formatTime(total: number) {
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-
-  function handleSave() {
+  async function quickAddEvent({
+    playerId,
+    type,
+    teamId,
+    rivalId,
+  }: {
+    playerId?: number;
+    type: string;
+    teamId?: number;
+    rivalId?: number;
+  }) {
     const fd = new FormData();
-    const sanitized = lineup.map(({ enterSecond, ...rest }) => ({
-      ...rest,
-      minutes:
-        rest.role === "field"
-          ? rest.minutes + Math.floor((seconds - (enterSecond ?? 0)) / 60)
-          : rest.minutes,
-    }));
-    fd.append("lineup", JSON.stringify(sanitized));
-    fd.append("opponentNotes", notes);
-    saveLineup(fd);
+    if (playerId) fd.append("playerId", String(playerId));
+    fd.append("type", type);
+    if (teamId) fd.append("teamId", String(teamId));
+    if (rivalId) fd.append("rivalId", String(rivalId));
+    fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
+    const created = await addEvent(fd);
+    setEvents((prev) => [...prev, created]);
+    toast(`Evento ${type} añadido`);
+  }
+
+  async function undoLastEvent() {
+    const last = events[events.length - 1];
+    if (!last) return;
+    await deleteEvent(last.id);
+    setEvents((prev) => prev.slice(0, -1));
+    toast("Último evento deshecho");
+  }
+
+  async function removeEventById(id: number) {
+    await deleteEvent(id);
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    toast("Evento eliminado");
+  }
+
+  function toggleRunning() {
+    if (running) {
+      // Pausar: cerrar intervalos de los titulares
+      setPlayerStats((prev) => {
+        const stats = { ...prev };
+        lineup.forEach((slot) => {
+          const pid = slot.playerId;
+          if (pid && stats[pid]?.enterSecond != null) {
+            stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+            delete stats[pid].enterSecond;
+          }
+        });
+        return stats;
+      });
+      setRunning(false);
+    } else {
+      // Reanudar: reabrir intervalos de los titulares
+      setPlayerStats((prev) => {
+        const stats = { ...prev };
+        lineup.forEach((slot) => {
+          const pid = slot.playerId;
+          if (pid) {
+            stats[pid] = { ...stats[pid], enterSecond: seconds };
+          }
+        });
+        return stats;
+      });
+      setRunning(true);
+    }
+  }
+
+  async function handleFinish() {
+    const stats = { ...playerStats };
+    lineup.forEach((slot) => {
+      const pid = slot.playerId;
+      if (pid && stats[pid]?.enterSecond != null) {
+        stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+        delete stats[pid].enterSecond;
+      }
+    });
+
+    const lineupPayload: PlayerSlot[] = [
+      ...lineup
+        .filter((s) => s.playerId)
+        .map((s) => ({
+          playerId: s.playerId as number,
+          number: playerMap[s.playerId as number]?.dorsal ?? undefined,
+          role: "field" as const,
+          position: s.position,
+          minutes: Math.floor((stats[s.playerId as number]?.minutes ?? 0) / 60),
+        })),
+      ...bench.map((p) => ({
+        playerId: p.id,
+        number: p.dorsal ?? undefined,
+        role: "bench" as const,
+        position: benchPositions[p.id],
+        minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
+      })),
+    ];
+
+    await saveLineup(lineupPayload, true);
+    router.push(`/dashboard/partidos`);
+  }
+
+  function handlePlayerDragStart(
+    position: string,
+    playerId: number,
+    e: React.DragEvent<HTMLDivElement>
+  ) {
+    e.dataTransfer.setData("playerId", String(playerId));
+    e.dataTransfer.setData("fromPosition", position);
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
+  }
+
+  function handleBenchDragStart(
+    playerId: number,
+    e: React.DragEvent<HTMLDivElement>
+  ) {
+    e.dataTransfer.setData("playerId", String(playerId));
+    e.dataTransfer.setData("fromPosition", "bench");
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
+  }
+
+  function substitute(playerInId: number, targetPos: string) {
+    const outgoingId = lineup.find((s) => s.position === targetPos)?.playerId;
+
+    // Cambiar campo
+    setLineup((prev) =>
+      prev.map((s) =>
+        s.position === targetPos ? { ...s, playerId: playerInId } : s
+      )
+    );
+
+    // Actualizar banquillo
+    setBench((prev) => {
+      const filtered = prev.filter((p) => p.id !== playerInId);
+      return outgoingId && playerMap[outgoingId]
+        ? [...filtered, playerMap[outgoingId]]
+        : filtered;
+    });
+
+    // Guardar la posición del que sale
+    setBenchPositions((prev) => {
+      const map = { ...prev };
+      delete map[playerInId];
+      if (outgoingId) {
+        map[outgoingId] = targetPos;
+      }
+      return map;
+    });
+
+    // Minutos de juego
+    setPlayerStats((prev) => {
+      const stats = { ...prev };
+      if (outgoingId && stats[outgoingId]?.enterSecond != null) {
+        stats[outgoingId].minutes +=
+          seconds - (stats[outgoingId].enterSecond as number);
+        delete stats[outgoingId].enterSecond;
+      }
+      stats[playerInId] = {
+        ...stats[playerInId],
+        enterSecond: seconds,
+      };
+      return stats;
+    });
+
+    if (outgoingId) {
+      setSubbedOut((prev) => [...prev, outgoingId]);
+    }
+    setSubsMade((c) => c + 1);
+  }
+
+  function swapPlayers(fromPos: string, toPos: string) {
+    setLineup((prev) => {
+      const arr = [...prev];
+      const i1 = arr.findIndex((s) => s.position === fromPos);
+      const i2 = arr.findIndex((s) => s.position === toPos);
+      if (i1 === -1 || i2 === -1) return prev;
+      const temp = arr[i1].playerId;
+      arr[i1].playerId = arr[i2].playerId;
+      arr[i2].playerId = temp;
+      return arr;
+    });
+  }
+
+  function handleSlotDrop(position: string, e: React.DragEvent) {
+    e.preventDefault();
+    const fromPos = e.dataTransfer.getData("fromPosition");
+    const playerIdStr = e.dataTransfer.getData("playerId");
+    if (!playerIdStr) return;
+    const playerId = Number(playerIdStr);
+
+    if (fromPos === "bench") {
+      substitute(playerId, position);
+    } else if (fromPos && fromPos !== position) {
+      swapPlayers(fromPos, position);
+    }
   }
 
   return (
-    <div className="space-y-4 p-4 lg:p-6">
-      <h1 className="text-2xl font-semibold">Partido</h1>
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-baseline space-x-2">
-            <span className="font-mono text-3xl">{formatTime(seconds)}</span>
-            {added > 0 && (
-              <span className="font-mono text-xl text-red-600">+{added}&apos;</span>
-            )}
-          </div>
-          <Button size="sm" onClick={() => setRunning((r) => !r)}>
-            {running ? "Pausar" : "Iniciar"}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => setAdded((a) => a + 1)}
-          >
-            +1&apos;
-          </Button>
-      </div>
-      <div className="w-32">
-        <Select value={formation} onValueChange={changeFormation}>
-          <SelectTrigger>
-            <SelectValue placeholder="Formación" />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.keys(FORMATIONS).map((f) => (
-                <SelectItem key={f} value={f}>
-                  {f}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="mx-auto flex w-full max-w-[600px] justify-center space-x-4">
-        {EVENT_ICONS.map((e) => (
+    <div className="flex flex-col md:flex-row w-full h-full">
+      {/* Header marcador/controles */}
+      <div className="flex-1 flex flex-col">
+        <div className="h-12 text-white select-none flex">
+          {/* Local */}
           <div
-            key={e.type}
-            draggable
-            onDragStart={() => setDraggingEvent(e.type)}
-            onDragEnd={() => setDraggingEvent(null)}
-            className="flex h-8 w-8 cursor-move items-center justify-center rounded-full border bg-white"
-            title={EVENT_LABELS[e.type]}
+            className="flex items-center gap-2 px-2 sm:px-4"
+            style={{ backgroundColor: homeTeamColor, color: homeTextColor }}
           >
-            {e.icon}
-          </div>
-        ))}
-      </div>
-
-      <div className="relative mx-auto mt-4 h-[500px] w-full max-w-[600px] overflow-hidden rounded-lg bg-green-600">
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(to_right,#15803d,#15803d_20px,#16a34a_20px,#16a34a_40px)]" />
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute inset-0 rounded-lg border-2 border-white" />
-          <div className="absolute left-1/2 top-0 h-full w-px -ml-px bg-white" />
-          <div className="absolute left-1/2 top-1/2 h-24 w-24 -ml-12 -mt-12 rounded-full border-2 border-white" />
-          <div className="absolute left-1/2 -ml-32 top-0 h-20 w-64 border-2 border-white border-t-0" />
-          <div className="absolute left-1/2 -ml-32 bottom-0 h-20 w-64 border-2 border-white border-b-0" />
-        </div>
-        {FORMATIONS[formation].map((pos) => {
-          const slot = lineup.find(
-            (p) => p.role === "field" && p.position === pos
-          );
-          const coords = POSITION_COORDS[pos];
-          const player = slot
-            ? players.find((p) => p.id === slot.playerId)
-            : null;
-          return (
-            <div
-              key={pos}
-              className="absolute z-10 flex flex-col items-center"
-              style={{
-                left: `${coords.x}%`,
-                top: `${coords.y}%`,
-                transform: "translate(-50%, -50%)",
-              }}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDropPosition(pos, slot?.playerId)}
+            <span className="font-semibold hidden sm:block">{homeTeamName}</span>
+            <span className="text-xl sm:text-2xl font-bold">{homeGoals}</span>
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-6 w-6 p-0"
+              onClick={() => quickAddEvent({ type: "gol", teamId: match.teamId })}
+              aria-label="Añadir gol local"
             >
-              {slot ? (
-                <div
-                  draggable
-                  onDragStart={() => handleDragStart(slot.playerId)}
-                  onDragEnd={() => setDragging(null)}
-                  className="flex flex-col items-center"
-                >
-                  <div className="relative">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-black bg-white text-sm font-bold">
-                      {slot.number ?? ""}
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Controles centro */}
+          <div className="flex items-center gap-2 flex-1 justify-center bg-gray-900 px-2 sm:px-4">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="text-gray-900"
+              onClick={toggleRunning}
+              aria-label={running ? "Pausar" : "Reanudar"}
+            >
+              {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            </Button>
+            <span className="tabular-nums text-sm sm:text-xl">
+              {String(Math.floor(seconds / 60) + (half - 1) * 40).padStart(2, "0")}:
+              {String(seconds % 60).padStart(2, "0")}
+            </span>
+            {half === 1 && !running && (
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1"
+                onClick={() => {
+                  setHalf(2);
+                  setSeconds(0);
+                }}
+              >
+                <ArrowRightCircle className="h-4 w-4" />
+                <span className="hidden sm:inline">2ª</span>
+              </Button>
+            )}
+            <Button size="icon" variant="secondary" onClick={cycleFormation} aria-label="Cambiar formación">
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="icon" variant="secondary" aria-label="Menú">
+                  <Menu className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setEventsOpen(true)}>
+                  <List className="h-4 w-4" /> Eventos
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={undoLastEvent}>
+                  <Undo2 className="h-4 w-4" /> Deshacer
+                </DropdownMenuItem>
+                {half === 2 && !running && (
+                  <DropdownMenuItem onClick={handleFinish}>
+                    <Flag className="h-4 w-4" /> Finalizar
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Visitante */}
+          <div
+            className="flex items-center gap-2 px-2 sm:px-4"
+            style={{ backgroundColor: awayTeamColor, color: awayTextColor }}
+          >
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-6 w-6 p-0"
+              onClick={() => quickAddEvent({ type: "gol", rivalId: match.rivalId })}
+              aria-label="Añadir gol visitante"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+            <span className="text-xl sm:text-2xl font-bold">{awayGoals}</span>
+            <span className="font-semibold hidden sm:block">{awayTeamName}</span>
+          </div>
+        </div>
+
+        {/* Campo + jugadores */}
+        <div ref={containerRef} className="relative flex-1">
+          <canvas ref={canvasRef} className="w-full h-full touch-none" />
+          {lineup.map((slot) => {
+            const player = slot.playerId ? playerMap[slot.playerId] : null;
+            return (
+              <div
+                key={slot.position}
+                className="absolute"
+                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleSlotDrop(slot.position, e)}
+              >
+                {player && (
+                  <div className="relative -ml-5 -mt-5 flex flex-col items-center">
+                    {/* Iconos de eventos sobre el jugador */}
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex space-x-1 text-sm">
+                      {events
+                        .filter((e) => e.playerId === player.id)
+                        .map((e) => (
+                          <span key={e.id}>
+                            {e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥"}
+                          </span>
+                        ))}
                     </div>
-                    <div className="absolute -top-1 -right-1">
-                      {renderEventIcons(slot.playerId)}
+
+                    {/* Burbuja con dorsal + popover de eventos */}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <div
+                          draggable
+                          onDragStart={(e) => handlePlayerDragStart(slot.position, player.id, e)}
+                          className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab select-none"
+                          style={{
+                            backgroundColor:
+                              slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                            color: slot.position === "GK" ? "#fff" : playerTextColor,
+                          }}
+                          title={`${player.nombre}`}
+                        >
+                          {player.dorsal ?? ""}
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="flex gap-2" side="top">
+                        {EVENT_ICONS.map(({ type, icon }) => (
+                          <Button
+                            key={type}
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              quickAddEvent({
+                                playerId: player.id,
+                                type,
+                                teamId: match.teamId,
+                              })
+                            }
+                            aria-label={`Añadir ${type}`}
+                          >
+                            {icon}
+                          </Button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+
+                    <div className="mt-1 text-center text-xs w-20 text-white">
+                      {player.nombre}
                     </div>
                   </div>
-                  <span className="mt-1 text-center text-xs text-white">
-                    {player?.nombre}
-                  </span>
-                </div>
-              ) : (
-                <div className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed border-white" />
-              )}
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Banquillo */}
+      <div className="md:w-32 w-full bg-black/60 text-white p-2 overflow-x-auto md:overflow-y-auto md:h-auto h-24">
+        <div className="text-xs md:text-right text-center mb-2">{subsMade}/5</div>
+        <div className="flex md:flex-col gap-4 items-center justify-center">
+          {bench.map((pl) => (
+            <div
+              key={pl.id}
+              className={`flex flex-col items-center ${subbedOut.includes(pl.id) ? "opacity-50" : ""}`}
+            >
+              <div
+                draggable
+                onDragStart={(e) => handleBenchDragStart(pl.id, e)}
+                className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab"
+                style={{
+                  backgroundColor:
+                    benchPositions[pl.id] === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                  color: benchPositions[pl.id] === "GK" ? "#fff" : playerTextColor,
+                }}
+                title={pl.nombre}
+              >
+                {pl.dorsal ?? ""}
+              </div>
+              <span className="mt-1 text-xs text-white text-center w-full">{pl.nombre}</span>
             </div>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropField}>
-          <CardHeader>
-            <CardTitle>Titulares</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {starters.map((s) => (
-              <div
-                key={s.playerId}
-                className="flex items-center justify-between"
-                draggable
-                onDragStart={() => handleDragStart(s.playerId)}
-                onDragEnd={() => setDragging(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggingEvent) {
-                    void quickAddEvent(s.playerId, draggingEvent);
-                    setDraggingEvent(null);
-                  }
-                }}
-              >
-                <div className="flex w-28 items-center space-x-1 truncate">
-                  <span className="truncate">
-                    {players.find((p) => p.id === s.playerId)?.nombre}
-                  </span>
-                  {renderEventIcons(s.playerId)}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Select
-                    value={s.position}
-                    onValueChange={(val) => setPosition(s.playerId, val)}
-                  >
-                    <SelectTrigger className="w-20">
-                      <SelectValue placeholder="Pos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FORMATIONS[formation].map((pos) => (
-                        <SelectItem
-                          key={pos}
-                          value={pos}
-                          disabled={
-                            usedPositions.includes(pos) && pos !== s.position
-                          }
-                        >
-                          {pos}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        Evento
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56">
-                      <form action={handleAddEvent} className="space-y-2">
-                        <input
-                          type="hidden"
-                          name="playerId"
-                          value={s.playerId}
-                        />
-                        <Input
-                          name="minute"
-                          placeholder="Minuto"
-                          type="number"
-                          min="0"
-                          defaultValue={Math.floor(seconds / 60)}
-                        />
-                        <select
-                          name="type"
-                          className="w-full rounded border p-1"
-                        >
-                          <option value="gol">Gol</option>
-                          <option value="amarilla">Tarjeta amarilla</option>
-                          <option value="roja">Tarjeta roja</option>
-                          <option value="falta">Falta</option>
-                          <option value="penalti">Penalti</option>
-                        </select>
-                        <Button type="submit" size="sm">
-                          Guardar
-                        </Button>
-                      </form>
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removePlayer(s.playerId)}
-                  >
-                    Quitar
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropBench}>
-          <CardHeader>
-            <CardTitle>Suplentes</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {bench.map((s) => (
-              <div
-                key={s.playerId}
-                className="flex items-center justify-between"
-                draggable
-                onDragStart={() => handleDragStart(s.playerId)}
-                onDragEnd={() => setDragging(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => {
-                  if (draggingEvent) {
-                    void quickAddEvent(s.playerId, draggingEvent);
-                    setDraggingEvent(null);
-                  }
-                }}
-              >
-                <div className="flex w-28 items-center space-x-1 truncate">
-                  <span className="truncate">
-                    {players.find((p) => p.id === s.playerId)?.nombre}
-                  </span>
-                  {renderEventIcons(s.playerId)}
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="w-16 text-center">{displayMinutes(s)}&apos;</span>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button size="sm" variant="outline">
-                        Evento
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-56">
-                      <form action={handleAddEvent} className="space-y-2">
-                        <input
-                          type="hidden"
-                          name="playerId"
-                          value={s.playerId}
-                        />
-                        <Input
-                          name="minute"
-                          placeholder="Minuto"
-                          type="number"
-                          min="0"
-                          defaultValue={Math.floor(seconds / 60)}
-                        />
-                        <select
-                          name="type"
-                          className="w-full rounded border p-1"
-                        >
-                          <option value="gol">Gol</option>
-                          <option value="amarilla">Tarjeta amarilla</option>
-                          <option value="roja">Tarjeta roja</option>
-                          <option value="falta">Falta</option>
-                          <option value="penalti">Penalti</option>
-                        </select>
-                        <Button type="submit" size="sm">
-                          Guardar
-                        </Button>
-                      </form>
-                    </PopoverContent>
-                  </Popover>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => removePlayer(s.playerId)}
-                  >
-                    Quitar
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card onDragOver={(e) => e.preventDefault()} onDrop={handleDropAvailable}>
-          <CardHeader>
-            <CardTitle>Disponibles</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {available.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between"
-                draggable
-                onDragStart={() => handleDragStart(p.id)}
-                onDragEnd={() => setDragging(null)}
-              >
-                <span className="w-28 truncate">{p.nombre}</span>
-                <div className="space-x-2">
-                  <Button size="sm" onClick={() => setRole(p.id, "field")}>
-                    Titular
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setRole(p.id, "bench")}
-                  >
-                    Suplente
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Button onClick={handleSave}>Guardar alineación</Button>
-
-      <div className="mt-4">
-        <h2 className="text-xl font-semibold">Eventos</h2>
-        <ul className="list-disc space-y-1 pl-5 text-sm">
-          {events.map((e) => (
-            <li key={e.id}>
-              {e.minute}&apos; {EVENT_LABELS[e.type] ?? e.type}
-              {e.playerId
-                ? ` (${players.find((p) => p.id === e.playerId)?.nombre})`
-                : ""}
-            </li>
           ))}
-        </ul>
+        </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notas del rival</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Observaciones sobre el rival"
-          />
-        </CardContent>
-      </Card>
+      {/* Listado de eventos */}
+      <Dialog open={eventsOpen} onOpenChange={setEventsOpen}>
+        <DialogContent className="max-h-80 overflow-y-auto">
+          <ul className="space-y-1 text-sm">
+            {events.map((e) => (
+              <li key={e.id} className="flex items-center justify-between">
+                <span>
+                  {e.minute}&apos; {e.playerId ? playerMap[e.playerId]?.nombre + " " : ""}
+                  {e.type}
+                </span>
+                <Button size="icon" variant="ghost" onClick={() => removeEventById(e.id)} aria-label="Eliminar evento">
+                  ×
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+
+      <Toaster />
     </div>
   );
 }
