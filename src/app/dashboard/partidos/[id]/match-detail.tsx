@@ -108,7 +108,8 @@ export default function MatchDetail({
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const PLAYER_COLOR = homeTeamColor;
+  const OUR_TEAM_COLOR = match.isHome ? homeTeamColor : awayTeamColor;
+  const PLAYER_COLOR = OUR_TEAM_COLOR || "#dc2626";
   const playerTextColor = getContrastColor(PLAYER_COLOR);
   const homeTextColor = getContrastColor(homeTeamColor);
   const awayTextColor = getContrastColor(awayTeamColor);
