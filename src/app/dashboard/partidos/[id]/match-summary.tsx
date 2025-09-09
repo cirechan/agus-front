@@ -1,4 +1,9 @@
+"use client";
+
 import type { Match } from "@/types/match";
+import { MatchTimeline } from "@/components/match-timeline";
+import { Progress } from "@/components/ui/progress";
+
 interface Player {
   id: number;
   nombre: string;
@@ -11,35 +16,37 @@ interface Props {
 
 export default function MatchSummary({ match, players }: Props) {
   const playerMap = Object.fromEntries(players.map((p) => [p.id, p]));
+  const maxMinutes = Math.max(90, ...match.lineup.map((l) => l.minutes));
   return (
-    <div className="p-4 space-y-6">
-      <section>
+    <div className="space-y-6 p-4">
+      <section className="space-y-2">
         <h2 className="text-lg font-semibold">Timeline</h2>
-        <ol className="space-y-1">
-          {match.events.map((e) => (
-            <li key={e.id}>
-              {e.minute}&apos; {e.type}
-              {e.playerId ? ` - ${playerMap[e.playerId]?.nombre ?? ''}` : ''}
-            </li>
-          ))}
-        </ol>
+        <MatchTimeline
+          events={match.events}
+          players={playerMap}
+          teamId={match.teamId}
+        />
       </section>
-      <section>
+      <section className="space-y-2">
         <h2 className="text-lg font-semibold">Minutos jugados</h2>
-        <table className="w-full text-sm">
-          <tbody>
-            {match.lineup.map((slot) => {
-              const player = slot.playerId ? playerMap[slot.playerId] : null;
-              if (!player) return null;
-              return (
-                <tr key={slot.playerId} className="border-b last:border-b-0">
-                  <td className="py-1">{player.nombre}</td>
-                  <td className="py-1 text-right">{slot.minutes}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <ul className="space-y-3">
+          {match.lineup.map((slot) => {
+            const player = slot.playerId ? playerMap[slot.playerId] : null;
+            if (!player) return null;
+            return (
+              <li key={slot.playerId}>
+                <div className="mb-1 flex items-center justify-between text-sm">
+                  <span>{player.nombre}</span>
+                  <span>{slot.minutes}&apos;</span>
+                </div>
+                <Progress
+                  value={(slot.minutes / maxMinutes) * 100}
+                  className="h-2"
+                />
+              </li>
+            );
+          })}
+        </ul>
       </section>
       <section>
         <h2 className="text-lg font-semibold">Valoraciones</h2>

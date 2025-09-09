@@ -28,6 +28,17 @@ function camelize(row) {
   return res;
 }
 
+function safeJsonParse(value, fallback = {}) {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+  return value ?? fallback;
+}
+
 async function readJson(file) {
   const candidates = [runtimeDataDir, projectDataDir];
   for (const dir of candidates) {
@@ -134,7 +145,10 @@ export const jugadoresService = {
     const rows = await all('SELECT * FROM jugadores');
     return rows.map((r) => {
       const row = camelize(r);
-      return { ...row, logs: row.logs ? JSON.parse(row.logs) : {} };
+      return {
+        ...row,
+        logs: safeJsonParse(row.logs),
+      };
     });
   },
 
@@ -142,7 +156,10 @@ export const jugadoresService = {
     const row = await get('SELECT * FROM jugadores WHERE id = $1', [id]);
     if (!row) return null;
     const mapped = camelize(row);
-    return { ...mapped, logs: mapped.logs ? JSON.parse(mapped.logs) : {} };
+    return {
+      ...mapped,
+      logs: safeJsonParse(mapped.logs),
+    };
   },
 
   getByEquipo: async (equipoId) => {
@@ -169,7 +186,7 @@ export const jugadoresService = {
       const porcentaje = total > 0 ? (presentes / total) * 100 : 0;
       return {
         ...row,
-        logs: row.logs ? JSON.parse(row.logs) : {},
+        logs: safeJsonParse(row.logs),
         asistenciasPresentes: presentes,
         asistenciasTotales: total,
         asistenciaPct: porcentaje,
