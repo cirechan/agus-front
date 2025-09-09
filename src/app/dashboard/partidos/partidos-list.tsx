@@ -27,7 +27,6 @@ const COMPETITION_LABELS: Record<string, string> = {
   amistoso: "Amistoso",
 };
 
-const OUR_TEAM_ID = 1;
 
 export default function PartidosList({ matches, teamMap }: PartidosListProps) {
   const [competition, setCompetition] = React.useState<string>("all");
@@ -79,18 +78,18 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
           </TableHeader>
           <TableBody>
             {filtered.map((match) => {
-              const home = teamMap[match.homeTeamId] || String(match.homeTeamId);
-              const away = teamMap[match.awayTeamId] || String(match.awayTeamId);
-              const isHome = match.homeTeamId === OUR_TEAM_ID;
-              const rival = isHome ? away : home;
-              const homeGoals = match.events.filter(
-                (e) => e.type === "goal" && e.teamId === match.homeTeamId
+              const rival = teamMap[match.rivalId] || String(match.rivalId);
+              const isHome = match.isHome;
+              const teamGoals = match.events.filter(
+                (e) => e.type === "gol" && e.teamId === match.teamId
               ).length;
-              const awayGoals = match.events.filter(
-                (e) => e.type === "goal" && e.teamId === match.awayTeamId
+              const rivalGoals = match.events.filter(
+                (e) => e.type === "gol" && e.rivalId === match.rivalId
               ).length;
-              const ourGoals = isHome ? homeGoals : awayGoals;
-              const theirGoals = isHome ? awayGoals : homeGoals;
+              const ourGoals = teamGoals;
+              const theirGoals = rivalGoals;
+              const homeGoals = isHome ? teamGoals : rivalGoals;
+              const awayGoals = isHome ? rivalGoals : teamGoals;
               let result = "-";
               let resultColor = "";
               if (homeGoals || awayGoals) {

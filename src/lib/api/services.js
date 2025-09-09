@@ -107,6 +107,27 @@ export const equiposService = {
   }
 };
 
+// Servicios para rivales
+export const rivalesService = {
+  getAll: async () => {
+    const rows = await all('SELECT * FROM rivales');
+    return rows.map(camelize);
+  },
+
+  getById: async (id) => {
+    const row = await get('SELECT * FROM rivales WHERE id = $1', [id]);
+    return row ? camelize(row) : null;
+  },
+
+  create: async (rivalData) => {
+    const result = await run(
+      'INSERT INTO rivales (nombre, color) VALUES ($1, $2) RETURNING id',
+      [rivalData.nombre, rivalData.color || '#1d4ed8']
+    );
+    return { id: result.id, ...rivalData };
+  },
+};
+
 // Servicios para jugadores
 export const jugadoresService = {
   getAll: async () => {

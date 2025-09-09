@@ -194,20 +194,22 @@ export default function MatchDetail({
   const [half, setHalf] = useState(1);
   const [subsMade, setSubsMade] = useState(0);
 
-  const homeGoals = useMemo(
+  const teamGoals = useMemo(
     () =>
       events.filter(
-        (e) => e.type === "gol" && e.teamId === match.homeTeamId
+        (e) => e.type === "gol" && e.teamId === match.teamId
       ).length,
-    [events, match.homeTeamId]
+    [events, match.teamId]
   );
-  const awayGoals = useMemo(
+  const rivalGoals = useMemo(
     () =>
       events.filter(
-        (e) => e.type === "gol" && e.teamId === match.awayTeamId
+        (e) => e.type === "gol" && e.rivalId === match.rivalId
       ).length,
-    [events, match.awayTeamId]
+    [events, match.rivalId]
   );
+  const homeGoals = match.isHome ? teamGoals : rivalGoals;
+  const awayGoals = match.isHome ? rivalGoals : teamGoals;
 
   useEffect(() => {
     if (!running) return;
@@ -263,15 +265,18 @@ export default function MatchDetail({
     playerId,
     type,
     teamId,
+    rivalId,
   }: {
     playerId?: number;
     type: string;
     teamId?: number;
+    rivalId?: number;
   }) {
     const fd = new FormData();
     if (playerId) fd.append("playerId", String(playerId));
     fd.append("type", type);
     if (teamId) fd.append("teamId", String(teamId));
+    if (rivalId) fd.append("rivalId", String(rivalId));
     fd.append("minute", String(Math.floor(seconds / 60)));
     const created = await addEvent(fd);
     setEvents((prev) => [...prev, created]);
@@ -447,7 +452,7 @@ export default function MatchDetail({
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => quickAddEvent({ type: "gol", teamId: match.homeTeamId })}
+              onClick={() => quickAddEvent({ type: "gol", teamId: match.teamId })}
             >
               Gol
             </Button>
@@ -504,7 +509,7 @@ export default function MatchDetail({
             <Button
               size="sm"
               variant="secondary"
-              onClick={() => quickAddEvent({ type: "gol", teamId: match.awayTeamId })}
+              onClick={() => quickAddEvent({ type: "gol", rivalId: match.rivalId })}
             >
               Gol
             </Button>
@@ -559,7 +564,7 @@ export default function MatchDetail({
                             quickAddEvent({
                               playerId: player.id,
                               type,
-                              teamId: match.homeTeamId,
+                              teamId: match.teamId,
                             })
                           }
                         >

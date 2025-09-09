@@ -27,6 +27,7 @@ export interface MatchEvent {
   type: string;
   playerId?: number | null;
   teamId?: number | null;
+  rivalId?: number | null;
   /**
    * Additional event metadata stored as JSON in the database.
    */
@@ -35,8 +36,9 @@ export interface MatchEvent {
 
 export interface Match {
   id: number;
-  homeTeamId: number;
-  awayTeamId: number;
+  teamId: number;
+  rivalId: number;
+  isHome: boolean;
   /** ISO date string representing kickoff time. */
   kickoff: string;
   /** Tipo de competición: liga, playoff, copa o amistoso. */

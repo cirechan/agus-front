@@ -1,5 +1,5 @@
 import { getMatch, updateLineup } from "@/lib/api/matches";
-import { jugadoresService, equiposService } from "@/lib/api/services";
+import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import { Button } from "@/components/ui/button";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -13,9 +13,9 @@ export default async function ConfigMatchPage({ params }: { params: { id: string
     return <div className="p-4">Partido no encontrado</div>;
   }
   const players = await jugadoresService.getByEquipo(1);
-  const homeTeam = await equiposService.getById(match.homeTeamId);
-  const awayTeam = await equiposService.getById(match.awayTeamId);
-  const teamColor = homeTeam?.color || '#dc2626';
+  const ourTeam = await equiposService.getById(match.teamId);
+  const rivalTeam = await rivalesService.getById(match.rivalId);
+  const teamColor = ourTeam?.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
 
   function getContrastColor(hex: string) {
@@ -129,11 +129,11 @@ export default async function ConfigMatchPage({ params }: { params: { id: string
           </div>
           <div>
             <span className="font-medium">Local:</span>{" "}
-            {homeTeam?.nombre ?? ""}
+            {match.isHome ? ourTeam?.nombre : rivalTeam?.nombre}
           </div>
           <div>
             <span className="font-medium">Visitante:</span>{" "}
-            {awayTeam?.nombre ?? ""}
+            {match.isHome ? rivalTeam?.nombre : ourTeam?.nombre}
           </div>
         </div>
         <div className="space-y-1">

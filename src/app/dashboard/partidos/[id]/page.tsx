@@ -1,5 +1,5 @@
 import { getMatch, recordEvent, removeEvent, updateLineup } from "@/lib/api/matches";
-import { jugadoresService, equiposService } from "@/lib/api/services";
+import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 import type { PlayerSlot } from "@/types/match";
 
@@ -20,8 +20,12 @@ export default async function MatchPage({ params }: MatchPageProps) {
   const players = match.lineup.length
     ? allPlayers.filter((p) => selectedIds.includes(p.id))
     : allPlayers;
-  const homeTeam = await equiposService.getById(match.homeTeamId);
-  const awayTeam = await equiposService.getById(match.awayTeamId);
+  const ourTeam = await equiposService.getById(match.teamId);
+  const rivalTeam = await rivalesService.getById(match.rivalId);
+  const homeTeamName = match.isHome ? ourTeam?.nombre : rivalTeam?.nombre;
+  const awayTeamName = match.isHome ? rivalTeam?.nombre : ourTeam?.nombre;
+  const homeTeamColor = match.isHome ? ourTeam?.color : rivalTeam?.color;
+  const awayTeamColor = match.isHome ? rivalTeam?.color : ourTeam?.color;
   const opponentNotes = match.opponentNotes ?? null;
 
   async function addEvent(formData: FormData) {
@@ -32,12 +36,15 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const playerId = playerIdRaw ? Number(playerIdRaw) : null;
     const teamIdRaw = formData.get("teamId");
     const teamId = teamIdRaw ? Number(teamIdRaw) : null;
+    const rivalIdRaw = formData.get("rivalId");
+    const rivalId = rivalIdRaw ? Number(rivalIdRaw) : null;
     return await recordEvent({
       matchId: id,
       minute,
       type,
       playerId,
       teamId,
+      rivalId,
       data: null,
     });
   }
@@ -59,10 +66,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
       addEvent={addEvent}
       deleteEvent={deleteEventById}
       saveLineup={saveLineupServer}
-      homeTeamName={homeTeam?.nombre ?? "Local"}
-      awayTeamName={awayTeam?.nombre ?? "Rival"}
-      homeTeamColor={homeTeam?.color ?? '#dc2626'}
-      awayTeamColor={awayTeam?.color ?? '#1d4ed8'}
+      homeTeamName={homeTeamName ?? "Local"}
+      awayTeamName={awayTeamName ?? "Rival"}
+      homeTeamColor={homeTeamColor ?? '#dc2626'}
+      awayTeamColor={awayTeamColor ?? '#1d4ed8'}
     />
   );
 }

@@ -1,4 +1,4 @@
-import { equiposService, jugadoresService } from "@/lib/api/services";
+import { equiposService, jugadoresService, rivalesService } from "@/lib/api/services";
 import { createMatch } from "@/lib/api/matches";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +9,8 @@ import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
 
 export default async function NuevoPartidoPage() {
-  const equipos = await equiposService.getAll();
-  const nuestro = equipos.find((e: any) => e.id === 1);
-  const rivales = equipos.filter((e: any) => e.id !== 1);
+  const nuestro = await equiposService.getById(1);
+  const rivales = await rivalesService.getAll();
   const players = await jugadoresService.getByEquipo(1);
   const teamColor = nuestro?.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
@@ -44,12 +43,7 @@ export default async function NuevoPartidoPage() {
     if (opponentIdRaw === "new") {
       const nombre = formData.get("newTeamName") as string;
       const color = formData.get("newTeamColor") as string;
-      const nuevo = await equiposService.create({
-        nombre,
-        categoria: null,
-        temporadaId: null,
-        color,
-      });
+      const nuevo = await rivalesService.create({ nombre, color });
       opponentId = nuevo.id;
     }
 
@@ -60,8 +54,7 @@ export default async function NuevoPartidoPage() {
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
 
-    const homeTeamId = condicion === "home" ? 1 : opponentId;
-    const awayTeamId = condicion === "home" ? opponentId : 1;
+    const isHome = condicion === "home";
 
     const allPlayers = await jugadoresService.getByEquipo(1);
     const formation = ["GK", "LB", "LCB", "RCB", "RB", "LM", "CM", "RM", "LW", "ST", "RW"];
@@ -90,8 +83,9 @@ export default async function NuevoPartidoPage() {
     });
 
     await createMatch({
-      homeTeamId,
-      awayTeamId,
+      teamId: 1,
+      rivalId: opponentId,
+      isHome,
       kickoff,
       competition,
       matchday,
