@@ -21,7 +21,11 @@ export default function MatchSummary({ match, players }: Props) {
     <div className="space-y-6 p-4">
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Timeline</h2>
-        <MatchTimeline events={match.events} players={playerMap} />
+        <MatchTimeline
+          events={match.events}
+          players={playerMap}
+          teamId={match.teamId}
+        />
       </section>
       <section className="space-y-2">
         <h2 className="text-lg font-semibold">Minutos jugados</h2>
