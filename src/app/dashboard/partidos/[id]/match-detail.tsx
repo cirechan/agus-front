@@ -8,6 +8,7 @@ import {
   useCallback,
 } from "react";
 import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
+
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -58,17 +59,17 @@ const EVENT_ICONS = [
   { type: "gol", icon: "⚽" },
   { type: "amarilla", icon: "🟨" },
   { type: "roja", icon: "🟥" },
-];
+] as const;
 
 const GOALKEEPER_COLOR = "#16a34a"; // green-600
 
 function getContrastColor(hex: string) {
-  const c = hex.replace('#', '');
+  const c = hex.replace("#", "");
   const r = parseInt(c.substring(0, 2), 16);
   const g = parseInt(c.substring(2, 4), 16);
   const b = parseInt(c.substring(4, 6), 16);
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
-  return yiq >= 128 ? '#000' : '#fff';
+  return yiq >= 128 ? "#000" : "#fff";
 }
 
 const DEFAULT_FORMATION = [
@@ -204,7 +205,7 @@ export default function MatchDetail({
     if (match.lineup.length) {
       return match.lineup
         .filter((slot) => slot.role === "bench")
-        .map((slot) => playerMap[slot.playerId])
+        .map((slot) => playerMap[slot.playerId as number])
         .filter(Boolean) as Player[];
     }
     return players.slice(initialLineup.length);
@@ -215,7 +216,7 @@ export default function MatchDetail({
     match.lineup
       .filter((slot) => slot.role === "bench")
       .forEach((slot) => {
-        map[slot.playerId] = slot.position;
+        if (slot.playerId != null) map[slot.playerId] = slot.position;
       });
     return map;
   }, [match.lineup]);
@@ -235,9 +236,8 @@ export default function MatchDetail({
     });
     return stats;
   }, [players, initialLineup]);
-  const [playerStats, setPlayerStats] = useState(
-    initialStats
-  );
+
+  const [playerStats, setPlayerStats] = useState(initialStats);
 
   const [events, setEvents] = useState<MatchEvent[]>(match.events);
   const [seconds, setSeconds] = useState(0);
@@ -248,16 +248,14 @@ export default function MatchDetail({
 
   const teamGoals = useMemo(
     () =>
-      events.filter(
-        (e) => e.type === "gol" && e.teamId === match.teamId
-      ).length,
+      events.filter((e) => e.type === "gol" && e.teamId === match.teamId)
+        .length,
     [events, match.teamId]
   );
   const rivalGoals = useMemo(
     () =>
-      events.filter(
-        (e) => e.type === "gol" && e.rivalId === match.rivalId
-      ).length,
+      events.filter((e) => e.type === "gol" && e.rivalId === match.rivalId)
+        .length,
     [events, match.rivalId]
   );
   const homeGoals = match.isHome ? teamGoals : rivalGoals;
@@ -281,11 +279,13 @@ export default function MatchDetail({
     const w = canvas.width;
     const h = canvas.height;
 
+    // Césped
     for (let i = 0; i < w; i += 80) {
       ctx.fillStyle = i % 160 === 0 ? "#15803d" : "#166534";
       ctx.fillRect(i, 0, 80, h);
     }
 
+    // Líneas
     ctx.strokeStyle = "white";
     ctx.lineWidth = 2;
     ctx.strokeRect(40, 40, w - 80, h - 80);
@@ -329,7 +329,7 @@ export default function MatchDetail({
     fd.append("type", type);
     if (teamId) fd.append("teamId", String(teamId));
     if (rivalId) fd.append("rivalId", String(rivalId));
-    fd.append("minute", String(Math.floor(seconds / 60)));
+    fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
     const created = await addEvent(fd);
     setEvents((prev) => [...prev, created]);
     toast(`Evento ${type} añadido`);
@@ -351,6 +351,7 @@ export default function MatchDetail({
 
   function toggleRunning() {
     if (running) {
+      // Pausar: cerrar intervalos de los titulares
       setPlayerStats((prev) => {
         const stats = { ...prev };
         lineup.forEach((slot) => {
@@ -364,6 +365,7 @@ export default function MatchDetail({
       });
       setRunning(false);
     } else {
+      // Reanudar: reabrir intervalos de los titulares
       setPlayerStats((prev) => {
         const stats = { ...prev };
         lineup.forEach((slot) => {
@@ -387,6 +389,7 @@ export default function MatchDetail({
         delete stats[pid].enterSecond;
       }
     });
+
     const lineupPayload: PlayerSlot[] = [
       ...lineup
         .filter((s) => s.playerId)
@@ -395,16 +398,17 @@ export default function MatchDetail({
           number: playerMap[s.playerId as number]?.dorsal ?? undefined,
           role: "field" as const,
           position: s.position,
-          minutes: stats[s.playerId as number]?.minutes ?? 0,
+          minutes: Math.floor((stats[s.playerId as number]?.minutes ?? 0) / 60),
         })),
       ...bench.map((p) => ({
         playerId: p.id,
         number: p.dorsal ?? undefined,
         role: "bench" as const,
         position: benchPositions[p.id],
-        minutes: stats[p.id]?.minutes ?? 0,
+        minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
       })),
     ];
+
     await saveLineup(lineupPayload, true);
     router.push(`/dashboard/partidos`);
   }
@@ -434,17 +438,23 @@ export default function MatchDetail({
 
   function substitute(playerInId: number, targetPos: string) {
     const outgoingId = lineup.find((s) => s.position === targetPos)?.playerId;
+
+    // Cambiar campo
     setLineup((prev) =>
       prev.map((s) =>
         s.position === targetPos ? { ...s, playerId: playerInId } : s
       )
     );
+
+    // Actualizar banquillo
     setBench((prev) => {
       const filtered = prev.filter((p) => p.id !== playerInId);
       return outgoingId && playerMap[outgoingId]
         ? [...filtered, playerMap[outgoingId]]
         : filtered;
     });
+
+    // Guardar la posición del que sale
     setBenchPositions((prev) => {
       const map = { ...prev };
       delete map[playerInId];
@@ -453,6 +463,8 @@ export default function MatchDetail({
       }
       return map;
     });
+
+    // Minutos de juego
     setPlayerStats((prev) => {
       const stats = { ...prev };
       if (outgoingId && stats[outgoingId]?.enterSecond != null) {
@@ -466,6 +478,7 @@ export default function MatchDetail({
       };
       return stats;
     });
+
     if (outgoingId) {
       setSubbedOut((prev) => [...prev, outgoingId]);
     }
@@ -491,6 +504,7 @@ export default function MatchDetail({
     const playerIdStr = e.dataTransfer.getData("playerId");
     if (!playerIdStr) return;
     const playerId = Number(playerIdStr);
+
     if (fromPos === "bench") {
       substitute(playerId, position);
     } else if (fromPos && fromPos !== position) {
@@ -500,8 +514,10 @@ export default function MatchDetail({
 
   return (
     <div className="flex flex-col md:flex-row w-full h-full">
+      {/* Header marcador/controles */}
       <div className="flex-1 flex flex-col">
         <div className="h-12 text-white select-none flex">
+          {/* Local */}
           <div
             className="flex items-center gap-2 px-2 sm:px-4"
             style={{ backgroundColor: homeTeamColor, color: homeTextColor }}
@@ -513,16 +529,20 @@ export default function MatchDetail({
               variant="secondary"
               className="h-6 w-6 p-0"
               onClick={() => quickAddEvent({ type: "gol", teamId: match.teamId })}
+              aria-label="Añadir gol local"
             >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
+
+          {/* Controles centro */}
           <div className="flex items-center gap-2 flex-1 justify-center bg-gray-900 px-2 sm:px-4">
             <Button
               size="icon"
               variant="secondary"
               className="text-gray-900"
               onClick={toggleRunning}
+              aria-label={running ? "Pausar" : "Reanudar"}
             >
               {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </Button>
@@ -531,17 +551,26 @@ export default function MatchDetail({
               {String(seconds % 60).padStart(2, "0")}
             </span>
             {half === 1 && !running && (
-              <Button size="sm" variant="secondary" className="gap-1" onClick={() => { setHalf(2); setSeconds(0); }}>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="gap-1"
+                onClick={() => {
+                  setHalf(2);
+                  setSeconds(0);
+                }}
+              >
                 <ArrowRightCircle className="h-4 w-4" />
                 <span className="hidden sm:inline">2ª</span>
               </Button>
             )}
-            <Button size="icon" variant="secondary" onClick={cycleFormation}>
+            <Button size="icon" variant="secondary" onClick={cycleFormation} aria-label="Cambiar formación">
               <LayoutGrid className="h-4 w-4" />
             </Button>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="secondary">
+                <Button size="icon" variant="secondary" aria-label="Menú">
                   <Menu className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -560,6 +589,8 @@ export default function MatchDetail({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* Visitante */}
           <div
             className="flex items-center gap-2 px-2 sm:px-4"
             style={{ backgroundColor: awayTeamColor, color: awayTextColor }}
@@ -569,6 +600,7 @@ export default function MatchDetail({
               variant="secondary"
               className="h-6 w-6 p-0"
               onClick={() => quickAddEvent({ type: "gol", rivalId: match.rivalId })}
+              aria-label="Añadir gol visitante"
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -577,9 +609,9 @@ export default function MatchDetail({
           </div>
         </div>
 
+        {/* Campo + jugadores */}
         <div ref={containerRef} className="relative flex-1">
           <canvas ref={canvasRef} className="w-full h-full touch-none" />
-
           {lineup.map((slot) => {
             const player = slot.playerId ? playerMap[slot.playerId] : null;
             return (
@@ -592,37 +624,30 @@ export default function MatchDetail({
               >
                 {player && (
                   <div className="relative -ml-5 -mt-5 flex flex-col items-center">
+                    {/* Iconos de eventos sobre el jugador */}
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex space-x-1 text-sm">
                       {events
                         .filter((e) => e.playerId === player.id)
                         .map((e) => (
                           <span key={e.id}>
-                            {e.type === "gol"
-                              ? "⚽"
-                              : e.type === "amarilla"
-                              ? "🟨"
-                              : "🟥"}
+                            {e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥"}
                           </span>
                         ))}
                     </div>
+
+                    {/* Burbuja con dorsal + popover de eventos */}
                     <Popover>
                       <PopoverTrigger asChild>
                         <div
                           draggable
-                          onDragStart={(e) =>
-                            handlePlayerDragStart(slot.position, player.id, e)
-                          }
+                          onDragStart={(e) => handlePlayerDragStart(slot.position, player.id, e)}
                           className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab select-none"
                           style={{
                             backgroundColor:
-                              slot.position === "GK"
-                                ? GOALKEEPER_COLOR
-                                : PLAYER_COLOR,
-                            color:
-                              slot.position === "GK"
-                                ? '#fff'
-                                : playerTextColor,
+                              slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                            color: slot.position === "GK" ? "#fff" : playerTextColor,
                           }}
+                          title={`${player.nombre}`}
                         >
                           {player.dorsal ?? ""}
                         </div>
@@ -640,12 +665,14 @@ export default function MatchDetail({
                                 teamId: match.teamId,
                               })
                             }
+                            aria-label={`Añadir ${type}`}
                           >
                             {icon}
                           </Button>
                         ))}
                       </PopoverContent>
                     </Popover>
+
                     <div className="mt-1 text-center text-xs w-20 text-white">
                       {player.nombre}
                     </div>
@@ -656,6 +683,8 @@ export default function MatchDetail({
           })}
         </div>
       </div>
+
+      {/* Banquillo */}
       <div className="md:w-32 w-full bg-black/60 text-white p-2 overflow-x-auto md:overflow-y-auto md:h-auto h-24">
         <div className="text-xs md:text-right text-center mb-2">{subsMade}/5</div>
         <div className="flex md:flex-col gap-4 items-center justify-center">
@@ -670,24 +699,20 @@ export default function MatchDetail({
                 className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab"
                 style={{
                   backgroundColor:
-                    benchPositions[pl.id] === "GK"
-                      ? GOALKEEPER_COLOR
-                      : PLAYER_COLOR,
-                  color:
-                    benchPositions[pl.id] === "GK"
-                      ? '#fff'
-                      : playerTextColor,
+                    benchPositions[pl.id] === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                  color: benchPositions[pl.id] === "GK" ? "#fff" : playerTextColor,
                 }}
+                title={pl.nombre}
               >
                 {pl.dorsal ?? ""}
               </div>
-              <span className="mt-1 text-xs text-white text-center w-full">
-                {pl.nombre}
-              </span>
+              <span className="mt-1 text-xs text-white text-center w-full">{pl.nombre}</span>
             </div>
           ))}
         </div>
       </div>
+
+      {/* Listado de eventos */}
       <Dialog open={eventsOpen} onOpenChange={setEventsOpen}>
         <DialogContent className="max-h-80 overflow-y-auto">
           <ul className="space-y-1 text-sm">
@@ -697,7 +722,7 @@ export default function MatchDetail({
                   {e.minute}&apos; {e.playerId ? playerMap[e.playerId]?.nombre + " " : ""}
                   {e.type}
                 </span>
-                <Button size="icon" variant="ghost" onClick={() => removeEventById(e.id)}>
+                <Button size="icon" variant="ghost" onClick={() => removeEventById(e.id)} aria-label="Eliminar evento">
                   ×
                 </Button>
               </li>
@@ -705,8 +730,8 @@ export default function MatchDetail({
           </ul>
         </DialogContent>
       </Dialog>
+
       <Toaster />
     </div>
   );
 }
-
