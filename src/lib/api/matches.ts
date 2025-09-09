@@ -32,6 +32,7 @@ function mapMatch(row: any, events: MatchEvent[] = []): Match {
     lineup: ((row.lineup ?? []) as any[]).map((s) => ({ minutes: 0, ...s })) as PlayerSlot[],
     events,
     opponentNotes: row.opponentNotes ?? null,
+    finished: row.finished ?? false,
   };
 }
 
@@ -60,6 +61,7 @@ export async function listMatches(): Promise<Match[]> {
            p.jornada AS "matchday",
            p.alineacion AS lineup,
            p.notas_rival AS "opponentNotes",
+           p.finalizado AS finished,
            COALESCE(
              (SELECT json_agg(e ORDER BY e.minuto)
                 FROM eventos_partido e
@@ -89,7 +91,8 @@ export async function getMatch(id: number): Promise<Match | null> {
            p.competicion AS competition,
            p.jornada AS "matchday",
            p.alineacion AS lineup,
-           p.notas_rival AS "opponentNotes"
+           p.notas_rival AS "opponentNotes",
+           p.finalizado AS finished
     FROM partidos p
     WHERE p.id = ${id}
   `;
@@ -137,7 +140,8 @@ export async function createMatch(match: NewMatch): Promise<Match> {
               competicion AS competition,
               jornada AS "matchday",
               alineacion AS lineup,
-              notas_rival AS "opponentNotes"
+              notas_rival AS "opponentNotes",
+              finalizado AS finished
   `;
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
 }
@@ -175,13 +179,15 @@ export async function removeEvent(id: number): Promise<void> {
 export async function updateLineup(
   matchId: number,
   lineup: PlayerSlot[],
-  opponentNotes: string | null = null
+  opponentNotes: string | null = null,
+  finished = false
 ): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
     UPDATE partidos
     SET alineacion = ${JSON.stringify(lineup)},
-        notas_rival = ${opponentNotes}
+        notas_rival = ${opponentNotes},
+        finalizado = ${finished}
     WHERE id = ${matchId}
     RETURNING id,
               equipo_id AS "teamId",
@@ -191,7 +197,8 @@ export async function updateLineup(
               competicion AS competition,
               jornada AS "matchday",
               alineacion AS lineup,
-              notas_rival AS "opponentNotes"
+              notas_rival AS "opponentNotes",
+              finalizado AS finished
   `;
 
   const events = await sql`

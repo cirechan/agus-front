@@ -1,6 +1,7 @@
 import { getMatch, recordEvent, removeEvent, updateLineup } from "@/lib/api/matches";
 import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
+import MatchSummary from "./match-summary";
 import type { PlayerSlot } from "@/types/match";
 
 export const dynamic = "force-dynamic";
@@ -54,12 +55,14 @@ export default async function MatchPage({ params }: MatchPageProps) {
     await removeEvent(eventId);
   }
 
-  async function saveLineupServer(lineup: PlayerSlot[]) {
+  async function saveLineupServer(lineup: PlayerSlot[], finished = false) {
     "use server";
-    await updateLineup(id, lineup, opponentNotes);
+    await updateLineup(id, lineup, opponentNotes, finished);
   }
 
-  return (
+  return match.finished ? (
+    <MatchSummary match={match} players={allPlayers} />
+  ) : (
     <MatchDetail
       match={match}
       players={players}

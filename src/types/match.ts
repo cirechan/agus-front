@@ -49,7 +49,9 @@ export interface Match {
   events: MatchEvent[];
   /** Notes about the opponent or match context. */
   opponentNotes?: string | null;
+  /** Indicates whether the match has concluded. */
+  finished: boolean;
 }
 
-export type NewMatch = Omit<Match, 'id'>;
+export type NewMatch = Omit<Match, 'id' | 'finished'>;
 export type NewMatchEvent = Omit<MatchEvent, 'id'>;

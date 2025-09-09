@@ -23,18 +23,17 @@ import {
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Play,
   Pause,
   Menu,
   Undo2,
-  Settings,
   ArrowRightCircle,
   Plus,
   Flag,
   List,
+  LayoutGrid,
 } from "lucide-react";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
@@ -86,6 +85,23 @@ const DEFAULT_FORMATION = [
   "RW",
 ];
 
+const FORMATIONS: Record<string, string[]> = {
+  "4-3-3": DEFAULT_FORMATION,
+  "4-4-2": [
+    "GK",
+    "LB",
+    "LCB",
+    "RCB",
+    "RB",
+    "LM",
+    "LCM",
+    "RCM",
+    "RM",
+    "LS",
+    "RS",
+  ],
+};
+
 interface Player {
   id: number;
   nombre: string;
@@ -104,7 +120,7 @@ interface MatchDetailProps {
   players: Player[];
   addEvent: (formData: FormData) => Promise<MatchEvent>;
   deleteEvent: (id: number) => Promise<void>;
-  saveLineup: (lineup: PlayerSlot[]) => Promise<void>;
+  saveLineup: (lineup: PlayerSlot[], finished?: boolean) => Promise<void>;
   homeTeamName: string;
   awayTeamName: string;
   homeTeamColor: string;
@@ -131,6 +147,22 @@ export default function MatchDetail({
   const playerTextColor = getContrastColor(PLAYER_COLOR);
   const homeTextColor = getContrastColor(homeTeamColor);
   const awayTextColor = getContrastColor(awayTeamColor);
+
+  const formationKeys = Object.keys(FORMATIONS);
+  const [formationIndex, setFormationIndex] = useState(0);
+
+  function cycleFormation() {
+    const next = (formationIndex + 1) % formationKeys.length;
+    setFormationIndex(next);
+    const formation = FORMATIONS[formationKeys[next]];
+    setLineup((prev) =>
+      prev.map((slot, idx) => {
+        const pos = formation[idx];
+        const coords = POSITION_COORDS[pos] || { x: 50, y: 50 };
+        return { ...slot, position: pos, x: coords.x, y: coords.y };
+      })
+    );
+  }
 
   const initialLineup: LineupSlot[] = useMemo(() => {
     if (match.lineup.length) {
@@ -373,8 +405,8 @@ export default function MatchDetail({
         minutes: stats[p.id]?.minutes ?? 0,
       })),
     ];
-    await saveLineup(lineupPayload);
-    router.push(`/dashboard/partidos/${match.id}/final`);
+    await saveLineup(lineupPayload, true);
+    router.push(`/dashboard/partidos`);
   }
 
   function handlePlayerDragStart(
@@ -504,6 +536,9 @@ export default function MatchDetail({
                 <span className="hidden sm:inline">2ª</span>
               </Button>
             )}
+            <Button size="icon" variant="secondary" onClick={cycleFormation}>
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="icon" variant="secondary">
@@ -516,11 +551,6 @@ export default function MatchDetail({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={undoLastEvent}>
                   <Undo2 className="h-4 w-4" /> Deshacer
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={`/dashboard/partidos/${match.id}/config`} className="flex items-center gap-2">
-                    <Settings className="h-4 w-4" /> Configurar
-                  </Link>
                 </DropdownMenuItem>
                 {half === 2 && !running && (
                   <DropdownMenuItem onClick={handleFinish}>

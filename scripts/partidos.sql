@@ -9,7 +9,8 @@ CREATE TABLE partidos (
     competicion TEXT NOT NULL,
     jornada     INTEGER,
     alineacion  JSONB NOT NULL DEFAULT '[]',
-    notas_rival TEXT
+    notas_rival TEXT,
+    finalizado  BOOLEAN NOT NULL DEFAULT false
 );
 
 CREATE TABLE eventos_partido (
