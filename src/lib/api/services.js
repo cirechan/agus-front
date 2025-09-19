@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { all, get, run, ready } from '../db';
 
 // Ensure database tables are created and seeded before any service call
@@ -483,4 +484,44 @@ export const temporadasService = {
     await writeJson('temporadas.json', data);
     return temporada;
   }
+};
+
+// Servicios para sanciones disciplinarias
+export const sancionesService = {
+  getAll: async () => {
+    return await readJson('sanciones.json');
+  },
+
+  setStatus: async ({ playerId, reference, type, completed }) => {
+    if (!playerId || !reference) {
+      throw new Error('playerId y reference son obligatorios');
+    }
+
+    const sanciones = await sancionesService.getAll();
+    const index = sanciones.findIndex(
+      (s) => s.playerId === playerId && s.reference === reference
+    );
+    const now = new Date().toISOString();
+
+    if (index >= 0) {
+      sanciones[index] = {
+        ...sanciones[index],
+        type,
+        completed,
+        completedAt: completed ? now : null,
+      };
+    } else {
+      sanciones.push({
+        id: randomUUID(),
+        playerId,
+        reference,
+        type,
+        completed,
+        completedAt: completed ? now : null,
+      });
+    }
+
+    await writeJson('sanciones.json', sanciones);
+    return sanciones.find((s) => s.playerId === playerId && s.reference === reference);
+  },
 };
