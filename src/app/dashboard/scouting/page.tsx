@@ -164,15 +164,14 @@ export default function ScoutingPage() {
       if (filtroDemarcacion !== "todas" && jugador.demarcacion !== filtroDemarcacion) {
         return false
       }
-      
       return true
     })
-  }, [searchQuery, filtroCategoria, filtroPropuesta, filtroDemarcacion])
-  
+  }, [jugadoresScouteados, searchQuery, filtroCategoria, filtroPropuesta, filtroDemarcacion])
+
   // Obtener jugador seleccionado
   const jugadorDetalle = React.useMemo(() => {
     return jugadoresScouteados.find(j => j.id === jugadorSeleccionado) as Jugador | undefined
-  }, [jugadorSeleccionado])
+  }, [jugadoresScouteados, jugadorSeleccionado])
   
   // Manejar cambio en el formulario
   const handleFormChange = (field: string, value: any) => {

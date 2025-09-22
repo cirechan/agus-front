@@ -115,7 +115,7 @@ export default function ValoracionesPage() {
       )
       return { ...j, valorado }
     })
-  }, [valoraciones, trimestreActual])
+  }, [jugadoresBase, valoraciones, trimestreActual])
 
   const jugadoresFiltrados = React.useMemo(() => {
     return jugadores.filter(jugador => {
