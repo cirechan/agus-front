@@ -253,7 +253,7 @@ export default async function DashboardPage() {
 
   const sanctions: SanctionItem[] = []
 
-  for (const [playerId, data] of discipline.entries()) {
+  discipline.forEach((data, playerId) => {
     const yellowEvents = [...data.yellowEvents].sort((a, b) => {
       const dateDiff = new Date(a.match.kickoff).getTime() - new Date(b.match.kickoff).getTime()
       if (dateDiff !== 0) return dateDiff
@@ -310,7 +310,7 @@ export default async function DashboardPage() {
         completedAt: stored?.completedAt ?? null,
       })
     }
-  }
+  })
 
   sanctions.sort((a, b) => {
     const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0
