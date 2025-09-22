@@ -29,7 +29,7 @@ type Horario = {
 }
 
 type StoredSanction = {
-  id: string
+  id: number | string
   playerId: number
   reference: string
   type: "yellow" | "red"
@@ -395,11 +395,18 @@ export default async function DashboardPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
-              {proximoEntrenamientoFecha ? formatRelativeTime(proximoEntrenamientoFecha) : "Define tus horarios para ver el próximo entrenamiento"}
+              {proximoEntrenamientoFecha
+                ? formatRelativeTime(proximoEntrenamientoFecha)
+                : "Define tus horarios para ver el próximo entrenamiento"}
             </div>
-            <Button asChild variant="secondary">
-              <Link href="/dashboard/asistencias">Marcar asistencia</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="secondary">
+                <Link href="/dashboard/asistencias">Marcar asistencia</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/horarios">Gestionar horarios</Link>
+              </Button>
+            </div>
           </CardFooter>
         </Card>
 
@@ -433,11 +440,18 @@ export default async function DashboardPage() {
           </CardContent>
           <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
-              {upcomingMatchDate ? formatRelativeTime(upcomingMatchDate) : "Añade un partido para mostrarlo aquí"}
+              {upcomingMatchDate
+                ? formatRelativeTime(upcomingMatchDate)
+                : "Añade un partido para mostrarlo aquí"}
             </div>
-            <Button asChild>
-              <Link href="/dashboard/partidos">Gestionar partidos</Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild>
+                <Link href="/dashboard/partidos">Gestionar partidos</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/dashboard/partidos/new">Nuevo partido</Link>
+              </Button>
+            </div>
           </CardFooter>
         </Card>
       </div>
@@ -452,30 +466,67 @@ export default async function DashboardPage() {
       <div className="mt-8 grid gap-4 px-4 lg:px-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Tarjetas amarillas</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Tarjetas amarillas</CardTitle>
+              {yellowLeaders.length > 0 ? (
+                <Badge variant="outline" className="text-xs">
+                  {yellowLeaders.length} jugador{yellowLeaders.length === 1 ? "" : "es"}
+                </Badge>
+              ) : null}
+            </div>
             <CardDescription>Controla a los jugadores apercibidos y el riesgo disciplinario.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {yellowLeaders.length > 0 ? (
-              yellowLeaders.map((item) => (
-                <div key={item.playerId} className="flex items-start justify-between gap-4 rounded-lg border p-4">
-                  <div>
-                    <p className="font-medium">{item.playerName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {item.pendingYellow
-                        ? "Sanción pendiente por acumulación"
-                        : item.distance === 1
-                          ? "A 1 amarilla de la próxima sanción"
-                          : `A ${item.distance} amarillas de la próxima sanción`}
-                      {item.redCards > 0 ? ` · ${item.redCards} roja${item.redCards > 1 ? "s" : ""}` : ""}
-                    </p>
+              yellowLeaders.map((item) => {
+                const nextCut = item.yellowCards + (item.distance === 0 ? 5 : item.distance)
+                return (
+                  <div
+                    key={item.playerId}
+                    className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{item.playerName}</p>
+                        {item.pendingYellow ? (
+                          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                            Sanción pendiente
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {item.pendingYellow
+                          ? "Debe cumplir la sanción vigente antes del próximo corte"
+                          : item.distance === 1
+                            ? "A 1 amarilla de la próxima sanción"
+                            : `A ${item.distance} amarillas de la próxima sanción`}
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline" className="border-yellow-500/60 text-yellow-700">
+                          {item.yellowCards} amarilla{item.yellowCards === 1 ? "" : "s"}
+                        </Badge>
+                        {item.redCards > 0 ? (
+                          <Badge variant="outline" className="border-red-500/60 text-red-600">
+                            {item.redCards} roja{item.redCards === 1 ? "" : "s"}
+                          </Badge>
+                        ) : null}
+                        <Badge variant="outline" className="text-xs">
+                          Próximo corte en {nextCut} amarillas
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 md:self-start">
+                      <div className="text-right">
+                        <div className="text-2xl font-semibold">{item.yellowCards}</div>
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">amarillas</div>
+                      </div>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/dashboard/jugadores/${item.playerId}`}>Ver ficha</Link>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-semibold">{item.yellowCards}</div>
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground">amarillas</div>
-                  </div>
-                </div>
-              ))
+                )
+              })
             ) : (
               <div className="flex items-center gap-3 rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 <AlertCircle className="h-4 w-4" />
@@ -487,7 +538,14 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Próximas sanciones</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle>Próximas sanciones</CardTitle>
+              {pendingSanctions.length > 0 ? (
+                <Badge variant="outline" className="text-xs text-yellow-700">
+                  {pendingSanctions.length} pendiente{pendingSanctions.length === 1 ? "" : "s"}
+                </Badge>
+              ) : null}
+            </div>
             <CardDescription>Marca como cumplidas las sanciones disciplinarias para mantener el control al día.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -546,11 +604,35 @@ export default async function DashboardPage() {
                   const completedDate = sanction.completedAt ? new Date(sanction.completedAt) : null
                   return (
                     <div key={`completed-${sanction.key}`} className="rounded-lg border bg-muted/40 p-3 text-sm">
-                      <p className="font-medium">{sanction.playerName}</p>
-                      <p className="text-muted-foreground text-xs">
-                        {sanction.label}
-                        {completedDate ? ` · ${formatRelativeTime(completedDate)}` : ""}
-                      </p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <p className="font-medium flex items-center gap-2">
+                            {sanction.playerName}
+                            {sanction.type === "yellow" ? (
+                              <Badge variant="outline" className="border-yellow-500 text-yellow-600">
+                                🟨 Amarillas
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-red-500 text-red-600">
+                                🟥 Roja
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            {sanction.label}
+                            {completedDate ? ` · ${formatRelativeTime(completedDate)}` : ""}
+                          </p>
+                        </div>
+                        <form action={setSanctionStatus} className="shrink-0">
+                          <input type="hidden" name="playerId" value={sanction.playerId} />
+                          <input type="hidden" name="reference" value={sanction.reference} />
+                          <input type="hidden" name="type" value={sanction.type} />
+                          <input type="hidden" name="completed" value="false" />
+                          <Button size="sm" variant="ghost" className="px-2 text-xs">
+                            Reabrir
+                          </Button>
+                        </form>
+                      </div>
                     </div>
                   )
                 })}

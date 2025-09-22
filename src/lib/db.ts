@@ -13,6 +13,10 @@ function getConnectionString() {
   );
 }
 
+export function hasDatabaseConnection() {
+  return Boolean(getConnectionString());
+}
+
 function getPool(): Pool | null {
   if (pool) return pool;
   const connectionString = getConnectionString();
@@ -99,6 +103,15 @@ export const ready = (async () => {
     await db.query(`CREATE TABLE IF NOT EXISTS scouting (
       id SERIAL PRIMARY KEY,
       data TEXT
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS sanciones (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      reference TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('yellow','red')),
+      completed BOOLEAN DEFAULT FALSE,
+      completed_at TIMESTAMPTZ,
+      UNIQUE(player_id, reference)
     )`);
 
     const eqRes = await db.query('SELECT COUNT(*)::int AS count FROM equipos');

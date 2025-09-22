@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { randomUUID } from 'crypto';
-import { all, get, run, ready } from '../db';
+import { all, get, run, ready, hasDatabaseConnection } from '../db';
 
 // Ensure database tables are created and seeded before any service call
 await ready;
@@ -521,8 +521,33 @@ export const temporadasService = {
 };
 
 // Servicios para sanciones disciplinarias
+const mapSanctionRow = (row) => {
+  if (!row) return row;
+  return {
+    ...row,
+    completedAt: row.completedAt ? new Date(row.completedAt).toISOString() : null,
+  };
+};
+
 export const sancionesService = {
   getAll: async () => {
+    if (hasDatabaseConnection()) {
+      try {
+        const rows = await all(`
+          SELECT id,
+                 player_id AS "playerId",
+                 reference,
+                 type,
+                 completed,
+                 completed_at AS "completedAt"
+          FROM sanciones
+        `);
+        return rows.map(mapSanctionRow);
+      } catch (error) {
+        console.error('No se pudieron recuperar las sanciones desde la base de datos', error);
+      }
+    }
+
     return await readJson('sanciones.json');
   },
 
@@ -531,7 +556,32 @@ export const sancionesService = {
       throw new Error('playerId y reference son obligatorios');
     }
 
-    const sanciones = await sancionesService.getAll();
+    if (hasDatabaseConnection()) {
+      try {
+        const completedAt = completed ? new Date().toISOString() : null;
+        const row = await get(
+          `INSERT INTO sanciones (player_id, reference, type, completed, completed_at)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (player_id, reference)
+           DO UPDATE SET
+             type = EXCLUDED.type,
+             completed = EXCLUDED.completed,
+             completed_at = EXCLUDED.completed_at
+           RETURNING id,
+                     player_id AS "playerId",
+                     reference,
+                     type,
+                     completed,
+                     completed_at AS "completedAt"`,
+          [playerId, reference, type, completed, completedAt]
+        );
+        return mapSanctionRow(row);
+      } catch (error) {
+        console.error('No se pudo actualizar la sanción en la base de datos', error);
+      }
+    }
+
+    const sanciones = await readJson('sanciones.json');
     const index = sanciones.findIndex(
       (s) => s.playerId === playerId && s.reference === reference
     );
