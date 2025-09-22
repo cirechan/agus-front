@@ -29,6 +29,23 @@ function camelize(row) {
   return res;
 }
 
+function parseJsonField(value, fallback = {}) {
+  if (value === null || value === undefined || value === '') {
+    return fallback;
+  }
+  if (Buffer.isBuffer(value)) {
+    value = value.toString('utf8');
+  }
+  if (typeof value === 'object') {
+    return value;
+  }
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return fallback;
+  }
+}
+
 async function readJson(file) {
   const candidates = [runtimeDataDir, projectDataDir];
   for (const dir of candidates) {
@@ -135,7 +152,7 @@ export const jugadoresService = {
     const rows = await all('SELECT * FROM jugadores');
     return rows.map((r) => {
       const row = camelize(r);
-      return { ...row, logs: row.logs ? JSON.parse(row.logs) : {} };
+      return { ...row, logs: parseJsonField(row.logs, {}) };
     });
   },
 
@@ -143,7 +160,7 @@ export const jugadoresService = {
     const row = await get('SELECT * FROM jugadores WHERE id = $1', [id]);
     if (!row) return null;
     const mapped = camelize(row);
-    return { ...mapped, logs: mapped.logs ? JSON.parse(mapped.logs) : {} };
+    return { ...mapped, logs: parseJsonField(mapped.logs, {}) };
   },
 
   getByEquipo: async (equipoId) => {
@@ -170,7 +187,7 @@ export const jugadoresService = {
       const porcentaje = total > 0 ? (presentes / total) * 100 : 0;
       return {
         ...row,
-        logs: row.logs ? JSON.parse(row.logs) : {},
+        logs: parseJsonField(row.logs, {}),
         asistenciasPresentes: presentes,
         asistenciasTotales: total,
         asistenciaPct: porcentaje,
@@ -313,7 +330,7 @@ export const valoracionesService = {
     const rows = await all('SELECT * FROM valoraciones');
     return rows.map((r) => {
       const row = camelize(r);
-      return { ...row, aptitudes: row.aptitudes ? JSON.parse(row.aptitudes) : {} };
+      return { ...row, aptitudes: parseJsonField(row.aptitudes, {}) };
     });
   },
 
@@ -321,7 +338,7 @@ export const valoracionesService = {
     const rows = await all('SELECT * FROM valoraciones WHERE jugadorId = $1', [jugadorId]);
     return rows.map((r) => {
       const row = camelize(r);
-      return { ...row, aptitudes: row.aptitudes ? JSON.parse(row.aptitudes) : {} };
+      return { ...row, aptitudes: parseJsonField(row.aptitudes, {}) };
     });
   },
 
@@ -341,7 +358,7 @@ export const valoracionesService = {
   update: async (id, data) => {
     const row = await get('SELECT * FROM valoraciones WHERE id = $1', [id]);
     if (!row) return null;
-    const existing = camelize(row);
+    const existing = { ...camelize(row), aptitudes: parseJsonField(row.aptitudes, {}) };
     const updated = { ...existing, ...data };
     await run(
       'UPDATE valoraciones SET jugadorId = $1, fecha = $2, aptitudes = $3, comentarios = $4 WHERE id = $5',
@@ -353,7 +370,7 @@ export const valoracionesService = {
         id,
       ]
     );
-    return { ...updated, aptitudes: updated.aptitudes ? JSON.parse(updated.aptitudes) : {} };
+    return { ...updated, aptitudes: parseJsonField(updated.aptitudes, {}) };
   },
 
   delete: async (id) => {
@@ -366,12 +383,12 @@ export const valoracionesService = {
 export const scoutingService = {
   getAll: async () => {
     const rows = await all('SELECT * FROM scouting');
-    return rows.map((r) => ({ id: r.id, ...JSON.parse(r.data) }));
+    return rows.map((r) => ({ id: r.id, ...parseJsonField(r.data, {}) }));
   },
 
   getById: async (id) => {
     const row = await get('SELECT * FROM scouting WHERE id = $1', [id]);
-    return row ? { id: row.id, ...JSON.parse(row.data) } : null;
+    return row ? { id: row.id, ...parseJsonField(row.data, {}) } : null;
   },
 
   create: async (data) => {
