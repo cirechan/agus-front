@@ -85,8 +85,25 @@ export const equiposService = {
   },
 
   getByTemporada: async (temporadaId) => {
-    const rows = await all('SELECT * FROM equipos WHERE temporadaId = $1', [temporadaId]);
-    return rows.map(camelize);
+    if (!temporadaId) {
+      return equiposService.getAll();
+    }
+
+    try {
+      const rows = await all('SELECT * FROM equipos WHERE temporadaId = $1', [temporadaId]);
+      return rows.map(camelize);
+    } catch (error) {
+      if (error && error.code === '42703') {
+        console.warn(
+          'La columna temporadaId no existe en la tabla equipos; devolviendo todos los equipos.',
+          error
+        );
+        const rows = await all('SELECT * FROM equipos');
+        return rows.map(camelize);
+      }
+      console.error('Error recuperando equipos por temporada', error);
+      return [];
+    }
   },
 
   create: async (equipoData) => {

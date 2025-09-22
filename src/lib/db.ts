@@ -72,6 +72,8 @@ export const ready = (async () => {
       temporadaId TEXT,
       color TEXT DEFAULT '#dc2626'
     )`);
+    await db.query('ALTER TABLE equipos ADD COLUMN IF NOT EXISTS temporadaId TEXT');
+    await db.query("ALTER TABLE equipos ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#dc2626'");
     await db.query(`CREATE TABLE IF NOT EXISTS jugadores (
       id SERIAL PRIMARY KEY,
       nombre TEXT NOT NULL,
