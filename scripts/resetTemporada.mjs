@@ -12,7 +12,8 @@ async function reset() {
     'jugadores.json',
     'asistencias.json',
     'valoraciones.json',
-    'objetivos.json'
+    'objetivos.json',
+    'entrenamientos.json'
   ];
 
   for (const file of files) {

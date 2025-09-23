@@ -93,6 +93,15 @@ export const ready = (async () => {
       asistio INTEGER,
       motivo TEXT
     )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS entrenamientos (
+      id SERIAL PRIMARY KEY,
+      equipoId INTEGER REFERENCES equipos(id) ON DELETE CASCADE,
+      inicio TIMESTAMPTZ NOT NULL,
+      fin TIMESTAMPTZ
+    )`);
+    await db.query(
+      'ALTER TABLE asistencias ADD COLUMN IF NOT EXISTS entrenamientoId INTEGER REFERENCES entrenamientos(id) ON DELETE CASCADE'
+    );
     await db.query(`CREATE TABLE IF NOT EXISTS valoraciones (
       id SERIAL PRIMARY KEY,
       jugadorId INTEGER REFERENCES jugadores(id),

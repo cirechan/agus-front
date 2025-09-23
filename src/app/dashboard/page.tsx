@@ -5,6 +5,7 @@ import {
   equiposService,
   jugadoresService,
   horariosService,
+  entrenamientosService,
   rivalesService,
   sancionesService,
 } from "@/lib/api/services"
@@ -26,6 +27,13 @@ type Horario = {
   dia: string
   hora: string
   duracion?: string
+}
+
+type EntrenamientoProgramado = {
+  id: number | string
+  equipoId: number
+  inicio: string
+  fin?: string | null
 }
 
 type StoredSanction = {
@@ -83,6 +91,11 @@ const shortDateFormatter = new Intl.DateTimeFormat("es-ES", {
   dateStyle: "long",
 })
 
+const timeFormatter = new Intl.DateTimeFormat("es-ES", {
+  hour: "2-digit",
+  minute: "2-digit",
+})
+
 const relativeFormatter = new Intl.RelativeTimeFormat("es", { numeric: "auto" })
 
 function normalizeDay(value: string) {
@@ -126,6 +139,11 @@ function formatShortDate(date: Date | null) {
   return shortDateFormatter.format(date)
 }
 
+function formatTimeOnly(date: Date | null) {
+  if (!date || Number.isNaN(date.getTime())) return null
+  return timeFormatter.format(date)
+}
+
 function formatRelativeTime(date: Date | null) {
   if (!date || Number.isNaN(date.getTime())) return null
   const now = new Date()
@@ -155,9 +173,10 @@ export default async function DashboardPage() {
   const equipos = await equiposService.getAll()
   const equipo = equipos[0]
 
-  const [jugadores, horarios, rivales, storedSanctions, matches] = await Promise.all([
+  const [jugadores, horarios, entrenamientos, rivales, storedSanctions, matches] = await Promise.all([
     equipo ? jugadoresService.getByEquipo(equipo.id) : Promise.resolve([]),
     equipo ? horariosService.getByEquipo(equipo.id) : Promise.resolve([]),
+    equipo ? entrenamientosService.getByEquipo(equipo.id) : Promise.resolve([]),
     rivalesService.getAll(),
     sancionesService.getAll(),
     safeListMatches(),
@@ -203,8 +222,24 @@ export default async function DashboardPage() {
     .filter((item): item is { horario: Horario; fecha: Date } => !!item.fecha)
     .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
 
-  const proximoEntrenamiento = horariosConFecha[0]
-  const proximoEntrenamientoFecha = proximoEntrenamiento ? proximoEntrenamiento.fecha : null
+  const sesionesProgramadas = (entrenamientos as EntrenamientoProgramado[])
+    .map((sesion) => ({
+      sesion,
+      fecha: new Date(sesion.inicio),
+    }))
+    .filter((item) => !Number.isNaN(item.fecha.getTime()))
+    .sort((a, b) => a.fecha.getTime() - b.fecha.getTime())
+
+  const proximoEntrenamientoProgramado =
+    sesionesProgramadas.find((item) => item.fecha.getTime() >= now.getTime()) ?? null
+
+  const proximoEntrenamientoHorario = horariosConFecha[0]
+  const proximoEntrenamientoFecha =
+    proximoEntrenamientoProgramado?.fecha ?? proximoEntrenamientoHorario?.fecha ?? null
+  const proximoEntrenamientoProgramadoFin =
+    proximoEntrenamientoProgramado?.sesion.fin
+      ? new Date(proximoEntrenamientoProgramado.sesion.fin)
+      : null
 
   const discipline = new Map<
     number,
@@ -374,7 +409,7 @@ export default async function DashboardPage() {
             <CardDescription>Organiza la sesión y registra la asistencia de tu plantilla.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {proximoEntrenamiento && proximoEntrenamientoFecha ? (
+            {proximoEntrenamientoProgramado && proximoEntrenamientoFecha ? (
               <>
                 <div className="text-2xl font-semibold">
                   {formatDate(proximoEntrenamientoFecha)}
@@ -382,29 +417,47 @@ export default async function DashboardPage() {
                 <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-4 w-4" />
-                    {proximoEntrenamiento.horario.hora}
+                    {formatTimeOnly(proximoEntrenamientoFecha)}
+                    {proximoEntrenamientoProgramadoFin
+                      ? ` - ${formatTimeOnly(proximoEntrenamientoProgramadoFin)}`
+                      : ""}
                   </span>
-                  {proximoEntrenamiento.horario.duracion ? (
-                    <Badge variant="outline">{proximoEntrenamiento.horario.duracion}</Badge>
+                  <Badge variant="outline">Calendario</Badge>
+                </div>
+              </>
+            ) : proximoEntrenamientoHorario && proximoEntrenamientoFecha ? (
+              <>
+                <div className="text-2xl font-semibold">
+                  {formatDate(proximoEntrenamientoFecha)}
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Clock className="h-4 w-4" />
+                    {proximoEntrenamientoHorario.horario.hora}
+                  </span>
+                  {proximoEntrenamientoHorario.horario.duracion ? (
+                    <Badge variant="outline">{proximoEntrenamientoHorario.horario.duracion}</Badge>
                   ) : null}
                 </div>
               </>
             ) : (
-              <p className="text-sm text-muted-foreground">Todavía no hay un horario de entrenamiento configurado.</p>
+              <p className="text-sm text-muted-foreground">
+                Todavía no hay entrenamientos programados. Crea tu calendario desde el panel de asistencias.
+              </p>
             )}
           </CardContent>
           <CardFooter className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="text-sm text-muted-foreground">
               {proximoEntrenamientoFecha
                 ? formatRelativeTime(proximoEntrenamientoFecha)
-                : "Define tus horarios para ver el próximo entrenamiento"}
+                : "Planifica tus entrenamientos para verlos aquí"}
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="secondary">
-                <Link href="/dashboard/asistencias">Marcar asistencia</Link>
+                <Link href="/dashboard/asistencias#asistencias">Marcar asistencia</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/dashboard/horarios">Gestionar horarios</Link>
+                <Link href="/dashboard/asistencias#planificador">Gestionar calendario</Link>
               </Button>
             </div>
           </CardFooter>

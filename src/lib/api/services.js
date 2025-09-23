@@ -72,6 +72,55 @@ async function writeJson(file, data) {
   }
 }
 
+function ensureArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+const normalizeAsistencia = (row) => ({
+  ...row,
+  asistio: !!row.asistio,
+});
+
+const normalizeEntrenamiento = (row) => {
+  if (!row) return row;
+  const mapped = camelize(row);
+  return {
+    ...mapped,
+    inicio: mapped.inicio ? new Date(mapped.inicio).toISOString() : null,
+    fin: mapped.fin ? new Date(mapped.fin).toISOString() : null,
+  };
+};
+
+async function readEntrenamientosStore() {
+  const data = await readJson('entrenamientos.json');
+  return ensureArray(data).map((item) => ({
+    ...item,
+    inicio: item.inicio ? new Date(item.inicio).toISOString() : null,
+    fin: item.fin ? new Date(item.fin).toISOString() : null,
+  }));
+}
+
+async function writeEntrenamientosStore(data) {
+  await writeJson('entrenamientos.json', data);
+}
+
+async function readAsistenciasStore() {
+  const data = await readJson('asistencias.json');
+  return ensureArray(data).map((item) => normalizeAsistencia(item));
+}
+
+async function writeAsistenciasStore(data) {
+  await writeJson('asistencias.json', data);
+}
+
+const generateNumericId = (items) => {
+  const maxId = items.reduce((max, item) => {
+    const current = Number(item.id);
+    return Number.isFinite(current) ? Math.max(max, current) : max;
+  }, 0);
+  return maxId + 1;
+};
+
 // Servicios para equipos
 export const equiposService = {
   getAll: async () => {
@@ -250,95 +299,231 @@ export const jugadoresService = {
 };
 
 // Servicios para asistencias
+const mapAsistenciaRow = (row) => normalizeAsistencia(camelize(row));
+
 export const asistenciasService = {
   getAll: async () => {
-    const rows = await all('SELECT * FROM asistencias');
-    return rows.map((r) => {
-      const row = camelize(r);
-      return { ...row, asistio: !!row.asistio };
-    });
+    if (hasDatabaseConnection()) {
+      const rows = await all('SELECT * FROM asistencias');
+      return rows.map(mapAsistenciaRow);
+    }
+    return await readAsistenciasStore();
   },
 
   getByEquipo: async (equipoId) => {
-    const rows = await all('SELECT * FROM asistencias WHERE equipoId = $1', [equipoId]);
-    return rows.map((r) => {
-      const row = camelize(r);
-      return { ...row, asistio: !!row.asistio };
-    });
+    if (hasDatabaseConnection()) {
+      const rows = await all('SELECT * FROM asistencias WHERE equipoId = $1', [equipoId]);
+      return rows.map(mapAsistenciaRow);
+    }
+    const asistencias = await readAsistenciasStore();
+    return asistencias.filter((r) => Number(r.equipoId) === Number(equipoId));
   },
 
   getByJugador: async (jugadorId) => {
-    const rows = await all('SELECT * FROM asistencias WHERE jugadorId = $1', [jugadorId]);
-    return rows.map((r) => {
-      const row = camelize(r);
-      return { ...row, asistio: !!row.asistio };
-    });
+    if (hasDatabaseConnection()) {
+      const rows = await all('SELECT * FROM asistencias WHERE jugadorId = $1', [jugadorId]);
+      return rows.map(mapAsistenciaRow);
+    }
+    const asistencias = await readAsistenciasStore();
+    return asistencias.filter((r) => Number(r.jugadorId) === Number(jugadorId));
   },
 
   getByFecha: async (equipoId, fecha) => {
-    const rows = await all('SELECT * FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
-    return rows.map((r) => {
-      const row = camelize(r);
-      return { ...row, asistio: !!row.asistio };
-    });
+    if (hasDatabaseConnection()) {
+      const rows = await all('SELECT * FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
+      return rows.map(mapAsistenciaRow);
+    }
+    const asistencias = await readAsistenciasStore();
+    return asistencias.filter(
+      (r) => Number(r.equipoId) === Number(equipoId) && r.fecha === fecha && !r.entrenamientoId
+    );
+  },
+
+  getByEntrenamiento: async (equipoId, entrenamientoId) => {
+    if (hasDatabaseConnection()) {
+      const rows = await all(
+        'SELECT * FROM asistencias WHERE equipoId = $1 AND entrenamientoId = $2',
+        [equipoId, entrenamientoId]
+      );
+      return rows.map(mapAsistenciaRow);
+    }
+    const asistencias = await readAsistenciasStore();
+    return asistencias.filter(
+      (r) => Number(r.equipoId) === Number(equipoId) && Number(r.entrenamientoId) === Number(entrenamientoId)
+    );
   },
 
   setForFecha: async (equipoId, fecha, registros) => {
-    await run('DELETE FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
-    const inserted = [];
-    for (const r of registros) {
-      const result = await run(
-        'INSERT INTO asistencias (jugadorId, equipoId, fecha, asistio, motivo) VALUES ($1, $2, $3, $4, $5)',
-        [r.jugadorId, equipoId, fecha, r.asistio ? 1 : 0, r.motivo || null]
-      );
-      inserted.push({
-        id: result.id,
-        jugadorId: r.jugadorId,
-        equipoId,
-        fecha,
-        asistio: r.asistio,
-        motivo: r.motivo,
-      });
+    if (hasDatabaseConnection()) {
+      await run('DELETE FROM asistencias WHERE equipoId = $1 AND fecha = $2 AND entrenamientoId IS NULL', [equipoId, fecha]);
+      const inserted = [];
+      for (const r of registros) {
+        const row = await get(
+          'INSERT INTO asistencias (jugadorId, equipoId, fecha, asistio, motivo) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+          [r.jugadorId, equipoId, fecha, r.asistio ? 1 : 0, r.motivo || null]
+        );
+        if (row) {
+          inserted.push(mapAsistenciaRow(row));
+        }
+      }
+      return inserted;
     }
-    return inserted;
+
+    const asistencias = await readAsistenciasStore();
+    const restantes = asistencias.filter(
+      (r) => !(Number(r.equipoId) === Number(equipoId) && r.fecha === fecha && !r.entrenamientoId)
+    );
+    const created = registros.map((r, index) => ({
+      id: generateNumericId(asistencias) + index,
+      jugadorId: r.jugadorId,
+      equipoId,
+      fecha,
+      entrenamientoId: null,
+      asistio: !!r.asistio,
+      motivo: r.motivo || null,
+    }));
+    await writeAsistenciasStore([...restantes, ...created]);
+    return created;
+  },
+
+  setForEntrenamiento: async (equipoId, entrenamientoId, fecha, registros) => {
+    if (hasDatabaseConnection()) {
+      await run(
+        'DELETE FROM asistencias WHERE equipoId = $1 AND entrenamientoId = $2',
+        [equipoId, entrenamientoId]
+      );
+      const inserted = [];
+      for (const r of registros) {
+        const row = await get(
+          'INSERT INTO asistencias (jugadorId, equipoId, fecha, entrenamientoId, asistio, motivo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+          [r.jugadorId, equipoId, fecha, entrenamientoId, r.asistio ? 1 : 0, r.motivo || null]
+        );
+        if (row) {
+          inserted.push(mapAsistenciaRow(row));
+        }
+      }
+      return inserted;
+    }
+
+    const asistencias = await readAsistenciasStore();
+    const restantes = asistencias.filter(
+      (r) => !(Number(r.equipoId) === Number(equipoId) && Number(r.entrenamientoId) === Number(entrenamientoId))
+    );
+    const baseId = generateNumericId(asistencias);
+    const created = registros.map((r, index) => ({
+      id: baseId + index,
+      jugadorId: r.jugadorId,
+      equipoId,
+      fecha,
+      entrenamientoId,
+      asistio: !!r.asistio,
+      motivo: r.motivo || null,
+    }));
+    await writeAsistenciasStore([...restantes, ...created]);
+    return created;
   },
 
   deleteByFecha: async (equipoId, fecha) => {
-    await run('DELETE FROM asistencias WHERE equipoId = $1 AND fecha = $2', [equipoId, fecha]);
+    if (hasDatabaseConnection()) {
+      await run('DELETE FROM asistencias WHERE equipoId = $1 AND fecha = $2 AND entrenamientoId IS NULL', [equipoId, fecha]);
+      return true;
+    }
+    const asistencias = await readAsistenciasStore();
+    const filtradas = asistencias.filter(
+      (r) => !(Number(r.equipoId) === Number(equipoId) && r.fecha === fecha && !r.entrenamientoId)
+    );
+    await writeAsistenciasStore(filtradas);
+    return true;
+  },
+
+  deleteByEntrenamiento: async (equipoId, entrenamientoId) => {
+    if (hasDatabaseConnection()) {
+      await run('DELETE FROM asistencias WHERE equipoId = $1 AND entrenamientoId = $2', [equipoId, entrenamientoId]);
+      return true;
+    }
+    const asistencias = await readAsistenciasStore();
+    const filtradas = asistencias.filter(
+      (r) => !(Number(r.equipoId) === Number(equipoId) && Number(r.entrenamientoId) === Number(entrenamientoId))
+    );
+    await writeAsistenciasStore(filtradas);
     return true;
   },
 
   delete: async (id) => {
-    await run('DELETE FROM asistencias WHERE id = $1', [id]);
+    if (hasDatabaseConnection()) {
+      await run('DELETE FROM asistencias WHERE id = $1', [id]);
+      return true;
+    }
+    const asistencias = await readAsistenciasStore();
+    const filtradas = asistencias.filter((r) => Number(r.id) !== Number(id));
+    await writeAsistenciasStore(filtradas);
     return true;
   },
 
   create: async (data) => {
-    const result = await run(
-      'INSERT INTO asistencias (jugadorId, equipoId, fecha, asistio, motivo) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [data.jugadorId, data.equipoId, data.fecha, data.asistio ? 1 : 0, data.motivo || null]
-    );
-    return { id: result.id, ...data };
+    if (hasDatabaseConnection()) {
+      const row = await get(
+        'INSERT INTO asistencias (jugadorId, equipoId, fecha, entrenamientoId, asistio, motivo) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+        [
+          data.jugadorId,
+          data.equipoId,
+          data.fecha,
+          data.entrenamientoId || null,
+          data.asistio ? 1 : 0,
+          data.motivo || null,
+        ]
+      );
+      return row ? mapAsistenciaRow(row) : null;
+    }
+
+    const asistencias = await readAsistenciasStore();
+    const nuevo = {
+      id: generateNumericId(asistencias),
+      jugadorId: data.jugadorId,
+      equipoId: data.equipoId,
+      fecha: data.fecha,
+      entrenamientoId: data.entrenamientoId || null,
+      asistio: !!data.asistio,
+      motivo: data.motivo || null,
+    };
+    await writeAsistenciasStore([...asistencias, nuevo]);
+    return nuevo;
   },
 
   update: async (id, data) => {
-    const row = await get('SELECT * FROM asistencias WHERE id = $1', [id]);
-    if (!row) return null;
-    const existing = camelize(row);
-    const updated = { ...existing, ...data };
-    await run(
-      'UPDATE asistencias SET jugadorId = $1, equipoId = $2, fecha = $3, asistio = $4, motivo = $5 WHERE id = $6',
-      [
-        updated.jugadorId,
-        updated.equipoId,
-        updated.fecha,
-        updated.asistio ? 1 : 0,
-        updated.motivo,
-        id,
-      ]
-    );
-    return { ...updated, asistio: !!updated.asistio };
-  }
+    if (hasDatabaseConnection()) {
+      const row = await get('SELECT * FROM asistencias WHERE id = $1', [id]);
+      if (!row) return null;
+      const existing = mapAsistenciaRow(row);
+      const updated = { ...existing, ...data };
+      await run(
+        'UPDATE asistencias SET jugadorId = $1, equipoId = $2, fecha = $3, entrenamientoId = $4, asistio = $5, motivo = $6 WHERE id = $7',
+        [
+          updated.jugadorId,
+          updated.equipoId,
+          updated.fecha,
+          updated.entrenamientoId || null,
+          updated.asistio ? 1 : 0,
+          updated.motivo,
+          id,
+        ]
+      );
+      return { ...updated, asistio: !!updated.asistio };
+    }
+
+    const asistencias = await readAsistenciasStore();
+    const index = asistencias.findIndex((r) => Number(r.id) === Number(id));
+    if (index === -1) return null;
+    const updated = {
+      ...asistencias[index],
+      ...data,
+      entrenamientoId: data.entrenamientoId ?? asistencias[index].entrenamientoId ?? null,
+      asistio: data.asistio ?? asistencias[index].asistio,
+    };
+    asistencias[index] = normalizeAsistencia(updated);
+    await writeAsistenciasStore(asistencias);
+    return asistencias[index];
+  },
 };
 
 // Servicios para valoraciones
@@ -491,6 +676,157 @@ export const horariosService = {
     await writeJson('horarios.json', filtrados);
     return true;
   }
+};
+
+// Servicios para entrenamientos programados
+export const entrenamientosService = {
+  getAll: async () => {
+    if (hasDatabaseConnection()) {
+      try {
+        const rows = await all('SELECT * FROM entrenamientos ORDER BY inicio ASC');
+        return rows.map(normalizeEntrenamiento);
+      } catch (error) {
+        console.error('No se pudieron recuperar los entrenamientos desde la base de datos', error);
+      }
+    }
+
+    return await readEntrenamientosStore();
+  },
+
+  getById: async (id) => {
+    if (hasDatabaseConnection()) {
+      try {
+        const row = await get('SELECT * FROM entrenamientos WHERE id = $1', [id]);
+        return row ? normalizeEntrenamiento(row) : null;
+      } catch (error) {
+        console.error('No se pudo recuperar el entrenamiento', error);
+      }
+    }
+
+    const entrenamientos = await readEntrenamientosStore();
+    return entrenamientos.find((e) => Number(e.id) === Number(id)) || null;
+  },
+
+  getByEquipo: async (equipoId, { from, to } = {}) => {
+    if (hasDatabaseConnection()) {
+      const clauses = ['equipoId = $1'];
+      const params = [equipoId];
+      if (from) {
+        params.push(from);
+        clauses.push(`inicio >= $${params.length}`);
+      }
+      if (to) {
+        params.push(to);
+        clauses.push(`inicio <= $${params.length}`);
+      }
+      try {
+        const rows = await all(
+          `SELECT * FROM entrenamientos WHERE ${clauses.join(' AND ')} ORDER BY inicio ASC`,
+          params
+        );
+        return rows.map(normalizeEntrenamiento);
+      } catch (error) {
+        console.error('No se pudieron recuperar los entrenamientos del equipo', error);
+      }
+    }
+
+    const entrenamientos = await readEntrenamientosStore();
+    return entrenamientos
+      .filter((e) => Number(e.equipoId) === Number(equipoId))
+      .filter((e) => {
+        if (!from && !to) return true;
+        const inicio = e.inicio ? new Date(e.inicio).toISOString() : null;
+        if (!inicio) return false;
+        if (from && inicio < new Date(from).toISOString()) return false;
+        if (to && inicio > new Date(to).toISOString()) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        return new Date(a.inicio || 0).getTime() - new Date(b.inicio || 0).getTime();
+      });
+  },
+
+  createMany: async (equipoId, sesiones) => {
+    if (!Array.isArray(sesiones) || sesiones.length === 0) return [];
+
+    const sanitized = sesiones
+      .map((sesion) => ({
+        inicio: sesion.inicio ? new Date(sesion.inicio).toISOString() : null,
+        fin: sesion.fin ? new Date(sesion.fin).toISOString() : null,
+      }))
+      .filter((sesion) => sesion.inicio);
+
+    if (sanitized.length === 0) return [];
+
+    if (hasDatabaseConnection()) {
+      const existing = await entrenamientosService.getByEquipo(equipoId);
+      const existingStarts = new Set((existing || []).map((item) => item.inicio));
+      const created = [];
+      for (const sesion of sanitized) {
+        if (existingStarts.has(sesion.inicio)) continue;
+        try {
+          const row = await get(
+            'INSERT INTO entrenamientos (equipoId, inicio, fin) VALUES ($1, $2, $3) RETURNING *',
+            [equipoId, sesion.inicio, sesion.fin]
+          );
+          if (row) {
+            const normalized = normalizeEntrenamiento(row);
+            created.push(normalized);
+            existingStarts.add(normalized.inicio);
+          }
+        } catch (error) {
+          console.error('No se pudo guardar el entrenamiento', error);
+        }
+      }
+      return created;
+    }
+
+    const store = await readEntrenamientosStore();
+    const existingStarts = new Set(
+      store.filter((item) => Number(item.equipoId) === Number(equipoId)).map((item) => item.inicio)
+    );
+    const created = [];
+    const nextIdBase = generateNumericId(store);
+    let counter = 0;
+    for (const sesion of sanitized) {
+      if (!sesion.inicio || existingStarts.has(sesion.inicio)) continue;
+      const nuevo = {
+        id: nextIdBase + counter,
+        equipoId,
+        inicio: sesion.inicio,
+        fin: sesion.fin || null,
+      };
+      counter += 1;
+      store.push(nuevo);
+      created.push(nuevo);
+      existingStarts.add(sesion.inicio);
+    }
+    await writeEntrenamientosStore(store);
+    return created;
+  },
+
+  delete: async (id) => {
+    if (hasDatabaseConnection()) {
+      try {
+        await run('DELETE FROM entrenamientos WHERE id = $1', [id]);
+        return true;
+      } catch (error) {
+        console.error('No se pudo eliminar el entrenamiento', error);
+        return false;
+      }
+    }
+
+    const store = await readEntrenamientosStore();
+    const filtered = store.filter((item) => Number(item.id) !== Number(id));
+    await writeEntrenamientosStore(filtered);
+
+    const asistencias = await readAsistenciasStore();
+    const remaining = asistencias.filter((item) => Number(item.entrenamientoId) !== Number(id));
+    if (remaining.length !== asistencias.length) {
+      await writeAsistenciasStore(remaining);
+    }
+    return true;
+  },
 };
 
 // Servicios para temporadas
