@@ -21,6 +21,9 @@ import {
   ArrowRight,
   CalendarClock,
   CalendarIcon,
+  CalendarRange,
+  ChevronDown,
+  ChevronUp,
   Clock,
   History,
   Loader2,
@@ -33,12 +36,13 @@ import type { DateRange } from "react-day-picker"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
 
 interface Entrenamiento {
@@ -206,6 +210,8 @@ export default function EntrenamientosPage() {
   const [endTime, setEndTime] = React.useState<string>("21:00")
   const planDefaultsRef = React.useRef({ selectedDays: [1, 3], startTime: "19:30", endTime: "21:00" })
   const [feedback, setFeedback] = React.useState<Feedback | null>(null)
+  const [isPlannerOpen, setIsPlannerOpen] = React.useState<boolean>(false)
+  const plannerAutoOpenRef = React.useRef<boolean>(false)
 
   const sesionesPorFecha = React.useMemo(() => {
     const map = new Map<string, Entrenamiento[]>()
@@ -541,7 +547,16 @@ export default function EntrenamientosPage() {
         setEndTime(planDefaultsRef.current.endTime)
       }
     }
+    setIsPlannerOpen(true)
   }
+
+  React.useEffect(() => {
+    if (plannerAutoOpenRef.current) return
+    if (isLoadingEntrenamientos) return
+    if (entrenamientos.length > 0) return
+    plannerAutoOpenRef.current = true
+    setIsPlannerOpen(true)
+  }, [entrenamientos.length, isLoadingEntrenamientos])
 
   if (!equipo) {
     return <div className="p-4">Cargando calendario...</div>
@@ -559,6 +574,21 @@ export default function EntrenamientosPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => setIsPlannerOpen((prev) => !prev)}
+              variant="default"
+              className="flex items-center"
+            >
+              {isPlannerOpen ? (
+                <>
+                  <ChevronUp className="mr-2 h-4 w-4" /> Ocultar planificador
+                </>
+              ) : (
+                <>
+                  <CalendarRange className="mr-2 h-4 w-4" /> Gestionar entrenamientos
+                </>
+              )}
+            </Button>
             <Button variant="outline" onClick={() => loadEntrenamientos(equipo.id)} disabled={isLoadingEntrenamientos}>
               {isLoadingEntrenamientos ? (
                 <>
@@ -644,7 +674,7 @@ export default function EntrenamientosPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 px-4 pb-6 lg:px-6 xl:grid-cols-[420px,1fr] xl:items-start">
+      <div className="space-y-6 px-4 pb-6 lg:px-6">
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Agenda del equipo</CardTitle>
@@ -759,8 +789,8 @@ export default function EntrenamientosPage() {
           </CardContent>
         </Card>
 
-        <div className="flex min-w-0 flex-col gap-6">
-          <Card className="flex min-w-0 flex-col">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr),minmax(0,1fr)] lg:items-start">
+          <Card className="min-w-0">
             <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle>Detalle del entrenamiento</CardTitle>
@@ -837,117 +867,7 @@ export default function EntrenamientosPage() {
               )}
             </CardContent>
           </Card>
-
           <Card className="min-w-0">
-            <CardHeader>
-              <CardTitle>Planificador de entrenamientos</CardTitle>
-              <CardDescription>
-                Genera sesiones individuales o recurrentes usando el rango de fechas y los días seleccionados.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Rango de fechas</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {rangeLabel}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Días de la semana</label>
-                <div className="flex flex-wrap gap-2">
-                  {dayOptions.map((day) => {
-                    const active = selectedDays.includes(day.value)
-                    return (
-                      <Button
-                        key={day.value}
-                        type="button"
-                        size="sm"
-                        variant={active ? "default" : "outline"}
-                        onClick={() => toggleDay(day.value)}
-                      >
-                        {day.short}
-                      </Button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground" htmlFor="hora-inicio">
-                    Hora de inicio
-                  </label>
-                  <Input
-                    id="hora-inicio"
-                    type="time"
-                    value={startTime}
-                    onChange={(event) => setStartTime(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground" htmlFor="hora-fin">
-                    Hora de fin (opcional)
-                  </label>
-                  <Input
-                    id="hora-fin"
-                    type="time"
-                    value={endTime}
-                    onChange={(event) => setEndTime(event.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
-                {estimatedSessions > 0 ? (
-                  <span>
-                    Se crearán <span className="font-semibold text-primary">{estimatedSessions}</span> entrenamientos.
-                  </span>
-                ) : (
-                  <span>Selecciona al menos un día y define un rango para generar entrenamientos.</span>
-                )}
-              </div>
-            </CardContent>
-            <CardHeader className="border-t px-6 py-4">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Ajusta el rango, días y horarios antes de programar para evitar duplicados.
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={resetPlanToDefaults}>
-                    Restablecer
-                  </Button>
-                  <Button onClick={handleCrearEntrenamientos} disabled={isCreatingTrainings}>
-                    {isCreatingTrainings ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Programando...
-                      </>
-                    ) : (
-                      <>
-                        <PlusCircle className="mr-2 h-4 w-4" /> Programar entrenamientos
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-
-          <Card>
             <CardHeader>
               <CardTitle>Histórico del calendario</CardTitle>
               <CardDescription>
@@ -1020,6 +940,131 @@ export default function EntrenamientosPage() {
             </CardContent>
           </Card>
         </div>
+        <Collapsible open={isPlannerOpen} onOpenChange={setIsPlannerOpen}>
+          <Card className="min-w-0">
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle>Planificador de entrenamientos</CardTitle>
+                <CardDescription>
+                  Genera sesiones individuales o recurrentes usando el rango de fechas y los días seleccionados.
+                </CardDescription>
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full sm:w-auto">
+                  {isPlannerOpen ? (
+                    <>
+                      <ChevronUp className="mr-2 h-4 w-4" /> Ocultar planificador
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="mr-2 h-4 w-4" /> Gestionar entrenamientos
+                    </>
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+            </CardHeader>
+            <CollapsibleContent>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Rango de fechas</label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-start font-normal">
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {rangeLabel}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        selected={dateRange}
+                        onSelect={setDateRange}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Días de la semana</label>
+                  <div className="flex flex-wrap gap-2">
+                    {dayOptions.map((day) => {
+                      const active = selectedDays.includes(day.value)
+                      return (
+                        <Button
+                          key={day.value}
+                          type="button"
+                          size="sm"
+                          variant={active ? "default" : "outline"}
+                          onClick={() => toggleDay(day.value)}
+                        >
+                          {day.short}
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground" htmlFor="hora-inicio">
+                      Hora de inicio
+                    </label>
+                    <Input
+                      id="hora-inicio"
+                      type="time"
+                      value={startTime}
+                      onChange={(event) => setStartTime(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground" htmlFor="hora-fin">
+                      Hora de fin (opcional)
+                    </label>
+                    <Input
+                      id="hora-fin"
+                      type="time"
+                      value={endTime}
+                      onChange={(event) => setEndTime(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+                  {estimatedSessions > 0 ? (
+                    <span>
+                      Se crearán <span className="font-semibold text-primary">{estimatedSessions}</span> entrenamientos.
+                    </span>
+                  ) : (
+                    <span>Selecciona al menos un día y define un rango para generar entrenamientos.</span>
+                  )}
+                </div>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-3 border-t px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-muted-foreground">
+                  Ajusta el rango, días y horarios antes de programar para evitar duplicados.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={resetPlanToDefaults}>
+                    Restablecer
+                  </Button>
+                  <Button onClick={handleCrearEntrenamientos} disabled={isCreatingTrainings}>
+                    {isCreatingTrainings ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Programando...
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="mr-2 h-4 w-4" /> Programar entrenamientos
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardFooter>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
       </div>
     </>
   )
