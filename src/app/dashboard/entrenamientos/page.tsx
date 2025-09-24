@@ -475,6 +475,7 @@ export default function EntrenamientosPage() {
           daysOfWeek: selectedDays,
           startTime,
           endTime: endTime || undefined,
+          timezoneOffset: new Date().getTimezoneOffset(),
         }),
       })
       if (!res.ok) {
@@ -643,8 +644,8 @@ export default function EntrenamientosPage() {
         </div>
       </div>
 
-      <div className="grid gap-6 px-4 pb-6 lg:grid-cols-[420px,1fr] lg:px-6">
-        <Card>
+      <div className="grid gap-6 px-4 pb-6 lg:px-6 xl:grid-cols-[420px,1fr] xl:items-start">
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Agenda del equipo</CardTitle>
             <CardDescription>Selecciona un día para ver sus entrenamientos programados.</CardDescription>
@@ -758,8 +759,8 @@ export default function EntrenamientosPage() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-6">
-          <Card className="flex flex-col">
+        <div className="flex min-w-0 flex-col gap-6">
+          <Card className="flex min-w-0 flex-col">
             <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <CardTitle>Detalle del entrenamiento</CardTitle>
@@ -837,7 +838,7 @@ export default function EntrenamientosPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle>Planificador de entrenamientos</CardTitle>
               <CardDescription>

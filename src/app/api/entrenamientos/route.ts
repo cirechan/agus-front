@@ -11,24 +11,63 @@ type CreateRequest = {
   daysOfWeek: number[]
   startTime: string
   endTime?: string
+  timezoneOffset?: number
 }
 
 function toDateOnly(value?: string | null) {
   if (!value) return null
+
+  const parts = String(value)
+    .split('T')[0]
+    .split('-')
+    .map((part) => Number(part))
+
+  if (parts.length === 3 && parts.every((part) => Number.isFinite(part))) {
+    const [year, month, day] = parts
+    return new Date(Date.UTC(year, month - 1, day))
+  }
+
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return null
-  date.setHours(0, 0, 0, 0)
+  date.setUTCHours(0, 0, 0, 0)
   return date
 }
 
-function combineDateAndTime(base: Date, time: string) {
-  const [hours, minutes] = time.split(':').map((part) => Number(part))
-  const result = new Date(base)
-  result.setHours(Number.isFinite(hours) ? hours : 0, Number.isFinite(minutes) ? minutes : 0, 0, 0)
-  return result
+function toIsoDateString(date: Date) {
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
 }
 
-function buildSessions({ startDate, endDate, daysOfWeek, startTime, endTime }: CreateRequest) {
+function combineDateAndTime(date: string, time: string, timezoneOffset?: number) {
+  if (!date || !time) return null
+
+  const [year, month, day] = date.split('-').map((part) => Number(part))
+  const [hours, minutes] = time.split(':').map((part) => Number(part))
+
+  if (
+    !Number.isFinite(year) ||
+    !Number.isFinite(month) ||
+    !Number.isFinite(day) ||
+    !Number.isFinite(hours) ||
+    !Number.isFinite(minutes)
+  ) {
+    return null
+  }
+
+  if (typeof timezoneOffset === 'number' && Number.isFinite(timezoneOffset)) {
+    const utcMillis = Date.UTC(year, month - 1, day, hours, minutes) + timezoneOffset * 60 * 1000
+    return new Date(utcMillis)
+  }
+
+  const base = new Date(`${date}T00:00:00`)
+  if (Number.isNaN(base.getTime())) return null
+  base.setHours(hours, minutes, 0, 0)
+  return base
+}
+
+function buildSessions({ startDate, endDate, daysOfWeek, startTime, endTime, timezoneOffset }: CreateRequest) {
   const start = toDateOnly(startDate)
   const end = toDateOnly(endDate || startDate)
   if (!start || !end) return []
@@ -39,15 +78,18 @@ function buildSessions({ startDate, endDate, daysOfWeek, startTime, endTime }: C
   const sessions: { inicio: string; fin: string | null }[] = []
   const cursor = new Date(start)
   while (cursor.getTime() <= end.getTime()) {
-    if (normalizedDays.includes(cursor.getDay())) {
-      const inicio = combineDateAndTime(cursor, startTime)
-      const fin = endTime ? combineDateAndTime(cursor, endTime) : null
-      sessions.push({
-        inicio: inicio.toISOString(),
-        fin: fin && fin.getTime() > inicio.getTime() ? fin.toISOString() : null,
-      })
+    if (normalizedDays.includes(cursor.getUTCDay())) {
+      const dateKey = toIsoDateString(cursor)
+      const inicioDate = combineDateAndTime(dateKey, startTime, timezoneOffset)
+      const finDate = endTime ? combineDateAndTime(dateKey, endTime, timezoneOffset) : null
+      if (inicioDate) {
+        sessions.push({
+          inicio: inicioDate.toISOString(),
+          fin: finDate && finDate.getTime() > inicioDate.getTime() ? finDate.toISOString() : null,
+        })
+      }
     }
-    cursor.setDate(cursor.getDate() + 1)
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
   }
 
   return sessions
@@ -90,6 +132,10 @@ export async function POST(req: Request) {
       daysOfWeek: body.daysOfWeek,
       startTime: body.startTime,
       endTime: body.endTime,
+      timezoneOffset:
+        typeof body.timezoneOffset === 'number' && Number.isFinite(body.timezoneOffset)
+          ? body.timezoneOffset
+          : undefined,
       equipoId,
     })
 
