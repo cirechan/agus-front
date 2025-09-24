@@ -1,17 +1,16 @@
 "use client"
 
 import * as React from "react"
-import { addDays, format, isAfter, isBefore, isSameDay, isToday } from "date-fns"
+import Link from "next/link"
+import { format, isAfter, isBefore, isSameDay, isToday } from "date-fns"
 import { es } from "date-fns/locale"
-import { CalendarIcon, ChevronLeft, ChevronRight, Clock, Loader2, PlusCircle, Trash2 } from "lucide-react"
-import type { DateRange } from "react-day-picker"
+import { ArrowRight, CalendarClock, ChevronLeft, ChevronRight, Clock, Loader2, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar } from "@/components/ui/calendar"
 import { Input } from "@/components/ui/input"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
@@ -48,16 +47,6 @@ const motivosAusencia = [
   { value: "otro", label: "Otro" },
 ]
 
-const dayOptions = [
-  { value: 1, label: "Lunes", short: "L" },
-  { value: 2, label: "Martes", short: "M" },
-  { value: 3, label: "Miércoles", short: "X" },
-  { value: 4, label: "Jueves", short: "J" },
-  { value: 5, label: "Viernes", short: "V" },
-  { value: 6, label: "Sábado", short: "S" },
-  { value: 0, label: "Domingo", short: "D" },
-]
-
 function dateKey(date: Date) {
   return format(date, "yyyy-MM-dd")
 }
@@ -77,25 +66,6 @@ function formatTimeRange(entrenamiento: Entrenamiento | null) {
   return `${inicioLabel} - ${format(fin, "HH:mm")}`
 }
 
-function countSessions(range: DateRange | undefined, days: number[]) {
-  if (!range?.from) return 0
-  const normalizedDays = Array.from(new Set(days))
-  if (normalizedDays.length === 0) return 0
-  const start = new Date(range.from)
-  start.setHours(0, 0, 0, 0)
-  const end = new Date(range.to ?? range.from)
-  end.setHours(0, 0, 0, 0)
-  let count = 0
-  const cursor = new Date(start)
-  while (cursor.getTime() <= end.getTime()) {
-    if (normalizedDays.includes(cursor.getDay())) {
-      count += 1
-    }
-    cursor.setDate(cursor.getDate() + 1)
-  }
-  return count
-}
-
 function createDefaultRegistros(jugadores: Jugador[]): RegistroAsistencia[] {
   return jugadores.map((jugador) => ({ jugadorId: jugador.id, asistio: true }))
 }
@@ -108,15 +78,7 @@ export default function AsistenciasPage() {
   const [registros, setRegistros] = React.useState<RegistroAsistencia[]>([])
   const [entrenamientos, setEntrenamientos] = React.useState<Entrenamiento[]>([])
   const [selectedEntrenamientoId, setSelectedEntrenamientoId] = React.useState<number | null>(null)
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
-    from: new Date(),
-    to: addDays(new Date(), 30),
-  })
-  const [startTime, setStartTime] = React.useState<string>("19:30")
-  const [endTime, setEndTime] = React.useState<string>("21:00")
-  const [selectedDays, setSelectedDays] = React.useState<number[]>([1, 3])
   const [isLoadingEntrenamientos, setIsLoadingEntrenamientos] = React.useState<boolean>(false)
-  const [isCreatingTrainings, setIsCreatingTrainings] = React.useState<boolean>(false)
   const [deletingTrainingId, setDeletingTrainingId] = React.useState<number | null>(null)
   const [isSavingAsistencias, setIsSavingAsistencias] = React.useState<boolean>(false)
   const [isClearingAsistencias, setIsClearingAsistencias] = React.useState<boolean>(false)
@@ -183,8 +145,6 @@ export default function AsistenciasPage() {
     sessionIndex >= 0 && sessionIndex < entrenamientos.length - 1
       ? entrenamientos[sessionIndex + 1]
       : null
-
-  const estimatedSessions = React.useMemo(() => countSessions(dateRange, selectedDays), [dateRange, selectedDays])
 
   const loadEntrenamientos = React.useCallback(async (equipoId: number) => {
     setIsLoadingEntrenamientos(true)
@@ -300,21 +260,6 @@ export default function AsistenciasPage() {
     cargar()
   }, [equipo, jugadores, selectedEntrenamientoId])
 
-  const toggleDay = (day: number) => {
-    setSelectedDays((prev) => {
-      if (prev.includes(day)) {
-        return prev.filter((d) => d !== day)
-      }
-      const updated = [...prev, day]
-      updated.sort((a, b) => {
-        const normalizedA = a === 0 ? 7 : a
-        const normalizedB = b === 0 ? 7 : b
-        return normalizedA - normalizedB
-      })
-      return updated
-    })
-  }
-
   const handleSelectDate = (date?: Date) => {
     if (!date) return
     setFecha(date)
@@ -377,46 +322,16 @@ export default function AsistenciasPage() {
     )
   }
 
-  const handleCrearEntrenamientos = async () => {
-    if (!equipo || !dateRange?.from || selectedDays.length === 0) {
-      alert("Configura un rango de fechas y los días de entrenamiento")
-      return
-    }
-    setIsCreatingTrainings(true)
-    try {
-      const res = await fetch("/api/entrenamientos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          equipoId: equipo.id,
-          startDate: format(dateRange.from, "yyyy-MM-dd"),
-          endDate: format(dateRange.to ?? dateRange.from, "yyyy-MM-dd"),
-          daysOfWeek: selectedDays,
-          startTime,
-          endTime: endTime || undefined,
-        }),
-      })
-      if (!res.ok) {
-        alert("No se pudieron crear los entrenamientos")
-        return
-      }
-      const data = await res.json()
-      if (Array.isArray(data) && data.length > 0) {
-        alert(`Se programaron ${data.length} entrenamientos`)
-      } else {
-        alert("No se generaron nuevos entrenamientos")
-      }
-      await loadEntrenamientos(equipo.id)
-    } catch (error) {
-      console.error("Error al crear entrenamientos", error)
-      alert("No se pudieron crear los entrenamientos")
-    } finally {
-      setIsCreatingTrainings(false)
-    }
-  }
-
   const handleDeleteEntrenamiento = async (id: number) => {
     if (!equipo) return
+    const sesion = entrenamientos.find((item) => item.id === id)
+    const sessionDate = sesion?.inicio ? new Date(sesion.inicio) : null
+    const confirmationMessage = sessionDate
+      ? `¿Quieres eliminar el entrenamiento del ${formatDateLong(sessionDate)}?`
+      : "¿Quieres eliminar este entrenamiento?"
+    if (typeof window !== "undefined" && !window.confirm(confirmationMessage)) {
+      return
+    }
     setDeletingTrainingId(id)
     try {
       await fetch(`/api/entrenamientos?id=${id}`, { method: "DELETE" })
@@ -500,124 +415,50 @@ export default function AsistenciasPage() {
     return <div className="p-4">Cargando...</div>
   }
 
-  const rangeLabel = dateRange?.from
-    ? dateRange.to
-      ? `${format(dateRange.from, "dd MMM", { locale: es })} - ${format(dateRange.to, "dd MMM", { locale: es })}`
-      : format(dateRange.from, "dd MMM", { locale: es })
-    : "Selecciona un rango"
-
   return (
     <>
-      <div className="flex items-center justify-between px-4 lg:px-6">
+      <div className="flex flex-col gap-4 px-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
         <div>
           <h1 className="text-2xl font-semibold">Control de Asistencias</h1>
           <p className="text-muted-foreground">
-            Organiza el calendario de entrenamientos y registra quién asiste a cada sesión.
+            Consulta el calendario programado y registra la asistencia de cada jugador en las sesiones confirmadas.
           </p>
         </div>
+        <Button asChild variant="outline" className="w-full sm:w-auto">
+          <Link href="/dashboard/entrenamientos">
+            Abrir calendario de entrenamientos
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-6 px-4 py-6 lg:grid-cols-[360px,1fr] lg:px-6">
         <div className="space-y-6">
-          <Card id="planificador">
-            <CardHeader>
-              <CardTitle>Planificador de entrenamientos</CardTitle>
-              <CardDescription>
-                Programa sesiones recurrentes para {equipo.nombre} · Temporada {temporadaActual || "--"}
-              </CardDescription>
+          <Card>
+            <CardHeader className="flex items-start gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <CalendarClock className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle>Gestiona el calendario</CardTitle>
+                <CardDescription>
+                  Programa nuevas sesiones y gestiona reprogramaciones desde la sección de entrenamientos.
+                </CardDescription>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Rango de fechas</label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start font-normal">
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {rangeLabel}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      initialFocus
-                      mode="range"
-                      selected={dateRange}
-                      onSelect={setDateRange}
-                      numberOfMonths={2}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Días de la semana</label>
-                <div className="flex flex-wrap gap-2">
-                  {dayOptions.map((day) => {
-                    const active = selectedDays.includes(day.value)
-                    return (
-                      <Button
-                        key={day.value}
-                        type="button"
-                        size="sm"
-                        variant={active ? "default" : "outline"}
-                        onClick={() => toggleDay(day.value)}
-                      >
-                        {day.short}
-                      </Button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground" htmlFor="hora-inicio">
-                    Hora de inicio
-                  </label>
-                  <Input
-                    id="hora-inicio"
-                    type="time"
-                    value={startTime}
-                    onChange={(event) => setStartTime(event.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground" htmlFor="hora-fin">
-                    Hora de fin (opcional)
-                  </label>
-                  <Input
-                    id="hora-fin"
-                    type="time"
-                    value={endTime}
-                    onChange={(event) => setEndTime(event.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
-                {estimatedSessions > 0 ? (
-                  <span>
-                    Se crearán <span className="font-semibold text-primary">{estimatedSessions}</span> entrenamientos.
-                  </span>
-                ) : (
-                  <span>Selecciona un rango de fechas y al menos un día para generar entrenamientos.</span>
-                )}
-              </div>
-            </CardContent>
-            <CardFooter>
-              <Button className="w-full" onClick={handleCrearEntrenamientos} disabled={isCreatingTrainings}>
-                {isCreatingTrainings ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creando entrenamientos...
-                  </>
-                ) : (
-                  <>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Programar entrenamientos
-                  </>
-                )}
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                Aquí podrás consultar el calendario existente y registrar la asistencia. Para crear, editar o eliminar
+                entrenamientos recurre al módulo dedicado y mantén este panel centrado en el seguimiento diario del
+                equipo.
+              </p>
+              <Button asChild className="w-full">
+                <Link href="/dashboard/entrenamientos">
+                  Abrir calendario de entrenamientos
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
               </Button>
-            </CardFooter>
+            </CardContent>
           </Card>
 
           <Card>
@@ -681,6 +522,13 @@ export default function AsistenciasPage() {
                     ) : (
                       <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
                         No hay entrenamientos programados para este día.
+                        <Button
+                          asChild
+                          variant="link"
+                          className="mt-2 h-auto p-0 text-primary"
+                        >
+                          <Link href="/dashboard/entrenamientos">Gestionar calendario</Link>
+                        </Button>
                       </div>
                     )}
                   </div>

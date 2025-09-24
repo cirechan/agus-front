@@ -442,7 +442,7 @@ export default async function DashboardPage() {
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                Todavía no hay entrenamientos programados. Crea tu calendario desde el panel de asistencias.
+                Todavía no hay entrenamientos programados. Crea tu calendario desde el panel de entrenamientos.
               </p>
             )}
           </CardContent>
@@ -457,7 +457,7 @@ export default async function DashboardPage() {
                 <Link href="/dashboard/asistencias#asistencias">Marcar asistencia</Link>
               </Button>
               <Button asChild variant="outline">
-                <Link href="/dashboard/asistencias#planificador">Gestionar calendario</Link>
+                <Link href="/dashboard/entrenamientos">Gestionar calendario</Link>
               </Button>
             </div>
           </CardFooter>

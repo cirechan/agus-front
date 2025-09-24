@@ -4,6 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
+  CalendarClock,
   ClipboardCheckIcon,
   HomeIcon,
   LineChartIcon,
@@ -79,6 +80,13 @@ export function AppSidebar({
               href="/dashboard/jugadores"
               icon={UserIcon}
               label="Jugadores"
+              pathname={pathname}
+              expanded={expanded}
+            />
+            <NavLink
+              href="/dashboard/entrenamientos"
+              icon={CalendarClock}
+              label="Entrenamientos"
               pathname={pathname}
               expanded={expanded}
             />
