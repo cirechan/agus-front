@@ -13,6 +13,10 @@ function getConnectionString() {
   );
 }
 
+export function hasDatabaseConnection() {
+  return Boolean(getConnectionString());
+}
+
 function getPool(): Pool | null {
   if (pool) return pool;
   const connectionString = getConnectionString();
@@ -72,6 +76,8 @@ export const ready = (async () => {
       temporadaId TEXT,
       color TEXT DEFAULT '#dc2626'
     )`);
+    await db.query('ALTER TABLE equipos ADD COLUMN IF NOT EXISTS temporadaId TEXT');
+    await db.query("ALTER TABLE equipos ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#dc2626'");
     await db.query(`CREATE TABLE IF NOT EXISTS jugadores (
       id SERIAL PRIMARY KEY,
       nombre TEXT NOT NULL,
@@ -87,6 +93,15 @@ export const ready = (async () => {
       asistio INTEGER,
       motivo TEXT
     )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS entrenamientos (
+      id SERIAL PRIMARY KEY,
+      equipoId INTEGER REFERENCES equipos(id) ON DELETE CASCADE,
+      inicio TIMESTAMPTZ NOT NULL,
+      fin TIMESTAMPTZ
+    )`);
+    await db.query(
+      'ALTER TABLE asistencias ADD COLUMN IF NOT EXISTS entrenamientoId INTEGER REFERENCES entrenamientos(id) ON DELETE CASCADE'
+    );
     await db.query(`CREATE TABLE IF NOT EXISTS valoraciones (
       id SERIAL PRIMARY KEY,
       jugadorId INTEGER REFERENCES jugadores(id),
@@ -97,6 +112,15 @@ export const ready = (async () => {
     await db.query(`CREATE TABLE IF NOT EXISTS scouting (
       id SERIAL PRIMARY KEY,
       data TEXT
+    )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS sanciones (
+      id SERIAL PRIMARY KEY,
+      player_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      reference TEXT NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('yellow','red')),
+      completed BOOLEAN DEFAULT FALSE,
+      completed_at TIMESTAMPTZ,
+      UNIQUE(player_id, reference)
     )`);
 
     const eqRes = await db.query('SELECT COUNT(*)::int AS count FROM equipos');
