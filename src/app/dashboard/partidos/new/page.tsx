@@ -7,11 +7,18 @@ import OpponentSelect from "./opponent-select";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
+import { getPrimaryTeamId, resolvePrimaryTeam } from "@/lib/team";
 
 export default async function NuevoPartidoPage() {
-  const nuestro = await equiposService.getById(1);
+  const equipos = await equiposService.getAll();
+  const nuestro = resolvePrimaryTeam(equipos);
+  if (!nuestro) {
+    const primaryTeamId = getPrimaryTeamId();
+    return <div className="p-4">No se encuentra el equipo principal (ID {primaryTeamId})</div>;
+  }
+
   const rivales = await rivalesService.getAll();
-  const players = await jugadoresService.getByEquipo(1);
+  const players = await jugadoresService.getByEquipo(nuestro.id);
   const teamColor = nuestro?.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
 
@@ -56,7 +63,7 @@ export default async function NuevoPartidoPage() {
 
     const isHome = condicion === "home";
 
-    const allPlayers = await jugadoresService.getByEquipo(1);
+    const allPlayers = await jugadoresService.getByEquipo(nuestro.id);
     const formation = ["GK", "LB", "LCB", "RCB", "RB", "LM", "CM", "RM", "LW", "ST", "RW"];
     const lineup: PlayerSlot[] = [];
     starters.slice(0, formation.length).forEach((id, idx) => {
@@ -83,7 +90,7 @@ export default async function NuevoPartidoPage() {
     });
 
     await createMatch({
-      teamId: 1,
+      teamId: nuestro.id,
       rivalId: opponentId,
       isHome,
       kickoff,
@@ -94,10 +101,6 @@ export default async function NuevoPartidoPage() {
     });
     revalidatePath("/dashboard/partidos");
     redirect("/dashboard/partidos");
-  }
-
-  if (!nuestro) {
-    return <div className="p-4">No se encuentra el equipo principal (ID 1)</div>;
   }
 
   return (

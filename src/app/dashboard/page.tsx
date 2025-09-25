@@ -9,6 +9,7 @@ import {
   rivalesService,
   sancionesService,
 } from "@/lib/api/services"
+import { resolvePrimaryTeam } from "@/lib/team"
 import { listMatches } from "@/lib/api/matches"
 import type { Match, MatchEvent } from "@/types/match"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -171,7 +172,7 @@ async function safeListMatches(): Promise<Match[]> {
 
 export default async function DashboardPage() {
   const equipos = await equiposService.getAll()
-  const equipo = equipos[0]
+  const equipo = resolvePrimaryTeam(equipos)
 
   const [jugadores, horarios, entrenamientos, rivales, storedSanctions, matches] = await Promise.all([
     equipo ? jugadoresService.getByEquipo(equipo.id) : Promise.resolve([]),

@@ -44,6 +44,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { cn } from "@/lib/utils"
+import { resolvePrimaryTeam } from "@/lib/team"
 
 interface Entrenamiento {
   id: number
@@ -384,7 +385,7 @@ export default function EntrenamientosPage() {
         const temporada = await temporadaRes.json()
         setTemporadaActual(temporada?.id || "")
         const equipos = await equiposRes.json()
-        const eq = equipos[0]
+        const eq = resolvePrimaryTeam(equipos || [])
         setEquipo(eq ?? null)
         if (eq?.id) {
           const horariosRes = await fetch(`/api/horarios?equipoId=${eq.id}`, { cache: "no-store" })

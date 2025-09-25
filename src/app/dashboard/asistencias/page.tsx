@@ -15,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { resolvePrimaryTeam } from "@/lib/team"
 
 interface Jugador {
   id: string
@@ -183,7 +184,7 @@ export default function AsistenciasPage() {
       const temporada = await temporadaRes.json()
       setTemporadaActual(temporada?.id || "")
       const equipos = await equiposRes.json()
-      const eq = equipos[0]
+      const eq = resolvePrimaryTeam(equipos || [])
       setEquipo(eq)
       if (eq) {
         const jRes = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: "no-store" })

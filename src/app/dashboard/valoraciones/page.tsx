@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { resolvePrimaryTeam } from "@/lib/team"
 
 // Datos iniciales cargados desde la API
 
@@ -88,7 +89,7 @@ export default function ValoracionesPage() {
       .then(data => setValoraciones(data))
     const cargarDatos = async () => {
       const equipos = await fetch('/api/equipos', { cache: 'no-store' }).then(res => res.json())
-      const eq = equipos[0]
+      const eq = resolvePrimaryTeam(equipos || [])
       setEquipo(eq)
       if (eq) {
         const js = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: 'no-store' }).then(res => res.json())
