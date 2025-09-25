@@ -21,21 +21,23 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { Play, Pause, Menu, Undo2, ArrowRightCircle, Plus, Flag, List } from "lucide-react";
 import {
-  Play,
-  Pause,
-  Menu,
-  Undo2,
-  ArrowRightCircle,
-  Plus,
-  Flag,
-  List,
-  LayoutGrid,
-} from "lucide-react";
+  FORMATION_OPTIONS,
+  detectFormation,
+  getFormationPositions,
+} from "@/lib/formations";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 10, y: 50 },
@@ -43,11 +45,14 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   LCB: { x: 30, y: 40 },
   RCB: { x: 30, y: 60 },
   RB: { x: 30, y: 75 },
+  LWB: { x: 40, y: 25 },
+  RWB: { x: 40, y: 75 },
   LM: { x: 50, y: 30 },
   LCM: { x: 50, y: 40 },
   CM: { x: 50, y: 50 },
   RCM: { x: 50, y: 60 },
   RM: { x: 50, y: 70 },
+  CB: { x: 30, y: 50 },
   LW: { x: 70, y: 25 },
   LS: { x: 70, y: 40 },
   ST: { x: 70, y: 50 },
@@ -71,37 +76,6 @@ function getContrastColor(hex: string) {
   const yiq = (r * 299 + g * 587 + b * 114) / 1000;
   return yiq >= 128 ? "#000" : "#fff";
 }
-
-const DEFAULT_FORMATION = [
-  "GK",
-  "LB",
-  "LCB",
-  "RCB",
-  "RB",
-  "LM",
-  "CM",
-  "RM",
-  "LW",
-  "ST",
-  "RW",
-];
-
-const FORMATIONS: Record<string, string[]> = {
-  "4-3-3": DEFAULT_FORMATION,
-  "4-4-2": [
-    "GK",
-    "LB",
-    "LCB",
-    "RCB",
-    "RB",
-    "LM",
-    "LCM",
-    "RCM",
-    "RM",
-    "LS",
-    "RS",
-  ],
-};
 
 interface Player {
   id: number;
@@ -149,21 +123,11 @@ export default function MatchDetail({
   const homeTextColor = getContrastColor(homeTeamColor);
   const awayTextColor = getContrastColor(awayTeamColor);
 
-  const formationKeys = Object.keys(FORMATIONS);
-  const [formationIndex, setFormationIndex] = useState(0);
-
-  function cycleFormation() {
-    const next = (formationIndex + 1) % formationKeys.length;
-    setFormationIndex(next);
-    const formation = FORMATIONS[formationKeys[next]];
-    setLineup((prev) =>
-      prev.map((slot, idx) => {
-        const pos = formation[idx];
-        const coords = POSITION_COORDS[pos] || { x: 50, y: 50 };
-        return { ...slot, position: pos, x: coords.x, y: coords.y };
-      })
-    );
-  }
+  const detectedFormationKey = useMemo(
+    () => detectFormation(match.lineup),
+    [match.lineup]
+  );
+  const [formationKey, setFormationKey] = useState(detectedFormationKey);
 
   const initialLineup: LineupSlot[] = useMemo(() => {
     if (match.lineup.length) {
@@ -182,7 +146,8 @@ export default function MatchDetail({
           };
         });
     }
-    return DEFAULT_FORMATION.map((pos, idx) => {
+    const positions = getFormationPositions(detectedFormationKey);
+    return positions.map((pos, idx) => {
       const coords = POSITION_COORDS[pos];
       return {
         position: pos,
@@ -191,7 +156,7 @@ export default function MatchDetail({
         playerId: players[idx] ? players[idx].id : null,
       };
     });
-  }, [match.lineup, players]);
+  }, [match.lineup, players, detectedFormationKey]);
 
   const playerMap = useMemo(() => {
     const map: Record<number, Player> = {};
@@ -227,6 +192,39 @@ export default function MatchDetail({
     Record<number, string | undefined>
   >(initialBenchPositions);
   const [subbedOut, setSubbedOut] = useState<number[]>([]);
+
+  useEffect(() => {
+    const positions = getFormationPositions(formationKey);
+    setLineup((prev) => {
+      const next = positions.map((pos, idx) => {
+        const coords = POSITION_COORDS[pos] || { x: 50, y: 50 };
+        const prevSlot = prev[idx];
+        return {
+          position: pos,
+          x: coords.x,
+          y: coords.y,
+          playerId: prevSlot ? prevSlot.playerId : null,
+        };
+      });
+      const selected = new Set(
+        next
+          .map((slot) => slot.playerId)
+          .filter((value): value is number => value != null)
+      );
+      setBench(players.filter((p) => !selected.has(p.id)));
+      setBenchPositions((prevPositions) => {
+        const updated: Record<number, string | undefined> = {};
+        for (const [id, pos] of Object.entries(prevPositions)) {
+          const numericId = Number(id);
+          if (!selected.has(numericId)) {
+            updated[numericId] = pos;
+          }
+        }
+        return updated;
+      });
+      return next;
+    });
+  }, [formationKey, players]);
 
   const initialStats = useMemo(() => {
     const stats: Record<number, { minutes: number; enterSecond?: number }> = {};
@@ -564,9 +562,23 @@ export default function MatchDetail({
                 <span className="hidden sm:inline">2ª</span>
               </Button>
             )}
-            <Button size="icon" variant="secondary" onClick={cycleFormation} aria-label="Cambiar formación">
-              <LayoutGrid className="h-4 w-4" />
-            </Button>
+            <Select
+              value={formationKey}
+              onValueChange={(value) =>
+                setFormationKey(value as typeof formationKey)
+              }
+            >
+              <SelectTrigger className="h-9 w-[130px] bg-secondary text-secondary-foreground">
+                <SelectValue placeholder="Formación" />
+              </SelectTrigger>
+              <SelectContent align="center">
+                {FORMATION_OPTIONS.map((option) => (
+                  <SelectItem key={option.key} value={option.key}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -735,3 +747,4 @@ export default function MatchDetail({
     </div>
   );
 }
+

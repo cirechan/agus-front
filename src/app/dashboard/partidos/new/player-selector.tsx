@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Player {
   id: number
@@ -14,17 +14,40 @@ interface Props {
   teamColor: string
   goalkeeperColor: string
   textColor: string
+  defaultStarters?: number[]
+  defaultBench?: number[]
+  maxStarters?: number
 }
 
-export default function PlayerSelector({ players, teamColor, goalkeeperColor, textColor }: Props) {
+export default function PlayerSelector({
+  players,
+  teamColor,
+  goalkeeperColor,
+  textColor,
+  defaultStarters = [],
+  defaultBench = [],
+  maxStarters = 11,
+}: Props) {
   const [tab, setTab] = useState<'starters' | 'bench'>('starters')
-  const [starters, setStarters] = useState<number[]>([])
-  const [bench, setBench] = useState<number[]>([])
+  const [starters, setStarters] = useState<number[]>(defaultStarters)
+  const [bench, setBench] = useState<number[]>(defaultBench)
+
+  useEffect(() => {
+    setStarters(defaultStarters)
+  }, [defaultStarters])
+
+  useEffect(() => {
+    setBench(defaultBench)
+  }, [defaultBench])
 
   function toggle(id: number) {
     if (tab === 'starters') {
       setStarters(prev =>
-        prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+        prev.includes(id)
+          ? prev.filter(p => p !== id)
+          : prev.length >= maxStarters
+            ? prev
+            : [...prev, id]
       )
       setBench(prev => prev.filter(p => p !== id))
     } else {
@@ -60,7 +83,7 @@ export default function PlayerSelector({ players, teamColor, goalkeeperColor, te
               : 'bg-muted text-muted-foreground'
           }`}
         >
-          Titulares ({starters.length})
+          Titulares ({starters.length}/{maxStarters})
         </button>
         <button
           type="button"

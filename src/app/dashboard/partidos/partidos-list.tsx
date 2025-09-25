@@ -88,6 +88,12 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
               ).length;
               const ourGoals = teamGoals;
               const theirGoals = rivalGoals;
+              const hasLineup = match.lineup.some((slot) => slot.role === "field");
+              const detailLabel = match.finished
+                ? "Resumen"
+                : hasLineup
+                ? "Continuar"
+                : "Iniciar";
               const homeGoals = isHome ? teamGoals : rivalGoals;
               const awayGoals = isHome ? rivalGoals : teamGoals;
               let result = "-";
@@ -110,9 +116,18 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
                   <TableCell>{rival}</TableCell>
                   <TableCell className={resultColor}>{result}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/partidos/${match.id}`}>Ver</Link>
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/dashboard/partidos/${match.id}/edit`}>
+                          Editar
+                        </Link>
+                      </Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/dashboard/partidos/${match.id}`}>
+                          {detailLabel}
+                        </Link>
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               );

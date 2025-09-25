@@ -146,6 +146,61 @@ export async function createMatch(match: NewMatch): Promise<Match> {
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
 }
 
+interface UpdateMatchInput {
+  rivalId: number;
+  isHome: boolean;
+  kickoff: string;
+  competition: 'liga' | 'playoff' | 'copa' | 'amistoso';
+  matchday: number | null;
+  lineup: PlayerSlot[];
+}
+
+export async function updateMatch(
+  matchId: number,
+  data: UpdateMatchInput
+): Promise<Match> {
+  const sql = getSql();
+  const [row] = await sql`
+    UPDATE partidos
+    SET rival_id = ${data.rivalId},
+        condicion = ${data.isHome ? 'local' : 'visitante'},
+        inicio = ${data.kickoff},
+        competicion = ${data.competition},
+        jornada = ${data.matchday ?? null},
+        alineacion = ${JSON.stringify(data.lineup)}
+    WHERE id = ${matchId}
+    RETURNING id,
+              equipo_id AS "teamId",
+              rival_id AS "rivalId",
+              condicion AS condition,
+              inicio AS kickoff,
+              competicion AS competition,
+              jornada AS "matchday",
+              alineacion AS lineup,
+              notas_rival AS "opponentNotes",
+              finalizado AS finished
+  `;
+
+  const events = await sql`
+    SELECT id,
+           partido_id AS "matchId",
+           minuto AS "minute",
+           tipo AS "type",
+           jugador_id AS "playerId",
+           equipo_id AS "teamId",
+           rival_id AS "rivalId",
+           datos AS data
+    FROM eventos_partido
+    WHERE partido_id = ${matchId}
+    ORDER BY minuto
+  `;
+
+  return mapMatch(
+    { ...row, lineup: row.lineup ? row.lineup : [] },
+    events.map((e: any) => mapEvent(e))
+  );
+}
+
 export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   const sql = getSql();
   const [row] = await sql`
