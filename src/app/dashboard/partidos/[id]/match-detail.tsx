@@ -43,7 +43,7 @@ import {
   Flag,
   List,
   ArrowLeft,
-  SquarePen,
+  PenSquare,
 } from "lucide-react";
 import {
   FORMATION_OPTIONS,
@@ -575,7 +575,7 @@ export default function MatchDetail({
           </Button>
           <Button asChild variant="outline" size="sm" className="gap-1">
             <Link href={`/dashboard/partidos/${match.id}/edit`}>
-              <SquarePen className="h-4 w-4" /> Editar partido
+              <PenSquare className="h-4 w-4" /> Editar partido
             </Link>
           </Button>
         </div>
