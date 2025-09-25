@@ -407,6 +407,21 @@ export default function MatchDetail({
       })),
     ];
 
+    const activeIds = new Set(lineupPayload.map((slot) => slot.playerId));
+    match.lineup
+      .filter((slot) => slot.role === "excluded" && slot.playerId != null)
+      .forEach((slot) => {
+        if (!activeIds.has(slot.playerId as number)) {
+          lineupPayload.push({
+            playerId: slot.playerId as number,
+            number: playerMap[slot.playerId as number]?.dorsal ?? undefined,
+            role: "excluded",
+            position: slot.position,
+            minutes: Math.floor((stats[slot.playerId as number]?.minutes ?? 0) / 60),
+          });
+        }
+      });
+
     await saveLineup(lineupPayload, true);
     router.push(`/dashboard/partidos`);
   }

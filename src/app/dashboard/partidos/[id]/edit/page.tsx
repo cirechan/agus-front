@@ -43,19 +43,28 @@ export default async function EditMatchPage({
   const textColor = getContrastColor(teamColor);
 
   const formationKey = detectFormation(match.lineup) as FormationKey;
-  const formationPositions = getFormationPositions(formationKey);
+  const formationPositions = [...getFormationPositions(formationKey)];
+
+  const startersMap = new Map<string, number>();
+  match.lineup
+    .filter(
+      (slot): slot is PlayerSlot & { position: string } =>
+        slot.role === "field" && !!slot.position && slot.playerId != null
+    )
+    .forEach((slot) => {
+      startersMap.set(slot.position as string, slot.playerId as number);
+    });
 
   const starters = formationPositions
-    .map((pos) =>
-      match.lineup.find(
-        (slot) => slot.role === "field" && slot.position === pos
-      )
-    )
-    .map((slot) => (slot && slot.playerId != null ? slot.playerId : null))
-    .filter((playerId): playerId is number => playerId != null);
+    .map((pos) => startersMap.get(pos))
+    .filter((playerId): playerId is number => typeof playerId === "number");
 
   const bench = match.lineup
     .filter((slot) => slot.role === "bench" && slot.playerId != null)
+    .map((slot) => slot.playerId as number);
+
+  const excluded = match.lineup
+    .filter((slot) => slot.role === "excluded" && slot.playerId != null)
     .map((slot) => slot.playerId as number);
 
   async function actualizarPartido(formData: FormData) {
@@ -81,6 +90,7 @@ export default async function EditMatchPage({
     const matchday = matchdayRaw ? Number(matchdayRaw) : null;
     const startersSelected = formData.getAll("starters").map((v) => Number(v));
     const benchSelected = formData.getAll("bench").map((v) => Number(v));
+    const excludedSelected = formData.getAll("excluded").map((v) => Number(v));
     const formationKeySelected =
       ((formData.get("formation") as string) || formationKey) as FormationKey;
 
@@ -105,6 +115,19 @@ export default async function EditMatchPage({
           playerId,
           number: player.dorsal ?? undefined,
           role: "bench",
+          position: undefined,
+          minutes: 0,
+        });
+      }
+    });
+
+    excludedSelected.forEach((playerId) => {
+      const player = players.find((p: any) => p.id === playerId);
+      if (player) {
+        lineup.push({
+          playerId,
+          number: player.dorsal ?? undefined,
+          role: "excluded",
           position: undefined,
           minutes: 0,
         });
@@ -149,6 +172,7 @@ export default async function EditMatchPage({
           formation: formationKey,
           starters,
           bench,
+          excluded,
         }}
         primaryLabel="Guardar cambios"
         startLabel="Guardar e iniciar"

@@ -29,6 +29,7 @@ interface MatchFormDefaults {
   formation?: string;
   starters?: number[];
   bench?: number[];
+  excluded?: number[];
 }
 
 interface MatchFormProps {
@@ -87,6 +88,7 @@ export default function MatchForm({
           textColor={textColor}
           defaultStarters={defaults?.starters ?? []}
           defaultBench={defaults?.bench ?? []}
+          defaultExcluded={defaults?.excluded ?? []}
           maxStarters={11}
         />
       </div>

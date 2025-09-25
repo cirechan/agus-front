@@ -53,6 +53,7 @@ export default async function NuevoPartidoPage() {
     const matchday = matchdayRaw ? Number(matchdayRaw) : null;
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
+    const excluded = formData.getAll("excluded").map((v) => Number(v));
     const formationKey =
       ((formData.get("formation") as string) || DEFAULT_FORMATION_KEY) as FormationKey;
 
@@ -78,6 +79,19 @@ export default async function NuevoPartidoPage() {
           playerId: id,
           number: pl.dorsal ?? undefined,
           role: "bench",
+          position: undefined,
+          minutes: 0,
+        });
+      }
+    });
+
+    excluded.forEach((id) => {
+      const pl = allPlayers.find((p: any) => p.id === id);
+      if (pl) {
+        lineup.push({
+          playerId: id,
+          number: pl.dorsal ?? undefined,
+          role: "excluded",
           position: undefined,
           minutes: 0,
         });
