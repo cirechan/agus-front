@@ -440,106 +440,79 @@ export default function AsistenciasPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 rounded-xl border bg-card text-card-foreground shadow-sm lg:grid-cols-[minmax(0,320px),minmax(0,1fr)]">
-        <div className="space-y-6 border-b border-muted/40 p-6 lg:border-b-0 lg:border-r">
-          <Card>
-            <CardHeader className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <CalendarClock className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle>Gestiona el calendario</CardTitle>
-                <CardDescription>
-                  Programa nuevas sesiones y gestiona reprogramaciones desde la sección de entrenamientos.
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Aquí podrás consultar el calendario existente y registrar la asistencia. Para crear, editar o eliminar
-                entrenamientos recurre al módulo dedicado y mantén este panel centrado en el seguimiento diario del
-                equipo.
-              </p>
-              <Button asChild className="w-full">
-                <Link href="/dashboard/entrenamientos">
-                  Abrir calendario de entrenamientos
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="border-none shadow-none">
-            <CardHeader>
-              <CardTitle>Calendario de sesiones</CardTitle>
-              <CardDescription>Selecciona un entrenamiento para gestionar la asistencia.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-[1.5fr,1fr]">
-                <Calendar
-                  mode="single"
-                  selected={fecha}
-                  onSelect={handleSelectDate}
-                  modifiers={{ scheduled: scheduledDates }}
-                  modifiersClassNames={{ scheduled: "bg-primary/10 text-primary font-semibold" }}
-                />
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <h4 className="mb-2 text-sm font-medium">Sesiones del día</h4>
-                    {sessionsForSelectedDate.length > 0 ? (
-                      <div className="space-y-2">
-                        {sessionsForSelectedDate.map((sesion) => {
-                          const inicio = new Date(sesion.inicio)
-                          return (
-                            <div
-                              key={sesion.id}
-                              className={cn(
-                                "flex items-center justify-between rounded-lg border p-3",
-                                selectedEntrenamientoId === sesion.id && "border-primary bg-primary/5"
-                              )}
-                            >
-                              <div>
-                                <div className="font-medium">
-                                  {format(inicio, "HH:mm")} {sesion.fin ? `- ${format(new Date(sesion.fin), "HH:mm")}` : ""}
-                                </div>
-                                <p className="text-sm text-muted-foreground">{formatDateLong(inicio)}</p>
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Calendario de sesiones</CardTitle>
+            <CardDescription>Selecciona un entrenamiento para gestionar la asistencia.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-[1.5fr,1fr]">
+              <Calendar
+                mode="single"
+                selected={fecha}
+                onSelect={handleSelectDate}
+                modifiers={{ scheduled: scheduledDates }}
+                modifiersClassNames={{ scheduled: "bg-primary/10 text-primary font-semibold" }}
+              />
+              <div className="flex flex-col gap-4">
+                <div>
+                  <h4 className="mb-2 text-sm font-medium">Sesiones del día</h4>
+                  {sessionsForSelectedDate.length > 0 ? (
+                    <div className="space-y-2">
+                      {sessionsForSelectedDate.map((sesion) => {
+                        const inicio = new Date(sesion.inicio)
+                        return (
+                          <div
+                            key={sesion.id}
+                            className={cn(
+                              "flex items-center justify-between rounded-lg border p-3",
+                              selectedEntrenamientoId === sesion.id && "border-primary bg-primary/5"
+                            )}
+                          >
+                            <div>
+                              <div className="font-medium">
+                                {format(inicio, "HH:mm")} {sesion.fin ? `- ${format(new Date(sesion.fin), "HH:mm")}` : ""}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant={selectedEntrenamientoId === sesion.id ? "default" : "outline"}
-                                  onClick={() => handleSelectEntrenamiento(sesion)}
-                                >
-                                  Seleccionar
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleDeleteEntrenamiento(sesion.id)}
-                                  disabled={deletingTrainingId === sesion.id}
-                                >
-                                  {deletingTrainingId === sesion.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
+                              <p className="text-sm text-muted-foreground">{formatDateLong(inicio)}</p>
                             </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                        <p>No hay entrenamientos programados para {selectedDateLabel}.</p>
-                        <Button asChild variant="outline" className="gap-2">
-                          <Link href={trainingPlannerHref}>
-                            <PlusCircle className="h-4 w-4" /> Programar entrenamiento
-                          </Link>
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant={selectedEntrenamientoId === sesion.id ? "default" : "outline"}
+                                onClick={() => handleSelectEntrenamiento(sesion)}
+                              >
+                                Seleccionar
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleDeleteEntrenamiento(sesion.id)}
+                                disabled={deletingTrainingId === sesion.id}
+                              >
+                                {deletingTrainingId === sesion.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                      <p>No hay entrenamientos programados para {selectedDateLabel}.</p>
+                      <Button asChild variant="outline" className="gap-2">
+                        <Link href={trainingPlannerHref}>
+                          <PlusCircle className="h-4 w-4" /> Programar entrenamiento
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {upcomingEntrenamientos.length > 0 ? (
                   <div>
                     <h4 className="mb-2 flex items-center justify-between text-sm font-medium">
                       Próximos entrenamientos
@@ -573,25 +546,47 @@ export default function AsistenciasPage() {
                                   event.stopPropagation()
                                   handleDeleteEntrenamiento(sesion.id)
                                 }}
+                                disabled={deletingTrainingId === sesion.id}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                {deletingTrainingId === sesion.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
                               </Button>
                             </button>
                           )
                         })}
-                        {upcomingEntrenamientos.length === 0 && (
-                          <p className="p-3 text-sm text-muted-foreground">
-                            No hay entrenamientos próximos programados.
-                          </p>
-                        )}
                       </div>
                     </ScrollArea>
                   </div>
-                </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+                    No hay entrenamientos próximos programados.
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            {!selectedEntrenamiento && (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center gap-3 py-6 text-center text-sm text-muted-foreground">
+                  <CalendarClock className="h-8 w-8 text-muted-foreground" />
+                  <div>
+                    Selecciona un entrenamiento del calendario para registrar asistencia.
+                    <br />
+                    También puedes programar una nueva sesión desde el planificador.
+                  </div>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={trainingPlannerHref}>
+                      Programar entrenamiento
+                      <PlusCircle className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </CardContent>
+        </Card>
 
         <Card id="asistencias" className="flex flex-col">
           <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
