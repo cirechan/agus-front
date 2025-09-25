@@ -71,24 +71,29 @@ export default async function NuevoPartidoPage() {
     const isHome = condicion === "home";
 
     const allPlayers = await jugadoresService.getByEquipo(nuestro.id);
+    const dorsalLookup = allPlayers.reduce<Record<number, number | undefined>>(
+      (acc, player: any) => {
+        acc[player.id] = player.dorsal ?? undefined;
+        return acc;
+      },
+      {}
+    );
     const formation = getFormationPositions(formationKey);
     const lineup: PlayerSlot[] = [];
     starters.slice(0, formation.length).forEach((id, idx) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
       lineup.push({
         playerId: id,
-        number: pl?.dorsal ?? undefined,
+        number: dorsalLookup[id],
         role: "field",
         position: formation[idx],
         minutes: 0,
       });
     });
     bench.forEach((id) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
-      if (pl) {
+      if (id in dorsalLookup) {
         lineup.push({
           playerId: id,
-          number: pl.dorsal ?? undefined,
+          number: dorsalLookup[id],
           role: "bench",
           position: undefined,
           minutes: 0,
@@ -97,11 +102,10 @@ export default async function NuevoPartidoPage() {
     });
 
     excluded.forEach((id) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
-      if (pl) {
+      if (id in dorsalLookup) {
         lineup.push({
           playerId: id,
-          number: pl.dorsal ?? undefined,
+          number: dorsalLookup[id],
           role: "excluded",
           position: undefined,
           minutes: 0,

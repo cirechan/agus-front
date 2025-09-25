@@ -32,10 +32,12 @@ export default async function EditMatchPage({
     return <div className="p-4">Partido no encontrado</div>;
   }
 
+  const teamId = match.teamId;
+
   const [rivales, players, equipo] = await Promise.all([
     rivalesService.getAll(),
-    jugadoresService.getByEquipo(match.teamId),
-    equiposService.getById(match.teamId),
+    jugadoresService.getByEquipo(teamId),
+    equiposService.getById(teamId),
   ]);
 
   const simplifiedPlayers = players.map((player: any) => ({
@@ -108,24 +110,30 @@ export default async function EditMatchPage({
 
     const isHome = condicion === "home";
 
+    const playersForAction = await jugadoresService.getByEquipo(teamId);
+    const dorsalLookupAction = playersForAction.reduce<
+      Record<number, number | undefined>
+    >((acc, player: any) => {
+      acc[player.id] = player.dorsal ?? undefined;
+      return acc;
+    }, {});
+
     const formationSelected = getFormationPositions(formationKeySelected);
     const lineup: PlayerSlot[] = [];
     startersSelected.slice(0, formationSelected.length).forEach((playerId, idx) => {
-      const player = players.find((p: any) => p.id === playerId);
       lineup.push({
         playerId,
-        number: player?.dorsal ?? undefined,
+        number: dorsalLookupAction[playerId],
         role: "field",
         position: formationSelected[idx],
         minutes: 0,
       });
     });
     benchSelected.forEach((playerId) => {
-      const player = players.find((p: any) => p.id === playerId);
-      if (player) {
+      if (playerId in dorsalLookupAction) {
         lineup.push({
           playerId,
-          number: player.dorsal ?? undefined,
+          number: dorsalLookupAction[playerId],
           role: "bench",
           position: undefined,
           minutes: 0,
@@ -134,11 +142,10 @@ export default async function EditMatchPage({
     });
 
     excludedSelected.forEach((playerId) => {
-      const player = players.find((p: any) => p.id === playerId);
-      if (player) {
+      if (playerId in dorsalLookupAction) {
         lineup.push({
           playerId,
-          number: player.dorsal ?? undefined,
+          number: dorsalLookupAction[playerId],
           role: "excluded",
           position: undefined,
           minutes: 0,
