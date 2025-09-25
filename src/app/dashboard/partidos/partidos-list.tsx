@@ -80,12 +80,17 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
             {filtered.map((match) => {
               const rival = teamMap[match.rivalId] || String(match.rivalId);
               const isHome = match.isHome;
-              const teamGoals = match.events.filter(
-                (e) => e.type === "gol" && e.teamId === match.teamId
-              ).length;
-              const rivalGoals = match.events.filter(
-                (e) => e.type === "gol" && e.rivalId === match.rivalId
-              ).length;
+              const score = match.score;
+              const teamGoals =
+                score?.team ??
+                match.events.filter(
+                  (e) => e.type === "gol" && e.teamId === match.teamId
+                ).length;
+              const rivalGoals =
+                score?.rival ??
+                match.events.filter(
+                  (e) => e.type === "gol" && e.rivalId === match.rivalId
+                ).length;
               const ourGoals = teamGoals;
               const theirGoals = rivalGoals;
               const hasLineup = match.lineup.some((slot) => slot.role === "field");

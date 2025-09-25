@@ -20,6 +20,13 @@ export interface PlayerSlot {
   enterSecond?: number;
 }
 
+export interface MatchScore {
+  /** Goles anotados por nuestro equipo. */
+  team: number;
+  /** Goles encajados frente al rival. */
+  rival: number;
+}
+
 export interface MatchEvent {
   id: number;
   matchId: number;
@@ -51,6 +58,8 @@ export interface Match {
   opponentNotes?: string | null;
   /** Indicates whether the match has concluded. */
   finished: boolean;
+  /** Resultado final almacenado al cierre del partido. */
+  score: MatchScore | null;
 }
 
 export type NewMatch = Omit<Match, 'id' | 'finished'>;

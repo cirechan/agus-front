@@ -7,7 +7,7 @@ import {
   useMemo,
   useCallback,
 } from "react";
-import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
+import type { Match, MatchEvent, PlayerSlot, MatchScore } from "@/types/match";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -95,7 +95,10 @@ interface MatchDetailProps {
   players: Player[];
   addEvent: (formData: FormData) => Promise<MatchEvent>;
   deleteEvent: (id: number) => Promise<void>;
-  saveLineup: (lineup: PlayerSlot[], finished?: boolean) => Promise<void>;
+  saveLineup: (
+    lineup: PlayerSlot[],
+    options?: { finished?: boolean; score?: MatchScore | null }
+  ) => Promise<void>;
   homeTeamName: string;
   awayTeamName: string;
   homeTeamColor: string;
@@ -316,11 +319,13 @@ export default function MatchDetail({
     type,
     teamId,
     rivalId,
+    data,
   }: {
     playerId?: number;
     type: string;
     teamId?: number;
     rivalId?: number;
+    data?: Record<string, unknown>;
   }) {
     const fd = new FormData();
     if (playerId) fd.append("playerId", String(playerId));
@@ -328,6 +333,9 @@ export default function MatchDetail({
     if (teamId) fd.append("teamId", String(teamId));
     if (rivalId) fd.append("rivalId", String(rivalId));
     fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
+    if (data) {
+      fd.append("data", JSON.stringify(data));
+    }
     const created = await addEvent(fd);
     setEvents((prev) => [...prev, created]);
     toast(`Evento ${type} añadido`);
@@ -422,8 +430,21 @@ export default function MatchDetail({
         }
       });
 
-    await saveLineup(lineupPayload, true);
-    router.push(`/dashboard/partidos`);
+    setRunning(false);
+    const finalTeamGoals = events.filter(
+      (e) => e.type === "gol" && e.teamId === match.teamId
+    ).length;
+    const finalRivalGoals = events.filter(
+      (e) => e.type === "gol" && e.rivalId === match.rivalId
+    ).length;
+    const finalScore: MatchScore = {
+      team: finalTeamGoals,
+      rival: finalRivalGoals,
+    };
+
+    await saveLineup(lineupPayload, { finished: true, score: finalScore });
+    toast.success("Partido finalizado");
+    router.refresh();
   }
 
   function handlePlayerDragStart(
@@ -449,7 +470,7 @@ export default function MatchDetail({
     e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
   }
 
-  function substitute(playerInId: number, targetPos: string) {
+  async function substitute(playerInId: number, targetPos: string) {
     const outgoingId = lineup.find((s) => s.position === targetPos)?.playerId;
 
     // Cambiar campo
@@ -494,6 +515,12 @@ export default function MatchDetail({
 
     if (outgoingId) {
       setSubbedOut((prev) => [...prev, outgoingId]);
+      await quickAddEvent({
+        type: "cambio",
+        teamId: match.teamId,
+        playerId: playerInId,
+        data: { in: playerInId, out: outgoingId },
+      });
     }
     setSubsMade((c) => c + 1);
   }
@@ -511,7 +538,7 @@ export default function MatchDetail({
     });
   }
 
-  function handleSlotDrop(position: string, e: React.DragEvent) {
+  async function handleSlotDrop(position: string, e: React.DragEvent) {
     e.preventDefault();
     const fromPos = e.dataTransfer.getData("fromPosition");
     const playerIdStr = e.dataTransfer.getData("playerId");
@@ -519,7 +546,7 @@ export default function MatchDetail({
     const playerId = Number(playerIdStr);
 
     if (fromPos === "bench") {
-      substitute(playerId, position);
+      await substitute(playerId, position);
     } else if (fromPos && fromPos !== position) {
       swapPlayers(fromPos, position);
     }

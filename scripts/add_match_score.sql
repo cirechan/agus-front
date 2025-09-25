@@ -1,0 +1,2 @@
+ALTER TABLE partidos
+ADD COLUMN IF NOT EXISTS marcador JSONB;

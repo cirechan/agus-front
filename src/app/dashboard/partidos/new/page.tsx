@@ -122,6 +122,7 @@ export default async function NuevoPartidoPage() {
       matchday,
       lineup,
       events: [],
+      score: null,
     });
     revalidatePath("/dashboard/partidos");
     const nextStep = formData.get("next");

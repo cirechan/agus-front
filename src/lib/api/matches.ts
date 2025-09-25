@@ -5,6 +5,7 @@ import type {
   PlayerSlot,
   NewMatch,
   NewMatchEvent,
+  MatchScore,
 } from '@/types/match';
 
 function getSql() {
@@ -20,6 +21,24 @@ function getSql() {
   return neon(connectionString);
 }
 
+function normalizeScore(value: any): MatchScore | null {
+  if (!value) return null;
+  let parsed = value;
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch (error) {
+      return null;
+    }
+  }
+  const team = Number(parsed.team);
+  const rival = Number(parsed.rival);
+  if (Number.isNaN(team) || Number.isNaN(rival)) {
+    return null;
+  }
+  return { team, rival };
+}
+
 function mapMatch(row: any, events: MatchEvent[] = []): Match {
   return {
     id: row.id,
@@ -33,6 +52,7 @@ function mapMatch(row: any, events: MatchEvent[] = []): Match {
     events,
     opponentNotes: row.opponentNotes ?? null,
     finished: row.finished ?? false,
+    score: normalizeScore(row.score),
   };
 }
 
@@ -62,6 +82,7 @@ export async function listMatches(): Promise<Match[]> {
            p.alineacion AS lineup,
            p.notas_rival AS "opponentNotes",
            p.finalizado AS finished,
+           p.marcador AS score,
            COALESCE(
              (SELECT json_agg(e ORDER BY e.minuto)
                 FROM eventos_partido e
@@ -92,7 +113,8 @@ export async function getMatch(id: number): Promise<Match | null> {
            p.jornada AS "matchday",
            p.alineacion AS lineup,
            p.notas_rival AS "opponentNotes",
-           p.finalizado AS finished
+           p.finalizado AS finished,
+           p.marcador AS score
     FROM partidos p
     WHERE p.id = ${id}
   `;
@@ -121,7 +143,7 @@ export async function getMatch(id: number): Promise<Match | null> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   const [row] = await sql`
-    INSERT INTO partidos (equipo_id, rival_id, condicion, inicio, competicion, jornada, alineacion, notas_rival)
+    INSERT INTO partidos (equipo_id, rival_id, condicion, inicio, competicion, jornada, alineacion, notas_rival, marcador)
     VALUES (
       ${match.teamId},
       ${match.rivalId},
@@ -130,7 +152,8 @@ export async function createMatch(match: NewMatch): Promise<Match> {
       ${match.competition},
       ${match.matchday ?? null},
       ${JSON.stringify(match.lineup)},
-      ${match.opponentNotes ?? null}
+      ${match.opponentNotes ?? null},
+      ${match.score ? JSON.stringify(match.score) : null}
     )
     RETURNING id,
               equipo_id AS "teamId",
@@ -141,7 +164,8 @@ export async function createMatch(match: NewMatch): Promise<Match> {
               jornada AS "matchday",
               alineacion AS lineup,
               notas_rival AS "opponentNotes",
-              finalizado AS finished
+              finalizado AS finished,
+              marcador AS score
   `;
   return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
 }
@@ -178,7 +202,8 @@ export async function updateMatch(
               jornada AS "matchday",
               alineacion AS lineup,
               notas_rival AS "opponentNotes",
-              finalizado AS finished
+              finalizado AS finished,
+              marcador AS score
   `;
 
   const events = await sql`
@@ -231,18 +256,31 @@ export async function removeEvent(id: number): Promise<void> {
   await sql`DELETE FROM eventos_partido WHERE id = ${id}`;
 }
 
+interface UpdateLineupInput {
+  lineup: PlayerSlot[];
+  opponentNotes?: string | null;
+  finished?: boolean;
+  score?: MatchScore | null;
+}
+
 export async function updateLineup(
   matchId: number,
-  lineup: PlayerSlot[],
-  opponentNotes: string | null = null,
-  finished = false
+  data: UpdateLineupInput
 ): Promise<Match> {
   const sql = getSql();
+  const hasScoreUpdate = data.score !== undefined;
+  const scoreValue =
+    data.score === undefined
+      ? null
+      : data.score === null
+      ? null
+      : JSON.stringify(data.score);
   const [row] = await sql`
     UPDATE partidos
-    SET alineacion = ${JSON.stringify(lineup)},
-        notas_rival = ${opponentNotes},
-        finalizado = ${finished}
+    SET alineacion = ${JSON.stringify(data.lineup)},
+        notas_rival = ${data.opponentNotes ?? null},
+        finalizado = ${data.finished ?? false},
+        marcador = CASE WHEN ${hasScoreUpdate} THEN ${scoreValue} ELSE marcador END
     WHERE id = ${matchId}
     RETURNING id,
               equipo_id AS "teamId",
@@ -253,7 +291,8 @@ export async function updateLineup(
               jornada AS "matchday",
               alineacion AS lineup,
               notas_rival AS "opponentNotes",
-              finalizado AS finished
+              finalizado AS finished,
+              marcador AS score
   `;
 
   const events = await sql`

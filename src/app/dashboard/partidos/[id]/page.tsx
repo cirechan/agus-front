@@ -2,7 +2,7 @@ import { getMatch, recordEvent, removeEvent, updateLineup } from "@/lib/api/matc
 import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 import MatchSummary from "./match-summary";
-import type { PlayerSlot } from "@/types/match";
+import type { PlayerSlot, MatchScore } from "@/types/match";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +39,16 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const teamId = teamIdRaw ? Number(teamIdRaw) : null;
     const rivalIdRaw = formData.get("rivalId");
     const rivalId = rivalIdRaw ? Number(rivalIdRaw) : null;
+    const dataRaw = formData.get("data");
+    let data: Record<string, unknown> | null = null;
+    if (typeof dataRaw === "string" && dataRaw.trim().length > 0) {
+      try {
+        data = JSON.parse(dataRaw);
+      } catch (error) {
+        console.error("Failed to parse event data", error);
+        data = null;
+      }
+    }
     return await recordEvent({
       matchId: id,
       minute,
@@ -46,7 +56,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       playerId,
       teamId,
       rivalId,
-      data: null,
+      data,
     });
   }
 
@@ -55,13 +65,28 @@ export default async function MatchPage({ params }: MatchPageProps) {
     await removeEvent(eventId);
   }
 
-  async function saveLineupServer(lineup: PlayerSlot[], finished = false) {
+  async function saveLineupServer(
+    lineup: PlayerSlot[],
+    options: { finished?: boolean; score?: MatchScore | null } = {}
+  ) {
     "use server";
-    await updateLineup(id, lineup, opponentNotes, finished);
+    await updateLineup(id, {
+      lineup,
+      opponentNotes,
+      finished: options.finished,
+      score: options.score,
+    });
   }
 
   return match.finished ? (
-    <MatchSummary match={match} players={allPlayers} />
+    <MatchSummary
+      match={match}
+      players={allPlayers}
+      homeTeamName={homeTeamName ?? "Local"}
+      awayTeamName={awayTeamName ?? "Rival"}
+      homeTeamColor={homeTeamColor ?? "#dc2626"}
+      awayTeamColor={awayTeamColor ?? "#1d4ed8"}
+    />
   ) : (
     <MatchDetail
       match={match}
