@@ -194,7 +194,7 @@ function addMinutesToTime(time: string, minutes: number) {
   return format(result, "HH:mm")
 }
 
-export default function EntrenamientosPage() {
+function EntrenamientosPageContent() {
   const [temporadaActual, setTemporadaActual] = React.useState<string>("")
   const [equipo, setEquipo] = React.useState<any | null>(null)
   const [entrenamientos, setEntrenamientos] = React.useState<Entrenamiento[]>([])
@@ -1093,5 +1093,20 @@ export default function EntrenamientosPage() {
         </Collapsible>
       </div>
     </>
+  )
+}
+
+export default function EntrenamientosPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-6 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Cargando planificador…</span>
+        </div>
+      }
+    >
+      <EntrenamientosPageContent />
+    </React.Suspense>
   )
 }
