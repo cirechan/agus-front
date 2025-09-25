@@ -48,6 +48,11 @@ const motivosAusencia = [
   { value: "otro", label: "Otro" },
 ]
 
+const motivoLabelByValue = motivosAusencia.reduce<Record<string, string>>((acc, motivo) => {
+  acc[motivo.value] = motivo.label
+  return acc
+}, {})
+
 function dateKey(date: Date) {
   return format(date, "yyyy-MM-dd")
 }
@@ -83,6 +88,8 @@ export default function AsistenciasPage() {
   const [deletingTrainingId, setDeletingTrainingId] = React.useState<number | null>(null)
   const [isSavingAsistencias, setIsSavingAsistencias] = React.useState<boolean>(false)
   const [isClearingAsistencias, setIsClearingAsistencias] = React.useState<boolean>(false)
+  const [hasExistingAsistencias, setHasExistingAsistencias] = React.useState<boolean>(false)
+  const [isEditingAsistencias, setIsEditingAsistencias] = React.useState<boolean>(false)
 
   const sesionesPorFecha = React.useMemo(() => {
     const map = new Map<string, Entrenamiento[]>()
@@ -238,6 +245,8 @@ export default function AsistenciasPage() {
     if (!equipo || jugadores.length === 0) return
     if (!selectedEntrenamientoId) {
       setRegistros(createDefaultRegistros(jugadores))
+      setHasExistingAsistencias(false)
+      setIsEditingAsistencias(false)
       return
     }
     const cargar = async () => {
@@ -248,20 +257,43 @@ export default function AsistenciasPage() {
         )
         const data = await res.json()
         if (Array.isArray(data) && data.length > 0) {
-          setRegistros(
-            data.map((registro: any) => ({
+          const normalizados = data.map((registro: any) => {
+            const rawMotivo: string | undefined = registro.motivo ?? undefined
+            const esMotivoReconocido = rawMotivo ? Boolean(motivoLabelByValue[rawMotivo]) : false
+            const motivo = esMotivoReconocido ? rawMotivo : rawMotivo ? "otro" : undefined
+            const motivoPersonalizado = esMotivoReconocido
+              ? registro.motivoPersonalizado ?? undefined
+              : rawMotivo ?? registro.motivoPersonalizado ?? undefined
+            return {
               id: registro.id,
               jugadorId: String(registro.jugadorId),
               asistio: Boolean(registro.asistio),
-              motivo: registro.motivo || undefined,
-            }))
-          )
+              motivo,
+              motivoPersonalizado,
+            }
+          })
+          const registrosPorJugador = new Map(normalizados.map((registro) => [registro.jugadorId, registro]))
+          const completados = jugadores.map((jugador) => {
+            return (
+              registrosPorJugador.get(jugador.id) ?? {
+                jugadorId: jugador.id,
+                asistio: true,
+              }
+            )
+          })
+          setRegistros(completados)
+          setHasExistingAsistencias(true)
+          setIsEditingAsistencias(false)
         } else {
           setRegistros(createDefaultRegistros(jugadores))
+          setHasExistingAsistencias(false)
+          setIsEditingAsistencias(true)
         }
       } catch (error) {
         console.error("No se pudieron recuperar las asistencias", error)
         setRegistros(createDefaultRegistros(jugadores))
+        setHasExistingAsistencias(false)
+        setIsEditingAsistencias(true)
       }
     }
     cargar()
@@ -277,6 +309,8 @@ export default function AsistenciasPage() {
     if (sameDay.length === 0) {
       setSelectedEntrenamientoId(null)
       setRegistros(createDefaultRegistros(jugadores))
+      setHasExistingAsistencias(false)
+      setIsEditingAsistencias(false)
       return
     }
     setSelectedEntrenamientoId((current) => {
@@ -289,6 +323,8 @@ export default function AsistenciasPage() {
 
   const handleSelectEntrenamiento = (sesion: Entrenamiento) => {
     setSelectedEntrenamientoId(sesion.id)
+    setHasExistingAsistencias(false)
+    setIsEditingAsistencias(true)
     const inicio = new Date(sesion.inicio)
     if (!Number.isNaN(inicio.getTime())) {
       setFecha(inicio)
@@ -393,6 +429,8 @@ export default function AsistenciasPage() {
         throw new Error("No se pudieron guardar las asistencias")
       }
       alert("Asistencias guardadas correctamente")
+      setHasExistingAsistencias(true)
+      setIsEditingAsistencias(false)
     } catch (error) {
       console.error(error)
       alert("No se pudieron guardar las asistencias")
@@ -410,6 +448,8 @@ export default function AsistenciasPage() {
         { method: "DELETE" }
       )
       setRegistros(createDefaultRegistros(jugadores))
+      setHasExistingAsistencias(false)
+      setIsEditingAsistencias(true)
       alert("Registros eliminados")
     } catch (error) {
       console.error("No se pudieron eliminar las asistencias", error)
@@ -614,124 +654,21 @@ export default function AsistenciasPage() {
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-4 w-4" /> {formatTimeRange(selectedEntrenamiento)}
                   </span>
+                  {hasExistingAsistencias && !isEditingAsistencias ? (
+                    <Badge variant="secondary">Registros guardados</Badge>
+                  ) : null}
                 </div>
-                <div className="rounded-md border">
-                  <table className="hidden w-full md:table">
-                <thead>
-                  <tr className="border-b bg-muted/50 text-sm">
-                    <th className="p-2 text-left font-medium">Jugador</th>
-                    <th className="p-2 text-left font-medium">Dorsal</th>
-                    <th className="p-2 text-left font-medium">Asistencia</th>
-                    <th className="p-2 text-left font-medium">Motivo Ausencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {jugadores.map((jugador) => {
-                    const registro = registros.find((r) => r.jugadorId === jugador.id) ?? {
-                      jugadorId: jugador.id,
-                      asistio: true,
-                    }
-                    const motivoSeleccionado = registro.motivo || ""
-                    const motivoPersonalizado = registro.motivoPersonalizado || ""
-                    return (
-                      <tr key={jugador.id} className="border-b">
-                        <td className="p-2">{jugador.nombre} </td>
-                        <td className="p-2">{jugador.dorsal}</td>
-                        <td className="p-2">
-                          <Switch
-                            checked={registro.asistio}
-                            onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
-                          />
-                        </td>
-                        <td className="p-2">
-                          {!registro.asistio ? (
-                            <div className="space-y-2">
-                              <Select
-                                value={motivoSeleccionado}
-                                onValueChange={(value) => handleMotivoChange(jugador.id, value)}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecciona un motivo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {motivosAusencia.map((motivo) => (
-                                    <SelectItem key={motivo.value} value={motivo.value}>
-                                      {motivo.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              {motivoSeleccionado === "otro" && (
-                                <Input
-                                  value={motivoPersonalizado}
-                                  onChange={(event) =>
-                                    handleMotivoPersonalizadoChange(jugador.id, event.target.value)
-                                  }
-                                  placeholder="Describe el motivo"
-                                />
-                              )}
-                            </div>
-                          ) : null}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-
-                  <div className="divide-y md:hidden">
-                    {jugadores.map((jugador) => {
-                      const registro = registros.find((r) => r.jugadorId === jugador.id) ?? {
-                        jugadorId: jugador.id,
-                        asistio: true,
-                      }
-                  const motivoSeleccionado = registro.motivo || ""
-                  const motivoPersonalizado = registro.motivoPersonalizado || ""
-                  return (
-                    <div key={jugador.id} className="p-2">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">{jugador.nombre}</div>
-                          <div className="text-sm text-muted-foreground">#{jugador.dorsal}</div>
-                        </div>
-                        <Switch
-                          checked={registro.asistio}
-                          onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
-                        />
-                      </div>
-                      {!registro.asistio ? (
-                        <div className="mt-2 space-y-2">
-                          <Select
-                            value={motivoSeleccionado}
-                            onValueChange={(value) => handleMotivoChange(jugador.id, value)}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecciona un motivo" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {motivosAusencia.map((motivo) => (
-                                <SelectItem key={motivo.value} value={motivo.value}>
-                                  {motivo.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          {motivoSeleccionado === "otro" && (
-                            <Input
-                              value={motivoPersonalizado}
-                              onChange={(event) =>
-                                handleMotivoPersonalizadoChange(jugador.id, event.target.value)
-                              }
-                              placeholder="Describe el motivo"
-                            />
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  )
-                })}
-                  </div>
-                </div>
+                {hasExistingAsistencias && !isEditingAsistencias ? (
+                  <ResumenAsistencias registros={registros} jugadores={jugadores} />
+                ) : (
+                  <FormularioAsistencias
+                    jugadores={jugadores}
+                    registros={registros}
+                    onAsistenciaChange={handleAsistenciaChange}
+                    onMotivoChange={handleMotivoChange}
+                    onMotivoPersonalizadoChange={handleMotivoPersonalizadoChange}
+                  />
+                )}
               </>
             ) : (
               <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
@@ -739,25 +676,254 @@ export default function AsistenciasPage() {
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-2 p-6 pt-0 sm:flex-row">
-            <Button
-              variant="destructive"
-              className="w-full"
-              onClick={handleEliminarAsistencias}
-              disabled={!selectedEntrenamiento || isClearingAsistencias}
-            >
-              {isClearingAsistencias ? "Eliminando..." : "Eliminar registros"}
-            </Button>
-            <Button
-              className="w-full"
-              onClick={handleGuardarAsistencias}
-              disabled={!selectedEntrenamiento || isSavingAsistencias}
-            >
-              {isSavingAsistencias ? "Guardando..." : "Guardar asistencias"}
-            </Button>
-          </div>
+          <CardFooter className="flex flex-col gap-2 p-6 pt-0 sm:flex-row">
+            {hasExistingAsistencias && !isEditingAsistencias ? (
+              <>
+                <Button
+                  className="w-full"
+                  onClick={() => setIsEditingAsistencias(true)}
+                  disabled={!selectedEntrenamiento || isClearingAsistencias}
+                >
+                  Editar asistencias
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleEliminarAsistencias}
+                  disabled={!selectedEntrenamiento || isClearingAsistencias}
+                >
+                  {isClearingAsistencias ? "Eliminando..." : "Eliminar registros"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  className="w-full"
+                  onClick={handleGuardarAsistencias}
+                  disabled={!selectedEntrenamiento || isSavingAsistencias}
+                >
+                  {isSavingAsistencias ? "Guardando..." : "Guardar asistencias"}
+                </Button>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleEliminarAsistencias}
+                  disabled={!selectedEntrenamiento || isClearingAsistencias}
+                >
+                  {isClearingAsistencias ? "Eliminando..." : "Eliminar registros"}
+                </Button>
+              </>
+            )}
+          </CardFooter>
         </Card>
       </div>
+    </div>
+  )
+}
+
+interface FormularioAsistenciasProps {
+  jugadores: Jugador[]
+  registros: RegistroAsistencia[]
+  onAsistenciaChange: (jugadorId: string, asistio: boolean) => void
+  onMotivoChange: (jugadorId: string, motivo: string) => void
+  onMotivoPersonalizadoChange: (jugadorId: string, motivoPersonalizado: string) => void
+}
+
+function FormularioAsistencias({
+  jugadores,
+  registros,
+  onAsistenciaChange,
+  onMotivoChange,
+  onMotivoPersonalizadoChange,
+}: FormularioAsistenciasProps) {
+  return (
+    <div className="rounded-md border">
+      <table className="hidden w-full md:table">
+        <thead>
+          <tr className="border-b bg-muted/50 text-sm">
+            <th className="p-2 text-left font-medium">Jugador</th>
+            <th className="p-2 text-left font-medium">Dorsal</th>
+            <th className="p-2 text-left font-medium">Asistencia</th>
+            <th className="p-2 text-left font-medium">Motivo Ausencia</th>
+          </tr>
+        </thead>
+        <tbody>
+          {jugadores.map((jugador) => {
+            const registro = registros.find((r) => r.jugadorId === jugador.id) ?? {
+              jugadorId: jugador.id,
+              asistio: true,
+            }
+            const motivoSeleccionado = registro.motivo || ""
+            const motivoPersonalizado = registro.motivoPersonalizado || ""
+            return (
+              <tr key={jugador.id} className="border-b">
+                <td className="p-2">{jugador.nombre} </td>
+                <td className="p-2">{jugador.dorsal}</td>
+                <td className="p-2">
+                  <Switch
+                    checked={registro.asistio}
+                    onCheckedChange={(checked) => onAsistenciaChange(jugador.id, checked)}
+                  />
+                </td>
+                <td className="p-2">
+                  {!registro.asistio ? (
+                    <div className="space-y-2">
+                      <Select value={motivoSeleccionado} onValueChange={(value) => onMotivoChange(jugador.id, value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un motivo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {motivosAusencia.map((motivo) => (
+                            <SelectItem key={motivo.value} value={motivo.value}>
+                              {motivo.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {motivoSeleccionado === "otro" && (
+                        <Input
+                          value={motivoPersonalizado}
+                          onChange={(event) => onMotivoPersonalizadoChange(jugador.id, event.target.value)}
+                          placeholder="Describe el motivo"
+                        />
+                      )}
+                    </div>
+                  ) : null}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+
+      <div className="divide-y md:hidden">
+        {jugadores.map((jugador) => {
+          const registro = registros.find((r) => r.jugadorId === jugador.id) ?? {
+            jugadorId: jugador.id,
+            asistio: true,
+          }
+          const motivoSeleccionado = registro.motivo || ""
+          const motivoPersonalizado = registro.motivoPersonalizado || ""
+          return (
+            <div key={jugador.id} className="p-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{jugador.nombre}</div>
+                  <div className="text-sm text-muted-foreground">#{jugador.dorsal}</div>
+                </div>
+                <Switch
+                  checked={registro.asistio}
+                  onCheckedChange={(checked) => onAsistenciaChange(jugador.id, checked)}
+                />
+              </div>
+              {!registro.asistio ? (
+                <div className="mt-2 space-y-2">
+                  <Select value={motivoSeleccionado} onValueChange={(value) => onMotivoChange(jugador.id, value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un motivo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {motivosAusencia.map((motivo) => (
+                        <SelectItem key={motivo.value} value={motivo.value}>
+                          {motivo.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {motivoSeleccionado === "otro" && (
+                    <Input
+                      value={motivoPersonalizado}
+                      onChange={(event) => onMotivoPersonalizadoChange(jugador.id, event.target.value)}
+                      placeholder="Describe el motivo"
+                    />
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+interface ResumenAsistenciasProps {
+  jugadores: Jugador[]
+  registros: RegistroAsistencia[]
+}
+
+function ResumenAsistencias({ jugadores, registros }: ResumenAsistenciasProps) {
+  const totalConvocados = Math.max(registros.length, jugadores.length)
+  const totalPresentes = registros.filter((registro) => registro.asistio).length
+  const ausencias = registros
+    .filter((registro) => !registro.asistio)
+    .map((registro) => {
+      const jugador = jugadores.find((item) => item.id === registro.jugadorId)
+      const motivoLabel =
+        registro.motivo === "otro"
+          ? registro.motivoPersonalizado || "Otro"
+          : registro.motivo
+          ? motivoLabelByValue[registro.motivo] ?? registro.motivo
+          : "Sin justificar"
+      return {
+        id: registro.jugadorId,
+        nombre: jugador?.nombre ?? "Jugador sin nombre",
+        dorsal: jugador?.dorsal,
+        motivo: motivoLabel,
+      }
+    })
+    .sort((a, b) => {
+      const dorsalA = a.dorsal ?? Number.POSITIVE_INFINITY
+      const dorsalB = b.dorsal ?? Number.POSITIVE_INFINITY
+      return dorsalA - dorsalB
+    })
+
+  const totalAusentes = ausencias.length
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 rounded-lg border bg-muted/40 p-4 sm:grid-cols-3">
+        <ResumenDato label="Convocados" value={totalConvocados} />
+        <ResumenDato label="Asistieron" value={totalPresentes} />
+        <ResumenDato label="Ausentes" value={totalAusentes} />
+      </div>
+
+      <div>
+        <h4 className="text-sm font-medium">Ausencias registradas</h4>
+        {ausencias.length > 0 ? (
+          <ul className="mt-3 space-y-2">
+            {ausencias.map((ausencia) => (
+              <li key={ausencia.id} className="rounded-md border p-3">
+                <div className="font-medium">
+                  {ausencia.nombre}
+                  {typeof ausencia.dorsal === "number" ? (
+                    <span className="ml-2 text-sm text-muted-foreground">#{ausencia.dorsal}</span>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground">{ausencia.motivo}</p>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-3 text-sm text-muted-foreground">
+            No se registraron ausencias en esta sesión.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+interface ResumenDatoProps {
+  label: string
+  value: number
+}
+
+function ResumenDato({ label, value }: ResumenDatoProps) {
+  return (
+    <div>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      <p className="text-2xl font-semibold">{value}</p>
     </div>
   )
 }
