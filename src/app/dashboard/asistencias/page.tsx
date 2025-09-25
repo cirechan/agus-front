@@ -4,7 +4,7 @@ import * as React from "react"
 import Link from "next/link"
 import { format, isAfter, isBefore, isSameDay, isToday } from "date-fns"
 import { es } from "date-fns/locale"
-import { ArrowRight, CalendarClock, ChevronLeft, ChevronRight, Clock, Loader2, Trash2 } from "lucide-react"
+import { ArrowRight, CalendarClock, ChevronLeft, ChevronRight, Clock, Loader2, Trash2, PlusCircle } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -105,6 +105,12 @@ export default function AsistenciasPage() {
     const key = dateKey(fecha)
     return sesionesPorFecha.get(key) ?? []
   }, [fecha, sesionesPorFecha])
+
+  const trainingPlannerHref = React.useMemo(() => {
+    return `/dashboard/entrenamientos?plan=${format(fecha, "yyyy-MM-dd")}`
+  }, [fecha])
+
+  const selectedDateLabel = React.useMemo(() => formatDateLong(fecha), [fecha])
 
   const scheduledDates = React.useMemo(() => {
     const unique = new Map<string, Date>()
@@ -270,6 +276,7 @@ export default function AsistenciasPage() {
     })
     if (sameDay.length === 0) {
       setSelectedEntrenamientoId(null)
+      setRegistros(createDefaultRegistros(jugadores))
       return
     }
     setSelectedEntrenamientoId((current) => {
@@ -345,7 +352,7 @@ export default function AsistenciasPage() {
     }
   }
 
-  const handlePrevSession = () => {
+  const handlePreviousSession = () => {
     if (previousSession) {
       handleSelectEntrenamiento(previousSession)
     }
@@ -417,8 +424,8 @@ export default function AsistenciasPage() {
   }
 
   return (
-    <>
-      <div className="flex flex-col gap-4 px-4 lg:flex-row lg:items-center lg:justify-between lg:px-6">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-10 lg:px-6">
+      <div className="flex flex-col gap-4 pt-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Control de Asistencias</h1>
           <p className="text-muted-foreground">
@@ -433,8 +440,8 @@ export default function AsistenciasPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 px-4 py-6 lg:grid-cols-[360px,1fr] lg:px-6">
-        <div className="space-y-6">
+      <div className="grid gap-6 rounded-xl border bg-card text-card-foreground shadow-sm lg:grid-cols-[minmax(0,320px),minmax(0,1fr)]">
+        <div className="space-y-6 border-b border-muted/40 p-6 lg:border-b-0 lg:border-r">
           <Card>
             <CardHeader className="flex items-start gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -462,7 +469,7 @@ export default function AsistenciasPage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-none shadow-none">
             <CardHeader>
               <CardTitle>Calendario de sesiones</CardTitle>
               <CardDescription>Selecciona un entrenamiento para gestionar la asistencia.</CardDescription>
@@ -495,12 +502,14 @@ export default function AsistenciasPage() {
                                 <div className="font-medium">
                                   {format(inicio, "HH:mm")} {sesion.fin ? `- ${format(new Date(sesion.fin), "HH:mm")}` : ""}
                                 </div>
-                                <p className="text-sm text-muted-foreground">
-                                  {formatDateLong(inicio)}
-                                </p>
+                                <p className="text-sm text-muted-foreground">{formatDateLong(inicio)}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Button size="sm" variant={selectedEntrenamientoId === sesion.id ? "default" : "outline"} onClick={() => handleSelectEntrenamiento(sesion)}>
+                                <Button
+                                  size="sm"
+                                  variant={selectedEntrenamientoId === sesion.id ? "default" : "outline"}
+                                  onClick={() => handleSelectEntrenamiento(sesion)}
+                                >
                                   Seleccionar
                                 </Button>
                                 <Button
@@ -521,75 +530,59 @@ export default function AsistenciasPage() {
                         })}
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-                        No hay entrenamientos programados para este día.
-                        <Button
-                          asChild
-                          variant="link"
-                          className="mt-2 h-auto p-0 text-primary"
-                        >
-                          <Link href="/dashboard/entrenamientos">Gestionar calendario</Link>
+                      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        <p>No hay entrenamientos programados para {selectedDateLabel}.</p>
+                        <Button asChild variant="outline" className="gap-2">
+                          <Link href={trainingPlannerHref}>
+                            <PlusCircle className="h-4 w-4" /> Programar entrenamiento
+                          </Link>
                         </Button>
                       </div>
                     )}
                   </div>
-
                   <div>
                     <h4 className="mb-2 flex items-center justify-between text-sm font-medium">
                       Próximos entrenamientos
-                      <Badge variant="secondary">{entrenamientos.length}</Badge>
+                      <Badge>{upcomingEntrenamientos.length}</Badge>
                     </h4>
-                    <ScrollArea className="h-40 rounded-lg border">
+                    <ScrollArea className="relative h-40 overflow-hidden rounded-lg border">
                       <div className="divide-y">
-                        {entrenamientos.length === 0 ? (
-                          <div className="p-4 text-sm text-muted-foreground">
-                            Aún no hay entrenamientos en el calendario.
-                          </div>
-                        ) : (
-                          upcomingEntrenamientos.map((sesion) => {
-                            const inicio = new Date(sesion.inicio)
-                            return (
-                              <div
-                                key={sesion.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => handleSelectEntrenamiento(sesion)}
-                                onKeyDown={(event) => {
-                                  if (event.key === "Enter" || event.key === " ") {
-                                    event.preventDefault()
-                                    handleSelectEntrenamiento(sesion)
-                                  }
-                                }}
-                                className={cn(
-                                  "flex w-full items-center justify-between gap-3 p-3 text-sm transition hover:bg-muted",
-                                  selectedEntrenamientoId === sesion.id && "bg-primary/5"
-                                )}
-                              >
-                                <div>
-                                  <div className="font-medium">{formatDateLong(inicio)}</div>
-                                  <div className="text-xs text-muted-foreground">
-                                    {format(inicio, "HH:mm")}
-                                  </div>
-                                </div>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={(event) => {
-                                    event.stopPropagation()
-                                    handleDeleteEntrenamiento(sesion.id)
-                                  }}
-                                  disabled={deletingTrainingId === sesion.id}
-                                >
-                                  {deletingTrainingId === sesion.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4 text-muted-foreground" />
-                                  )}
-                                </Button>
+                        {upcomingEntrenamientos.map((sesion) => {
+                          const inicio = new Date(sesion.inicio)
+                          const isFuture = isAfter(inicio, new Date())
+                          return (
+                            <button
+                              type="button"
+                              key={sesion.id}
+                              onClick={() => handleSelectEntrenamiento(sesion)}
+                              className={cn(
+                                "flex w-full items-center justify-between gap-3 p-3 text-left text-sm transition",
+                                selectedEntrenamientoId === sesion.id ? "bg-primary/5" : "hover:bg-muted",
+                                !isFuture && "text-muted-foreground"
+                              )}
+                            >
+                              <div>
+                                <div className="font-medium">{formatDateLong(inicio)}</div>
+                                <div className="text-xs text-muted-foreground">{format(inicio, "HH:mm")}</div>
                               </div>
-                            )
-                          })
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-muted-foreground"
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  handleDeleteEntrenamiento(sesion.id)
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </button>
+                          )
+                        })}
+                        {upcomingEntrenamientos.length === 0 && (
+                          <p className="p-3 text-sm text-muted-foreground">
+                            No hay entrenamientos próximos programados.
+                          </p>
                         )}
                       </div>
                     </ScrollArea>
@@ -601,116 +594,69 @@ export default function AsistenciasPage() {
         </div>
 
         <Card id="asistencias" className="flex flex-col">
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <CardTitle>Registro de asistencia</CardTitle>
-              <CardDescription>
+              <div className="font-semibold leading-none tracking-tight">Registro de asistencia</div>
+              <div className="text-sm text-muted-foreground">
                 {selectedEntrenamiento
-                  ? `Sesión del ${selectedEntrenamientoDate ? formatDateLong(selectedEntrenamientoDate) : "--"}`
-                  : "Selecciona un entrenamiento programado para registrar la asistencia."}
-              </CardDescription>
+                  ? `Sesión del ${formatDateLong(new Date(selectedEntrenamiento.inicio))}`
+                  : `Sin sesión programada para ${selectedDateLabel}`}
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="icon" onClick={handlePrevSession} disabled={!previousSession}>
+              <Button variant="outline" size="icon" disabled={!previousSession} onClick={handlePreviousSession}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button variant="outline" size="icon" onClick={handleNextSession} disabled={!nextSession}>
+              <Button variant="outline" size="icon" disabled={!nextSession} onClick={handleNextSession}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="flex-1">
+          </div>
+          <div className="flex-1 p-6 pt-0">
             {selectedEntrenamiento ? (
               <>
                 <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-4 w-4" /> {formatTimeRange(selectedEntrenamiento)}
                   </span>
-                  {selectedEntrenamientoDate && isToday(selectedEntrenamientoDate) && (
-                    <Badge variant="secondary">Hoy</Badge>
-                  )}
                 </div>
                 <div className="rounded-md border">
                   <table className="hidden w-full md:table">
-                    <thead>
-                      <tr className="border-b bg-muted/50 text-sm">
-                        <th className="p-2 text-left font-medium">Jugador</th>
-                        <th className="p-2 text-left font-medium">Dorsal</th>
-                        <th className="p-2 text-left font-medium">Asistencia</th>
-                        <th className="p-2 text-left font-medium">Motivo Ausencia</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {jugadores.map((jugador) => {
-                        const registro = registros.find((r) => r.jugadorId === jugador.id)
-                        return (
-                          <tr key={jugador.id} className="border-b">
-                            <td className="p-2">{jugador.nombre}</td>
-                            <td className="p-2">{jugador.dorsal}</td>
-                            <td className="p-2">
-                              <Switch
-                                checked={registro?.asistio ?? true}
-                                onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
-                              />
-                            </td>
-                            <td className="p-2">
-                              {registro && !registro.asistio && (
-                                <div className="space-y-2">
-                                  <Select
-                                    value={registro.motivo}
-                                    onValueChange={(value) => handleMotivoChange(jugador.id, value)}
-                                  >
-                                    <SelectTrigger className="w-full">
-                                      <SelectValue placeholder="Seleccionar motivo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {motivosAusencia.map((motivo) => (
-                                        <SelectItem key={motivo.value} value={motivo.value}>
-                                          {motivo.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  {registro.motivo === "otro" && (
-                                    <Input
-                                      value={registro.motivoPersonalizado || ""}
-                                      onChange={(event) =>
-                                        handleMotivoPersonalizadoChange(jugador.id, event.target.value)
-                                      }
-                                      placeholder="Motivo"
-                                    />
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                  <div className="divide-y md:hidden">
-                    {jugadores.map((jugador) => {
-                      const registro = registros.find((r) => r.jugadorId === jugador.id)
-                      return (
-                        <div key={jugador.id} className="p-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium">{jugador.nombre}</div>
-                              <div className="text-sm text-muted-foreground">#{jugador.dorsal}</div>
-                            </div>
-                            <Switch
-                              checked={registro?.asistio ?? true}
-                              onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
-                            />
-                          </div>
-                          {registro && !registro.asistio && (
-                            <div className="mt-2 space-y-2">
+                <thead>
+                  <tr className="border-b bg-muted/50 text-sm">
+                    <th className="p-2 text-left font-medium">Jugador</th>
+                    <th className="p-2 text-left font-medium">Dorsal</th>
+                    <th className="p-2 text-left font-medium">Asistencia</th>
+                    <th className="p-2 text-left font-medium">Motivo Ausencia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jugadores.map((jugador) => {
+                    const registro = registros.find((r) => r.jugadorId === jugador.id) ?? {
+                      jugadorId: jugador.id,
+                      asistio: true,
+                    }
+                    const motivoSeleccionado = registro.motivo || ""
+                    const motivoPersonalizado = registro.motivoPersonalizado || ""
+                    return (
+                      <tr key={jugador.id} className="border-b">
+                        <td className="p-2">{jugador.nombre} </td>
+                        <td className="p-2">{jugador.dorsal}</td>
+                        <td className="p-2">
+                          <Switch
+                            checked={registro.asistio}
+                            onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
+                          />
+                        </td>
+                        <td className="p-2">
+                          {!registro.asistio ? (
+                            <div className="space-y-2">
                               <Select
-                                value={registro.motivo}
+                                value={motivoSeleccionado}
                                 onValueChange={(value) => handleMotivoChange(jugador.id, value)}
                               >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Seleccionar motivo" />
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecciona un motivo" />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {motivosAusencia.map((motivo) => (
@@ -720,48 +666,103 @@ export default function AsistenciasPage() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                              {registro.motivo === "otro" && (
+                              {motivoSeleccionado === "otro" && (
                                 <Input
-                                  value={registro.motivoPersonalizado || ""}
+                                  value={motivoPersonalizado}
                                   onChange={(event) =>
                                     handleMotivoPersonalizadoChange(jugador.id, event.target.value)
                                   }
-                                  placeholder="Motivo"
+                                  placeholder="Describe el motivo"
                                 />
                               )}
                             </div>
+                          ) : null}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+
+                  <div className="divide-y md:hidden">
+                    {jugadores.map((jugador) => {
+                      const registro = registros.find((r) => r.jugadorId === jugador.id) ?? {
+                        jugadorId: jugador.id,
+                        asistio: true,
+                      }
+                  const motivoSeleccionado = registro.motivo || ""
+                  const motivoPersonalizado = registro.motivoPersonalizado || ""
+                  return (
+                    <div key={jugador.id} className="p-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{jugador.nombre}</div>
+                          <div className="text-sm text-muted-foreground">#{jugador.dorsal}</div>
+                        </div>
+                        <Switch
+                          checked={registro.asistio}
+                          onCheckedChange={(checked) => handleAsistenciaChange(jugador.id, checked)}
+                        />
+                      </div>
+                      {!registro.asistio ? (
+                        <div className="mt-2 space-y-2">
+                          <Select
+                            value={motivoSeleccionado}
+                            onValueChange={(value) => handleMotivoChange(jugador.id, value)}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecciona un motivo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {motivosAusencia.map((motivo) => (
+                                <SelectItem key={motivo.value} value={motivo.value}>
+                                  {motivo.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {motivoSeleccionado === "otro" && (
+                            <Input
+                              value={motivoPersonalizado}
+                              onChange={(event) =>
+                                handleMotivoPersonalizadoChange(jugador.id, event.target.value)
+                              }
+                              placeholder="Describe el motivo"
+                            />
                           )}
                         </div>
-                      )
-                    })}
+                      ) : null}
+                    </div>
+                  )
+                })}
                   </div>
                 </div>
               </>
             ) : (
               <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-                Selecciona un entrenamiento en el calendario para habilitar el registro de asistencia.
+                Selecciona un entrenamiento del calendario para registrar asistencia o programa una sesión nueva.
               </div>
             )}
-          </CardContent>
-          <CardFooter className="flex flex-col gap-2 sm:flex-row">
+          </div>
+          <div className="flex flex-col gap-2 p-6 pt-0 sm:flex-row">
             <Button
               variant="destructive"
               className="w-full"
               onClick={handleEliminarAsistencias}
               disabled={!selectedEntrenamiento || isClearingAsistencias}
             >
-              {isClearingAsistencias ? <Loader2 className="h-4 w-4 animate-spin" /> : "Eliminar registros"}
+              {isClearingAsistencias ? "Eliminando..." : "Eliminar registros"}
             </Button>
             <Button
               className="w-full"
               onClick={handleGuardarAsistencias}
               disabled={!selectedEntrenamiento || isSavingAsistencias}
             >
-              {isSavingAsistencias ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar asistencias"}
+              {isSavingAsistencias ? "Guardando..." : "Guardar asistencias"}
             </Button>
-          </CardFooter>
+          </div>
         </Card>
       </div>
-    </>
+    </div>
   )
 }

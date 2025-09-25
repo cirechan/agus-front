@@ -32,7 +32,19 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { Play, Pause, Menu, Undo2, ArrowRightCircle, Plus, Flag, List } from "lucide-react";
+import Link from "next/link";
+import {
+  Play,
+  Pause,
+  Menu,
+  Undo2,
+  ArrowRightCircle,
+  Plus,
+  Flag,
+  List,
+  ArrowLeft,
+  SquarePen,
+} from "lucide-react";
 import {
   FORMATION_OPTIONS,
   detectFormation,
@@ -553,220 +565,228 @@ export default function MatchDetail({
   }
 
   return (
-    <div className="flex flex-col md:flex-row w-full h-full">
-      {/* Header marcador/controles */}
-      <div className="flex-1 flex flex-col">
-        <div className="h-12 text-white select-none flex">
-          {/* Local */}
-          <div
-            className="flex items-center gap-2 px-2 sm:px-4"
-            style={{ backgroundColor: homeTeamColor, color: homeTextColor }}
-          >
-            <span className="font-semibold hidden sm:block">{homeTeamName}</span>
-            <span className="text-xl sm:text-2xl font-bold">{homeGoals}</span>
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-6 w-6 p-0"
-              onClick={() => quickAddEvent({ type: "gol", teamId: match.teamId })}
-              aria-label="Añadir gol local"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Controles centro */}
-          <div className="flex items-center gap-2 flex-1 justify-center bg-gray-900 px-2 sm:px-4">
-            <Button
-              size="icon"
-              variant="secondary"
-              className="text-gray-900"
-              onClick={toggleRunning}
-              aria-label={running ? "Pausar" : "Reanudar"}
-            >
-              {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            </Button>
-            <span className="tabular-nums text-sm sm:text-xl">
-              {String(Math.floor(seconds / 60) + (half - 1) * 40).padStart(2, "0")}:
-              {String(seconds % 60).padStart(2, "0")}
-            </span>
-            {half === 1 && !running && (
-              <Button
-                size="sm"
-                variant="secondary"
-                className="gap-1"
-                onClick={() => {
-                  setHalf(2);
-                  setSeconds(0);
-                }}
-              >
-                <ArrowRightCircle className="h-4 w-4" />
-                <span className="hidden sm:inline">2ª</span>
-              </Button>
-            )}
-            <Select
-              value={formationKey}
-              onValueChange={(value) =>
-                setFormationKey(value as typeof formationKey)
-              }
-            >
-              <SelectTrigger className="h-9 w-[130px] bg-secondary text-secondary-foreground">
-                <SelectValue placeholder="Formación" />
-              </SelectTrigger>
-              <SelectContent align="center">
-                {FORMATION_OPTIONS.map((option) => (
-                  <SelectItem key={option.key} value={option.key}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="icon" variant="secondary" aria-label="Menú">
-                  <Menu className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setEventsOpen(true)}>
-                  <List className="h-4 w-4" /> Eventos
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={undoLastEvent}>
-                  <Undo2 className="h-4 w-4" /> Deshacer
-                </DropdownMenuItem>
-                {half === 2 && !running && (
-                  <DropdownMenuItem onClick={handleFinish}>
-                    <Flag className="h-4 w-4" /> Finalizar
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Visitante */}
-          <div
-            className="flex items-center gap-2 px-2 sm:px-4"
-            style={{ backgroundColor: awayTeamColor, color: awayTextColor }}
-          >
-            <Button
-              size="icon"
-              variant="secondary"
-              className="h-6 w-6 p-0"
-              onClick={() => quickAddEvent({ type: "gol", rivalId: match.rivalId })}
-              aria-label="Añadir gol visitante"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-            <span className="text-xl sm:text-2xl font-bold">{awayGoals}</span>
-            <span className="font-semibold hidden sm:block">{awayTeamName}</span>
-          </div>
-        </div>
-
-        {/* Campo + jugadores */}
-        <div ref={containerRef} className="relative flex-1">
-          <canvas ref={canvasRef} className="w-full h-full touch-none" />
-          {lineup.map((slot) => {
-            const player = slot.playerId ? playerMap[slot.playerId] : null;
-            return (
-              <div
-                key={slot.position}
-                className="absolute"
-                style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => handleSlotDrop(slot.position, e)}
-              >
-                {player && (
-                  <div className="relative -ml-5 -mt-5 flex flex-col items-center">
-                    {/* Iconos de eventos sobre el jugador */}
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex space-x-1 text-sm">
-                      {events
-                        .filter((e) => e.playerId === player.id)
-                        .map((e) => (
-                          <span key={e.id}>
-                            {e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥"}
-                          </span>
-                        ))}
-                    </div>
-
-                    {/* Burbuja con dorsal + popover de eventos */}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <div
-                          draggable
-                          onDragStart={(e) => handlePlayerDragStart(slot.position, player.id, e)}
-                          className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab select-none"
-                          style={{
-                            backgroundColor:
-                              slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
-                            color: slot.position === "GK" ? "#fff" : playerTextColor,
-                          }}
-                          title={`${player.nombre}`}
-                        >
-                          {player.dorsal ?? ""}
-                        </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="flex gap-2" side="top">
-                        {EVENT_ICONS.map(({ type, icon }) => (
-                          <Button
-                            key={type}
-                            size="icon"
-                            variant="ghost"
-                            onClick={() =>
-                              quickAddEvent({
-                                playerId: player.id,
-                                type,
-                                teamId: match.teamId,
-                              })
-                            }
-                            aria-label={`Añadir ${type}`}
-                          >
-                            {icon}
-                          </Button>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-
-                    <div className="mt-1 text-center text-xs w-20 text-white">
-                      {player.nombre}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+    <div className="flex h-full w-full flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 lg:px-6">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="ghost" size="sm" className="gap-1">
+            <Link href="/dashboard/partidos">
+              <ArrowLeft className="h-4 w-4" /> Volver al listado
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm" className="gap-1">
+            <Link href={`/dashboard/partidos/${match.id}/edit`}>
+              <SquarePen className="h-4 w-4" /> Editar partido
+            </Link>
+          </Button>
         </div>
       </div>
 
-      {/* Banquillo */}
-      <div className="md:w-32 w-full bg-black/60 text-white p-2 overflow-x-auto md:overflow-y-auto md:h-auto h-24">
-        <div className="text-xs md:text-right text-center mb-2">{subsMade}/5</div>
-        <div className="flex md:flex-col gap-4 items-center justify-center">
-          {bench.map((pl) => (
+      <div className="flex flex-1 flex-col md:flex-row">
+        <div className="flex flex-1 flex-col">
+          <div className="flex h-12 select-none text-white">
             <div
-              key={pl.id}
-              className={`flex flex-col items-center ${subbedOut.includes(pl.id) ? "opacity-50" : ""}`}
+              className="flex items-center gap-2 px-2 sm:px-4"
+              style={{ backgroundColor: homeTeamColor, color: homeTextColor }}
             >
-              <div
-                draggable
-                onDragStart={(e) => handleBenchDragStart(pl.id, e)}
-                className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab"
-                style={{
-                  backgroundColor:
-                    benchPositions[pl.id] === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
-                  color: benchPositions[pl.id] === "GK" ? "#fff" : playerTextColor,
-                }}
-                title={pl.nombre}
+              <span className="hidden font-semibold sm:block">{homeTeamName}</span>
+              <span className="text-xl font-bold sm:text-2xl">{homeGoals}</span>
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-6 w-6 p-0"
+                onClick={() => quickAddEvent({ type: "gol", teamId: match.teamId })}
+                aria-label="Añadir gol local"
               >
-                {pl.dorsal ?? ""}
-              </div>
-              <span className="mt-1 text-xs text-white text-center w-full">{pl.nombre}</span>
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-          ))}
+
+            <div className="flex flex-1 items-center justify-center gap-2 bg-gray-900 px-2 sm:px-4">
+              <Button
+                size="icon"
+                variant="secondary"
+                className="text-gray-900"
+                onClick={toggleRunning}
+                aria-label={running ? "Pausar" : "Reanudar"}
+              >
+                {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              </Button>
+              <span className="tabular-nums text-sm sm:text-xl">
+                {String(Math.floor(seconds / 60) + (half - 1) * 40).padStart(2, "0")}:
+                {String(seconds % 60).padStart(2, "0")}
+              </span>
+              {half === 1 && !running && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="gap-1"
+                  onClick={() => {
+                    setHalf(2);
+                    setSeconds(0);
+                  }}
+                >
+                  <ArrowRightCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">2ª</span>
+                </Button>
+              )}
+              <Select
+                value={formationKey}
+                onValueChange={(value) =>
+                  setFormationKey(value as typeof formationKey)
+                }
+              >
+                <SelectTrigger className="h-9 w-[130px] bg-secondary text-secondary-foreground">
+                  <SelectValue placeholder="Formación" />
+                </SelectTrigger>
+                <SelectContent align="center">
+                  {FORMATION_OPTIONS.map((option) => (
+                    <SelectItem key={option.key} value={option.key}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="icon" variant="secondary" aria-label="Menú">
+                    <Menu className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => setEventsOpen(true)}>
+                    <List className="h-4 w-4" /> Eventos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={undoLastEvent}>
+                    <Undo2 className="h-4 w-4" /> Deshacer
+                  </DropdownMenuItem>
+                  {half === 2 && !running && (
+                    <DropdownMenuItem onClick={handleFinish}>
+                      <Flag className="h-4 w-4" /> Finalizar
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div
+              className="flex items-center gap-2 px-2 sm:px-4"
+              style={{ backgroundColor: awayTeamColor, color: awayTextColor }}
+            >
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-6 w-6 p-0"
+                onClick={() => quickAddEvent({ type: "gol", rivalId: match.rivalId })}
+                aria-label="Añadir gol visitante"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+              <span className="text-xl font-bold sm:text-2xl">{awayGoals}</span>
+              <span className="hidden font-semibold sm:block">{awayTeamName}</span>
+            </div>
+          </div>
+
+          <div ref={containerRef} className="relative flex-1">
+            <canvas ref={canvasRef} className="h-full w-full touch-none" />
+            {lineup.map((slot) => {
+              const player = slot.playerId ? playerMap[slot.playerId] : null;
+              return (
+                <div
+                  key={slot.position}
+                  className="absolute"
+                  style={{ left: `${slot.x}%`, top: `${slot.y}%` }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => handleSlotDrop(slot.position, e)}
+                >
+                  {player && (
+                    <div className="relative -ml-5 -mt-5 flex flex-col items-center">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex space-x-1 text-sm">
+                        {events
+                          .filter((e) => e.playerId === player.id)
+                          .map((e) => (
+                            <span key={e.id}>
+                              {e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥"}
+                            </span>
+                          ))}
+                      </div>
+
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div
+                            draggable
+                            onDragStart={(e) => handlePlayerDragStart(slot.position, player.id, e)}
+                            className="flex h-10 w-10 cursor-grab select-none items-center justify-center rounded-full border-2"
+                            style={{
+                              backgroundColor:
+                                slot.position === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                              color: slot.position === "GK" ? "#fff" : playerTextColor,
+                            }}
+                            title={`${player.nombre}`}
+                          >
+                            {player.dorsal ?? ""}
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="flex gap-2" side="top">
+                          {EVENT_ICONS.map(({ type, icon }) => (
+                            <Button
+                              key={type}
+                              size="icon"
+                              variant="ghost"
+                              onClick={() =>
+                                quickAddEvent({
+                                  playerId: player.id,
+                                  type,
+                                  teamId: match.teamId,
+                                })
+                              }
+                              aria-label={`Añadir ${type}`}
+                            >
+                              {icon}
+                            </Button>
+                          ))}
+                        </PopoverContent>
+                      </Popover>
+
+                      <div className="mt-1 w-20 text-center text-xs text-white">
+                        {player.nombre}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="h-24 w-full overflow-x-auto bg-black/60 p-2 text-white md:h-auto md:w-32 md:overflow-y-auto">
+          <div className="mb-2 text-center text-xs md:text-right">{subsMade}/5</div>
+          <div className="flex items-center justify-center gap-4 md:flex-col">
+            {bench.map((pl) => (
+              <div
+                key={pl.id}
+                className={`flex flex-col items-center ${subbedOut.includes(pl.id) ? "opacity-50" : ""}`}
+              >
+                <div
+                  draggable
+                  onDragStart={(e) => handleBenchDragStart(pl.id, e)}
+                  className="flex h-10 w-10 cursor-grab items-center justify-center rounded-full border-2"
+                  style={{
+                    backgroundColor:
+                      benchPositions[pl.id] === "GK" ? GOALKEEPER_COLOR : PLAYER_COLOR,
+                    color: benchPositions[pl.id] === "GK" ? "#fff" : playerTextColor,
+                  }}
+                  title={pl.nombre}
+                >
+                  {pl.dorsal ?? ""}
+                </div>
+                <span className="mt-1 w-full text-center text-xs text-white">{pl.nombre}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Listado de eventos */}
       <Dialog open={eventsOpen} onOpenChange={setEventsOpen}>
         <DialogContent className="max-h-80 overflow-y-auto">
           <ul className="space-y-1 text-sm">

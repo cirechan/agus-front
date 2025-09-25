@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import type { Match, MatchEvent, MatchScore } from "@/types/match";
 
 interface Player {
@@ -136,7 +137,27 @@ export default function MatchSummary({
   });
 
   return (
-    <div className="p-4 lg:p-6 space-y-8">
+    <div className="space-y-8 px-4 py-6 lg:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="ghost" size="sm" className="gap-1">
+            <Link href="/dashboard/partidos">
+              ← Volver al listado
+            </Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="gap-1"
+          >
+            <Link href={`/dashboard/partidos/${match.id}/edit`}>
+              Editar partido
+            </Link>
+          </Button>
+        </div>
+      </div>
+
       <header className="rounded-lg border bg-card text-card-foreground shadow-sm">
         <div className="grid gap-4 p-4 sm:grid-cols-3 sm:items-center">
           <div
@@ -258,12 +279,9 @@ export default function MatchSummary({
                 </Link>
               );
             })}
-          <Link
-            href="/dashboard/partidos"
-            className="ml-auto rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
-          >
-            Volver al listado
-          </Link>
+          <Button asChild className="ml-auto">
+            <Link href="/dashboard/partidos">Volver al listado</Link>
+          </Button>
         </div>
       </section>
     </div>

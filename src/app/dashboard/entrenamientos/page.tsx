@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import {
   addDays,
   addMinutes,
@@ -213,6 +214,9 @@ export default function EntrenamientosPage() {
   const [feedback, setFeedback] = React.useState<Feedback | null>(null)
   const [isPlannerOpen, setIsPlannerOpen] = React.useState<boolean>(false)
   const plannerAutoOpenRef = React.useRef<boolean>(false)
+  const queryPlannerDateRef = React.useRef<Date | null>(null)
+  const searchParams = useSearchParams()
+  const planParam = searchParams.get("plan")
 
   const sesionesPorFecha = React.useMemo(() => {
     const map = new Map<string, Entrenamiento[]>()
@@ -532,12 +536,13 @@ export default function EntrenamientosPage() {
     }
   }
 
-  const prefillPlanForDate = (date: Date, sesion?: Entrenamiento | null) => {
-    const normalized = startOfDay(date)
-    setDateRange({ from: normalized, to: normalized })
-    setSelectedDays([normalized.getDay()])
-    if (sesion) {
-      const inicio = sesion.inicio ? new Date(sesion.inicio) : null
+  const prefillPlanForDate = React.useCallback(
+    (date: Date, sesion?: Entrenamiento | null) => {
+      const normalized = startOfDay(date)
+      setDateRange({ from: normalized, to: normalized })
+      setSelectedDays([normalized.getDay()])
+      if (sesion) {
+        const inicio = sesion.inicio ? new Date(sesion.inicio) : null
       const fin = sesion.fin ? new Date(sesion.fin) : null
       if (inicio && !Number.isNaN(inicio.getTime())) {
         setStartTime(format(inicio, "HH:mm"))
@@ -549,7 +554,7 @@ export default function EntrenamientosPage() {
       }
     }
     setIsPlannerOpen(true)
-  }
+  }, [setDateRange, setEndTime, setSelectedDays, setStartTime])
 
   React.useEffect(() => {
     if (plannerAutoOpenRef.current) return
@@ -558,6 +563,26 @@ export default function EntrenamientosPage() {
     plannerAutoOpenRef.current = true
     setIsPlannerOpen(true)
   }, [entrenamientos.length, isLoadingEntrenamientos])
+
+  React.useEffect(() => {
+    if (!planParam) return
+    const parsed = new Date(`${planParam}T00:00:00`)
+    if (Number.isNaN(parsed.getTime())) return
+    queryPlannerDateRef.current = parsed
+  }, [planParam])
+
+  React.useEffect(() => {
+    const targetDate = queryPlannerDateRef.current
+    if (!targetDate) return
+    if (isLoadingEntrenamientos) return
+    const matchingSession = entrenamientos.find((sesion) => {
+      const inicio = sesion.inicio ? new Date(sesion.inicio) : null
+      return inicio && !Number.isNaN(inicio.getTime()) && isSameDay(inicio, targetDate)
+    })
+    queryPlannerDateRef.current = null
+    plannerAutoOpenRef.current = true
+    prefillPlanForDate(targetDate, matchingSession)
+  }, [entrenamientos, isLoadingEntrenamientos, prefillPlanForDate])
 
   if (!equipo) {
     return <div className="p-4">Cargando calendario...</div>
