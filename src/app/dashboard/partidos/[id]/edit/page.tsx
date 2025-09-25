@@ -38,6 +38,18 @@ export default async function EditMatchPage({
     equiposService.getById(match.teamId),
   ]);
 
+  const simplifiedPlayers = players.map((player: any) => ({
+    id: Number(player.id),
+    nombre: player.nombre as string,
+    posicion: player.posicion ?? null,
+    dorsal: player.dorsal ?? null,
+  }));
+  const simplifiedRivals = rivales.map((team: any) => ({
+    id: Number(team.id),
+    nombre: team.nombre as string,
+    color: team.color ?? null,
+  }));
+
   const teamColor = equipo?.color || "#dc2626";
   const GOALKEEPER_COLOR = "#16a34a";
   const textColor = getContrastColor(teamColor);
@@ -157,8 +169,8 @@ export default async function EditMatchPage({
     <div className="p-4 lg:p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Editar Partido</h1>
       <MatchForm
-        players={players}
-        rivales={rivales}
+        players={simplifiedPlayers}
+        rivales={simplifiedRivals}
         action={actualizarPartido}
         teamColor={teamColor}
         goalkeeperColor={GOALKEEPER_COLOR}

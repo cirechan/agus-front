@@ -21,6 +21,17 @@ export default async function NuevoPartidoPage() {
 
   const rivales = await rivalesService.getAll();
   const players = await jugadoresService.getByEquipo(nuestro.id);
+  const simplifiedPlayers = players.map((player: any) => ({
+    id: Number(player.id),
+    nombre: player.nombre as string,
+    posicion: player.posicion ?? null,
+    dorsal: player.dorsal ?? null,
+  }));
+  const simplifiedRivals = rivales.map((team: any) => ({
+    id: Number(team.id),
+    nombre: team.nombre as string,
+    color: team.color ?? null,
+  }));
   const teamColor = nuestro?.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
 
@@ -120,8 +131,8 @@ export default async function NuevoPartidoPage() {
     <div className="p-4 lg:p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Nuevo Partido</h1>
       <MatchForm
-        players={players}
-        rivales={rivales}
+        players={simplifiedPlayers}
+        rivales={simplifiedRivals}
         action={crearPartido}
         teamColor={teamColor}
         goalkeeperColor={GOALKEEPER_COLOR}
