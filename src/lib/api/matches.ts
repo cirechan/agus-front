@@ -186,7 +186,32 @@ function getNextEventId(matches: Match[]): number {
   );
 }
 
-function mapMatch(row: any, events: MatchEvent[] = []): Match {
+type MatchRow = {
+  id: number;
+  teamId: number;
+  rivalId: number;
+  condition: string;
+  kickoff: string;
+  competition: string;
+  matchday: number | null;
+  lineup: any[] | null;
+  opponentNotes: string | null;
+  finished: boolean | null;
+  events?: any[] | null;
+};
+
+type EventRow = {
+  id: number;
+  matchId: number;
+  minute: number;
+  type: string;
+  playerId: number | null;
+  teamId: number | null;
+  rivalId: number | null;
+  data: any;
+};
+
+function mapMatch(row: MatchRow, events: MatchEvent[] = []): Match {
   return {
     id: row.id,
     teamId: row.teamId,
@@ -202,7 +227,7 @@ function mapMatch(row: any, events: MatchEvent[] = []): Match {
   };
 }
 
-function mapEvent(row: any): MatchEvent {
+function mapEvent(row: EventRow): MatchEvent {
   return {
     id: row.id,
     matchId: row.matchId,
@@ -218,7 +243,7 @@ function mapEvent(row: any): MatchEvent {
 export async function listMatches(): Promise<Match[]> {
   const sql = getSql();
   if (sql) {
-    const rows = await sql`
+    const rows = await sql<MatchRow>`
     SELECT p.id,
            p.equipo_id AS "teamId",
            p.rival_id AS "rivalId",
@@ -239,10 +264,10 @@ export async function listMatches(): Promise<Match[]> {
     ORDER BY p.inicio DESC
   `;
 
-    return rows.map((row: any) =>
+    return rows.map((row) =>
       mapMatch(
         { ...row, lineup: row.lineup ? row.lineup : [] },
-        (row.events || []).map((e: any) => mapEvent(e))
+        (row.events || []).map((e: any) => mapEvent(e as EventRow))
       )
     );
   }
@@ -259,7 +284,7 @@ export async function listMatches(): Promise<Match[]> {
 export async function getMatch(id: number): Promise<Match | null> {
   const sql = getSql();
   if (sql) {
-    const rows = await sql`
+    const rows = await sql<MatchRow>`
     SELECT p.id,
            p.equipo_id AS "teamId",
            p.rival_id AS "rivalId",
@@ -276,7 +301,7 @@ export async function getMatch(id: number): Promise<Match | null> {
     const row = rows[0];
     if (!row) return null;
 
-    const events = await sql`
+    const events = await sql<EventRow>`
     SELECT id,
            partido_id AS "matchId",
            minuto AS "minute",
@@ -291,7 +316,7 @@ export async function getMatch(id: number): Promise<Match | null> {
   `;
     return mapMatch(
       { ...row, lineup: row.lineup ? row.lineup : [] },
-      events.map((e: any) => mapEvent(e))
+      events.map((e) => mapEvent(e))
     );
   }
 
@@ -303,7 +328,7 @@ export async function getMatch(id: number): Promise<Match | null> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   if (sql) {
-    const [row] = await sql`
+    const [row] = await sql<MatchRow>`
     INSERT INTO partidos (equipo_id, rival_id, condicion, inicio, competicion, jornada, alineacion, notas_rival)
     VALUES (
       ${match.teamId},
@@ -345,7 +370,7 @@ export async function createMatch(match: NewMatch): Promise<Match> {
 export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   const sql = getSql();
   if (sql) {
-    const [row] = await sql`
+    const [row] = await sql<EventRow>`
     INSERT INTO eventos_partido (partido_id, minuto, tipo, jugador_id, equipo_id, rival_id, datos)
     VALUES (
       ${event.matchId},
@@ -420,7 +445,7 @@ export async function updateLineup(
 ): Promise<Match> {
   const sql = getSql();
   if (sql) {
-    const [row] = await sql`
+    const [row] = await sql<MatchRow>`
     UPDATE partidos
     SET alineacion = ${JSON.stringify(lineup)},
         notas_rival = ${opponentNotes},
@@ -438,7 +463,7 @@ export async function updateLineup(
               finalizado AS finished
   `;
 
-    const events = await sql`
+    const events = await sql<EventRow>`
     SELECT id,
            partido_id AS "matchId",
            minuto AS "minute",
@@ -454,7 +479,7 @@ export async function updateLineup(
 
     return mapMatch(
       { ...row, lineup: row.lineup ? row.lineup : [] },
-      events.map((e: any) => mapEvent(e))
+      events.map((e) => mapEvent(e))
     );
   }
 
