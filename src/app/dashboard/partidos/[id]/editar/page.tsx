@@ -58,6 +58,8 @@ export default async function EditarPartidoPage({ params }: PageProps) {
     redirect(`/dashboard/partidos/${matchId}`);
   }
 
+  const opponentNotes = match.opponentNotes ?? null;
+
   const equipo = await equiposService.getById(match.teamId);
   const jugadores = await jugadoresService.getByEquipo(match.teamId);
   const players: SelectorPlayer[] = jugadores.map((player: any) => ({
@@ -154,7 +156,7 @@ export default async function EditarPartidoPage({ params }: PageProps) {
         });
       });
 
-    await updateLineup(matchId, lineup, match.opponentNotes ?? null, false);
+    await updateLineup(matchId, lineup, opponentNotes, false);
     revalidatePath(`/dashboard/partidos/${matchId}`);
     revalidatePath("/dashboard/partidos");
     redirect("/dashboard/partidos");
