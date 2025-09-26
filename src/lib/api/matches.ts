@@ -82,13 +82,19 @@ function sanitizeEvent(raw: any): MatchEvent {
   };
 }
 
+function normalizeCompetition(value: any): Match['competition'] {
+  switch (value) {
+    case 'playoff':
+    case 'copa':
+    case 'amistoso':
+      return value;
+    default:
+      return 'liga';
+  }
+}
+
 function sanitizeMatch(raw: any): Match {
-  const competition =
-    raw?.competition === 'playoff' ||
-    raw?.competition === 'copa' ||
-    raw?.competition === 'amistoso'
-      ? raw.competition
-      : 'liga';
+  const competition = normalizeCompetition(raw?.competition);
   const kickoff = raw?.kickoff ?? raw?.inicio ?? new Date().toISOString();
   const matchdayRaw = raw?.matchday ?? raw?.jornada ?? null;
   const matchdayNumber = Number(matchdayRaw);
@@ -212,19 +218,19 @@ type EventRow = {
 };
 
 function mapMatch(row: MatchRow, events: MatchEvent[] = []): Match {
-  return {
+  return sanitizeMatch({
     id: row.id,
     teamId: row.teamId,
     rivalId: row.rivalId,
     isHome: row.condition === 'local',
     kickoff: row.kickoff,
-    competition: row.competition,
+    competition: normalizeCompetition(row.competition),
     matchday: row.matchday,
-    lineup: ((row.lineup ?? []) as any[]).map((s) => ({ minutes: 0, ...s })) as PlayerSlot[],
+    lineup: row.lineup ?? [],
     events,
     opponentNotes: row.opponentNotes ?? null,
     finished: row.finished ?? false,
-  };
+  });
 }
 
 function mapEvent(row: EventRow): MatchEvent {
