@@ -60,6 +60,7 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 10, y: 50 },
   LB: { x: 30, y: 25 },
   LCB: { x: 30, y: 40 },
+  CB: { x: 30, y: 50 },
   RCB: { x: 30, y: 60 },
   RB: { x: 30, y: 75 },
   LM: { x: 50, y: 30 },
@@ -307,6 +308,7 @@ export default function MatchDetail({
   const [manualEventPlayerId, setManualEventPlayerId] = useState<number | null>(null);
   const [manualEventSaving, setManualEventSaving] = useState(false);
   const [manualEventError, setManualEventError] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
   const [lateWindowReminderShown, setLateWindowReminderShown] = useState(false);
   const [lateWindowUsed, setLateWindowUsed] = useState(false);
 
@@ -419,15 +421,25 @@ export default function MatchDetail({
     teamId?: number;
     rivalId?: number;
   }) {
-    const fd = new FormData();
-    if (playerId) fd.append("playerId", String(playerId));
-    fd.append("type", type);
-    if (teamId) fd.append("teamId", String(teamId));
-    if (rivalId) fd.append("rivalId", String(rivalId));
-    fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
-    const created = await addEvent(fd);
-    setEvents((prev) => [...prev, created]);
-    toast(`Evento ${type} añadido`);
+    try {
+      const fd = new FormData();
+      if (playerId) fd.append("playerId", String(playerId));
+      fd.append("type", type);
+      if (teamId) fd.append("teamId", String(teamId));
+      if (rivalId) fd.append("rivalId", String(rivalId));
+      fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
+      const created = await addEvent(fd);
+      setEvents((prev) => [...prev, created]);
+      toast(`Evento ${type} añadido`);
+    } catch (error) {
+      console.error("No se pudo registrar el evento rápido", error);
+      toast("No se pudo registrar el evento. Inténtalo de nuevo.", {
+        style: {
+          background: "#7f1d1d",
+          color: "#fff",
+        },
+      });
+    }
   }
 
   async function undoLastEvent() {
@@ -513,45 +525,61 @@ export default function MatchDetail({
   }
 
   async function handleFinish() {
-    const stats = { ...playerStats };
-    lineup.forEach((slot) => {
-      const pid = slot.playerId;
-      if (pid && stats[pid]?.enterSecond != null) {
-        stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
-        delete stats[pid].enterSecond;
-      }
-    });
+    setFinishing(true);
+    setRunning(false);
+    try {
+      const stats = { ...playerStats };
+      lineup.forEach((slot) => {
+        const pid = slot.playerId;
+        if (pid && stats[pid]?.enterSecond != null) {
+          stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+          delete stats[pid].enterSecond;
+        }
+      });
 
-    const lineupPayload: PlayerSlot[] = [
-      ...lineup
-        .filter((s) => s.playerId)
-        .map((s) => ({
-          playerId: s.playerId as number,
-          number: playerMap[s.playerId as number]?.dorsal ?? undefined,
-          role: "field" as const,
-          position: s.position,
-          minutes: Math.floor((stats[s.playerId as number]?.minutes ?? 0) / 60),
+      const lineupPayload: PlayerSlot[] = [
+        ...lineup
+          .filter((s) => s.playerId)
+          .map((s) => ({
+            playerId: s.playerId as number,
+            number: playerMap[s.playerId as number]?.dorsal ?? undefined,
+            role: "field" as const,
+            position: s.position,
+            minutes: Math.floor((stats[s.playerId as number]?.minutes ?? 0) / 60),
+          })),
+        ...bench.map((p) => ({
+          playerId: p.id,
+          number: p.dorsal ?? undefined,
+          role: "bench" as const,
+          position: benchPositions[p.id],
+          minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
         })),
-      ...bench.map((p) => ({
-        playerId: p.id,
-        number: p.dorsal ?? undefined,
-        role: "bench" as const,
-        position: benchPositions[p.id],
-        minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
-      })),
-      ...unavailableSlots
-        .filter((slot) => slot.playerId != null)
-        .map((slot) => ({
-          playerId: slot.playerId as number,
-          number: playerMap[slot.playerId as number]?.dorsal ?? slot.number,
-          role: "unavailable" as const,
-          position: slot.position,
-          minutes: 0,
-        })),
-    ];
+        ...unavailableSlots
+          .filter((slot) => slot.playerId != null)
+          .map((slot) => ({
+            playerId: slot.playerId as number,
+            number: playerMap[slot.playerId as number]?.dorsal ?? slot.number,
+            role: "unavailable" as const,
+            position: slot.position,
+            minutes: 0,
+          })),
+      ];
 
-    await saveLineup(lineupPayload, true);
-    router.push(`/dashboard/partidos`);
+      await saveLineup(lineupPayload, true);
+      toast("Partido finalizado y guardado");
+      router.replace(`/dashboard/partidos/${match.id}`);
+      router.refresh();
+    } catch (error) {
+      console.error("No se pudo finalizar el partido", error);
+      toast("No se pudo finalizar el partido. Inténtalo otra vez.", {
+        style: {
+          background: "#7f1d1d",
+          color: "#fff",
+        },
+      });
+    } finally {
+      setFinishing(false);
+    }
   }
 
   function handlePlayerDragStart(
@@ -743,11 +771,10 @@ export default function MatchDetail({
                 <DropdownMenuItem onClick={undoLastEvent}>
                   <Undo2 className="h-4 w-4" /> Deshacer
                 </DropdownMenuItem>
-                {half === 2 && !running && (
-                  <DropdownMenuItem onClick={handleFinish}>
-                    <Flag className="h-4 w-4" /> Finalizar
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onClick={handleFinish} disabled={finishing}>
+                  <Flag className="h-4 w-4" />
+                  {finishing ? " Finalizando..." : " Finalizar"}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

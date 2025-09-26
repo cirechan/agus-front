@@ -12,6 +12,10 @@ export const FORMATIONS: Record<string, FormationDefinition> = {
     label: '4-4-2',
     positions: ['GK', 'LB', 'LCB', 'RCB', 'RB', 'LM', 'LCM', 'RCM', 'RM', 'LS', 'RS'],
   },
+  '3-5-2': {
+    label: '3-5-2',
+    positions: ['GK', 'LCB', 'CB', 'RCB', 'LM', 'LCM', 'CM', 'RCM', 'RM', 'LS', 'RS'],
+  },
   '4-2-3-1': {
     label: '4-2-3-1',
     positions: ['GK', 'LB', 'LCB', 'RCB', 'RB', 'LDM', 'RDM', 'CAM', 'LW', 'ST', 'RW'],
