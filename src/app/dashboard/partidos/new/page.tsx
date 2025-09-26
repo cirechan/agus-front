@@ -9,10 +9,24 @@ import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
 
 export default async function NuevoPartidoPage() {
-  const nuestro = await equiposService.getById(1);
-  const rivales = await rivalesService.getAll();
-  const players = await jugadoresService.getByEquipo(1);
-  const teamColor = nuestro?.color || '#dc2626';
+  const [equipos, rivales] = await Promise.all([
+    equiposService.getAll(),
+    rivalesService.getAll(),
+  ]);
+
+  const nuestro = equipos.find((team) => team.id === 1) ?? equipos[0] ?? null;
+
+  if (!nuestro) {
+    return (
+      <div className="p-4">
+        Necesitas crear un equipo antes de poder programar un partido.
+      </div>
+    );
+  }
+
+  const teamId = nuestro.id;
+  const players = await jugadoresService.getByEquipo(teamId);
+  const teamColor = nuestro.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
 
   function getContrastColor(hex: string) {
@@ -56,7 +70,7 @@ export default async function NuevoPartidoPage() {
 
     const isHome = condicion === "home";
 
-    const allPlayers = await jugadoresService.getByEquipo(1);
+    const allPlayers = await jugadoresService.getByEquipo(teamId);
     const formation = ["GK", "LB", "LCB", "RCB", "RB", "LM", "CM", "RM", "LW", "ST", "RW"];
     const lineup: PlayerSlot[] = [];
     starters.slice(0, formation.length).forEach((id, idx) => {
@@ -83,7 +97,7 @@ export default async function NuevoPartidoPage() {
     });
 
     await createMatch({
-      teamId: 1,
+      teamId,
       rivalId: opponentId,
       isHome,
       kickoff,
@@ -95,11 +109,6 @@ export default async function NuevoPartidoPage() {
     revalidatePath("/dashboard/partidos");
     redirect("/dashboard/partidos");
   }
-
-  if (!nuestro) {
-    return <div className="p-4">No se encuentra el equipo principal (ID 1)</div>;
-  }
-
   return (
     <div className="p-4 lg:p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Nuevo Partido</h1>
