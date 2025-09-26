@@ -91,6 +91,19 @@ const normalizeEntrenamiento = (row) => {
   };
 };
 
+const mapJugadorRow = (row) => {
+  if (!row) return row;
+  const mapped = camelize(row);
+  return {
+    ...mapped,
+    logs: parseJsonField(mapped.logs, {}),
+    dorsal:
+      mapped.dorsal === null || mapped.dorsal === undefined
+        ? null
+        : Number(mapped.dorsal),
+  };
+};
+
 async function readEntrenamientosStore() {
   const data = await readJson('entrenamientos.json');
   return ensureArray(data).map((item) => ({
@@ -216,17 +229,13 @@ export const rivalesService = {
 export const jugadoresService = {
   getAll: async () => {
     const rows = await all('SELECT * FROM jugadores');
-    return rows.map((r) => {
-      const row = camelize(r);
-      return { ...row, logs: parseJsonField(row.logs, {}) };
-    });
+    return rows.map((row) => mapJugadorRow(row));
   },
 
   getById: async (id) => {
     const row = await get('SELECT * FROM jugadores WHERE id = $1', [id]);
     if (!row) return null;
-    const mapped = camelize(row);
-    return { ...mapped, logs: parseJsonField(mapped.logs, {}) };
+    return mapJugadorRow(row);
   },
 
   getByEquipo: async (equipoId) => {
@@ -247,13 +256,12 @@ export const jugadoresService = {
       [equipoId]
     );
     return rows.map((r) => {
-      const row = camelize(r);
+      const row = mapJugadorRow(r);
       const presentes = Number(r.asistencias_presentes || 0);
       const total = Number(r.asistencias_totales || 0);
       const porcentaje = total > 0 ? (presentes / total) * 100 : 0;
       return {
         ...row,
-        logs: parseJsonField(row.logs, {}),
         asistenciasPresentes: presentes,
         asistenciasTotales: total,
         asistenciaPct: porcentaje,
@@ -264,12 +272,13 @@ export const jugadoresService = {
 
   create: async (jugadorData) => {
     const result = await run(
-      'INSERT INTO jugadores (nombre, posicion, equipoId, logs) VALUES ($1, $2, $3, $4) RETURNING id',
+      'INSERT INTO jugadores (nombre, posicion, equipoId, logs, dorsal) VALUES ($1, $2, $3, $4, $5) RETURNING id',
       [
         jugadorData.nombre,
         jugadorData.posicion,
         jugadorData.equipoId,
         JSON.stringify(jugadorData.logs || {}),
+        jugadorData.dorsal ?? null,
       ]
     );
     return { id: result.id, ...jugadorData };
@@ -280,12 +289,13 @@ export const jugadoresService = {
     if (!existing) return null;
     const updated = { ...existing, ...jugadorData };
     await run(
-      'UPDATE jugadores SET nombre = $1, posicion = $2, equipoId = $3, logs = $4 WHERE id = $5',
+      'UPDATE jugadores SET nombre = $1, posicion = $2, equipoId = $3, logs = $4, dorsal = $5 WHERE id = $6',
       [
         updated.nombre,
         updated.posicion,
         updated.equipoId,
         JSON.stringify(updated.logs || {}),
+        updated.dorsal ?? null,
         id,
       ]
     );
@@ -653,7 +663,7 @@ export const horariosService = {
 
   getByEquipo: async (equipoId) => {
     const horarios = await horariosService.getAll();
-    return horarios.filter((h) => h.equipoId === equipoId);
+    return horarios.filter((h) => Number(h.equipoId) === Number(equipoId));
   },
 
   setForEquipo: async (equipoId, horarios) => {
