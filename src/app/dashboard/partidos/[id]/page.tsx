@@ -63,7 +63,14 @@ export default async function MatchPage({ params }: MatchPageProps) {
   }
 
   return match.finished ? (
-    <MatchSummary match={match} players={allPlayers} />
+    <MatchSummary
+      match={match}
+      players={allPlayers}
+      homeTeamName={homeTeamName ?? "Local"}
+      awayTeamName={awayTeamName ?? "Rival"}
+      homeTeamColor={homeTeamColor ?? "#dc2626"}
+      awayTeamColor={awayTeamColor ?? "#1d4ed8"}
+    />
   ) : (
     <MatchDetail
       match={match}

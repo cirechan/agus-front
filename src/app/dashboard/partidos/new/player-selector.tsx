@@ -30,6 +30,10 @@ interface Props {
   textColor: string
   formations: FormationOption[]
   defaultFormation: string
+  initialStarters?: number[]
+  initialBench?: number[]
+  initialUnavailable?: number[]
+  initialFormation?: string
 }
 
 export default function PlayerSelector({
@@ -39,12 +43,16 @@ export default function PlayerSelector({
   textColor,
   formations,
   defaultFormation,
+  initialStarters = [],
+  initialBench = [],
+  initialUnavailable = [],
+  initialFormation,
 }: Props) {
   const [tab, setTab] = useState<'starters' | 'bench' | 'unavailable'>('starters')
-  const [starters, setStarters] = useState<number[]>([])
-  const [bench, setBench] = useState<number[]>([])
-  const [unavailable, setUnavailable] = useState<number[]>([])
-  const [formation, setFormation] = useState(defaultFormation)
+  const [starters, setStarters] = useState<number[]>(initialStarters)
+  const [bench, setBench] = useState<number[]>(initialBench)
+  const [unavailable, setUnavailable] = useState<number[]>(initialUnavailable)
+  const [formation, setFormation] = useState(initialFormation ?? defaultFormation)
   const [limitWarning, setLimitWarning] = useState<string | null>(null)
 
   const activeFormation = useMemo(

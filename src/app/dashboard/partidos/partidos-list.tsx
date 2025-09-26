@@ -110,9 +110,28 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
                   <TableCell>{rival}</TableCell>
                   <TableCell className={resultColor}>{result}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/partidos/${match.id}`}>Ver</Link>
-                    </Button>
+                    <div className="flex items-center justify-end gap-2">
+                      {match.finished ? (
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link href={`/dashboard/partidos/${match.id}`}>
+                            Resumen
+                          </Link>
+                        </Button>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link href={`/dashboard/partidos/${match.id}/editar`}>
+                              Editar
+                            </Link>
+                          </Button>
+                          <Button variant="secondary" size="sm" asChild>
+                            <Link href={`/dashboard/partidos/${match.id}`}>
+                              {match.events.length > 0 ? "Continuar" : "Iniciar"}
+                            </Link>
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               );
