@@ -7,7 +7,7 @@ export interface PlayerSlot {
   /**
    * Indicates whether the player starts on the field or the bench.
    */
-  role: 'field' | 'bench';
+  role: 'field' | 'bench' | 'excluded';
   /** Shorthand position code (e.g. GK, LB, ST) used for visual layout. */
   position?: string;
   /** Minutes played by the player in this match. */
@@ -18,6 +18,13 @@ export interface PlayerSlot {
    * persisting the lineup.
    */
   enterSecond?: number;
+}
+
+export interface MatchScore {
+  /** Goles anotados por nuestro equipo. */
+  team: number;
+  /** Goles encajados frente al rival. */
+  rival: number;
 }
 
 export interface MatchEvent {
@@ -51,6 +58,8 @@ export interface Match {
   opponentNotes?: string | null;
   /** Indicates whether the match has concluded. */
   finished: boolean;
+  /** Resultado final almacenado al cierre del partido. */
+  score: MatchScore | null;
 }
 
 export type NewMatch = Omit<Match, 'id' | 'finished'>;

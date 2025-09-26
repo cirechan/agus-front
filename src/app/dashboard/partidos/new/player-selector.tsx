@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Player {
   id: number
@@ -14,36 +14,78 @@ interface Props {
   teamColor: string
   goalkeeperColor: string
   textColor: string
+  defaultStarters?: number[]
+  defaultBench?: number[]
+  defaultExcluded?: number[]
+  maxStarters?: number
 }
 
-export default function PlayerSelector({ players, teamColor, goalkeeperColor, textColor }: Props) {
-  const [tab, setTab] = useState<'starters' | 'bench'>('starters')
-  const [starters, setStarters] = useState<number[]>([])
-  const [bench, setBench] = useState<number[]>([])
+export default function PlayerSelector({
+  players,
+  teamColor,
+  goalkeeperColor,
+  textColor,
+  defaultStarters = [],
+  defaultBench = [],
+  defaultExcluded = [],
+  maxStarters = 11,
+}: Props) {
+  const [tab, setTab] = useState<'starters' | 'bench' | 'excluded'>('starters')
+  const [starters, setStarters] = useState<number[]>(defaultStarters)
+  const [bench, setBench] = useState<number[]>(defaultBench)
+  const [excluded, setExcluded] = useState<number[]>(defaultExcluded)
+
+  useEffect(() => {
+    setStarters(defaultStarters)
+  }, [defaultStarters])
+
+  useEffect(() => {
+    setBench(defaultBench)
+  }, [defaultBench])
+
+  useEffect(() => {
+    setExcluded(defaultExcluded)
+  }, [defaultExcluded])
 
   function toggle(id: number) {
     if (tab === 'starters') {
       setStarters(prev =>
-        prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+        prev.includes(id)
+          ? prev.filter(p => p !== id)
+          : prev.length >= maxStarters
+            ? prev
+            : [...prev, id]
       )
       setBench(prev => prev.filter(p => p !== id))
-    } else {
+      setExcluded(prev => prev.filter(p => p !== id))
+    } else if (tab === 'bench') {
       setBench(prev =>
         prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
       )
       setStarters(prev => prev.filter(p => p !== id))
+      setExcluded(prev => prev.filter(p => p !== id))
+    } else {
+      setExcluded(prev =>
+        prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+      )
+      setStarters(prev => prev.filter(p => p !== id))
+      setBench(prev => prev.filter(p => p !== id))
     }
   }
 
   const cardHighlight = (id: number) => {
     const isStarter = starters.includes(id)
     const isBench = bench.includes(id)
+    const isExcluded = excluded.includes(id)
     if (tab === 'starters') {
       if (isStarter) return 'ring-2 ring-primary'
-      if (isBench) return 'opacity-40'
-    } else {
+      if (isBench || isExcluded) return 'opacity-40'
+    } else if (tab === 'bench') {
       if (isBench) return 'ring-2 ring-primary'
-      if (isStarter) return 'opacity-40'
+      if (isStarter || isExcluded) return 'opacity-40'
+    } else {
+      if (isExcluded) return 'ring-2 ring-red-500'
+      if (isStarter || isBench) return 'opacity-40'
     }
     return ''
   }
@@ -60,7 +102,7 @@ export default function PlayerSelector({ players, teamColor, goalkeeperColor, te
               : 'bg-muted text-muted-foreground'
           }`}
         >
-          Titulares ({starters.length})
+          Titulares ({starters.length}/{maxStarters})
         </button>
         <button
           type="button"
@@ -72,6 +114,17 @@ export default function PlayerSelector({ players, teamColor, goalkeeperColor, te
           }`}
         >
           Suplentes ({bench.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('excluded')}
+          className={`px-3 py-1 rounded-full text-sm transition-colors ${
+            tab === 'excluded'
+              ? 'bg-destructive text-destructive-foreground'
+              : 'bg-muted text-muted-foreground'
+          }`}
+        >
+          Desconvocados ({excluded.length})
         </button>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -103,6 +156,9 @@ export default function PlayerSelector({ players, teamColor, goalkeeperColor, te
       ))}
       {bench.map(id => (
         <input key={`b-${id}`} type="hidden" name="bench" value={id} />
+      ))}
+      {excluded.map(id => (
+        <input key={`e-${id}`} type="hidden" name="excluded" value={id} />
       ))}
     </div>
   )

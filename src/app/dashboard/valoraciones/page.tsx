@@ -9,8 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
+import { resolvePrimaryTeam } from "@/lib/team"
 
 // Datos iniciales cargados desde la API
+
+interface Equipo {
+  id: number
+  nombre: string
+}
 
 // Aptitudes a valorar
 const aptitudes = [
@@ -74,7 +80,7 @@ interface Valoracion {
 }
 
 export default function ValoracionesPage() {
-  const [equipo, setEquipo] = React.useState<any | null>(null)
+  const [equipo, setEquipo] = React.useState<Equipo | null>(null)
   const [jugadoresBase, setJugadoresBase] = React.useState<any[]>([])
   const [trimestreActual, setTrimestreActual] = React.useState(trimestres[0].id)
   const [filtroJugadores, setFiltroJugadores] = React.useState("todos")
@@ -87,8 +93,8 @@ export default function ValoracionesPage() {
       .then(res => res.json())
       .then(data => setValoraciones(data))
     const cargarDatos = async () => {
-      const equipos = await fetch('/api/equipos', { cache: 'no-store' }).then(res => res.json())
-      const eq = equipos[0]
+      const equipos: Equipo[] = await fetch('/api/equipos', { cache: 'no-store' }).then(res => res.json())
+      const eq = resolvePrimaryTeam<Equipo>(equipos || [])
       setEquipo(eq)
       if (eq) {
         const js = await fetch(`/api/jugadores?equipoId=${eq.id}`, { cache: 'no-store' }).then(res => res.json())

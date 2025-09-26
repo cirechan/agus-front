@@ -13,7 +13,17 @@ interface ColorOption {
   label: string;
 }
 
-export default function OpponentSelect({ teams, colors }: { teams: Team[]; colors: ColorOption[] }) {
+interface OpponentSelectProps {
+  teams: Team[];
+  colors: ColorOption[];
+  defaultOpponentId?: number | null;
+}
+
+export default function OpponentSelect({
+  teams,
+  colors,
+  defaultOpponentId,
+}: OpponentSelectProps) {
   const [isNew, setIsNew] = useState(false);
 
   return (
@@ -23,6 +33,9 @@ export default function OpponentSelect({ teams, colors }: { teams: Team[]; color
         name="opponentId"
         className="w-full rounded border p-2"
         required
+        defaultValue={
+          defaultOpponentId != null ? String(defaultOpponentId) : ""
+        }
         onChange={(e) => setIsNew(e.target.value === "new")}
       >
         <option value="">Seleccione rival</option>

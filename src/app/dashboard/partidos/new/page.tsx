@@ -1,17 +1,37 @@
 import { equiposService, jugadoresService, rivalesService } from "@/lib/api/services";
 import { createMatch } from "@/lib/api/matches";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import PlayerSelector from "./player-selector";
-import OpponentSelect from "./opponent-select";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
+import { getPrimaryTeamId, resolvePrimaryTeam } from "@/lib/team";
+import MatchForm from "../match-form";
+import {
+  DEFAULT_FORMATION_KEY,
+  getFormationPositions,
+} from "@/lib/formations";
+import type { FormationKey } from "@/lib/formations";
 
 export default async function NuevoPartidoPage() {
-  const nuestro = await equiposService.getById(1);
+  const equipos = await equiposService.getAll();
+  const nuestro = resolvePrimaryTeam(equipos);
+  if (!nuestro) {
+    const primaryTeamId = getPrimaryTeamId();
+    return <div className="p-4">No se encuentra el equipo principal (ID {primaryTeamId})</div>;
+  }
+
   const rivales = await rivalesService.getAll();
-  const players = await jugadoresService.getByEquipo(1);
+  const players = await jugadoresService.getByEquipo(nuestro.id);
+  const simplifiedPlayers = players.map((player: any) => ({
+    id: Number(player.id),
+    nombre: player.nombre as string,
+    posicion: player.posicion ?? null,
+    dorsal: player.dorsal ?? null,
+  }));
+  const simplifiedRivals = rivales.map((team: any) => ({
+    id: Number(team.id),
+    nombre: team.nombre as string,
+    color: team.color ?? null,
+  }));
   const teamColor = nuestro?.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
 
@@ -24,15 +44,6 @@ export default async function NuevoPartidoPage() {
     return yiq >= 128 ? '#000' : '#fff';
   }
   const textColor = getContrastColor(teamColor);
-
-  const TEAM_COLORS = [
-    { value: '#dc2626', label: 'Rojo' },
-    { value: '#1d4ed8', label: 'Azul' },
-    { value: '#15803d', label: 'Verde' },
-    { value: '#f59e0b', label: 'Amarillo' },
-    { value: '#000000', label: 'Negro' },
-    { value: '#ffffff', label: 'Blanco' },
-  ];
 
   async function crearPartido(formData: FormData) {
     "use server";
@@ -53,28 +64,36 @@ export default async function NuevoPartidoPage() {
     const matchday = matchdayRaw ? Number(matchdayRaw) : null;
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
+    const excluded = formData.getAll("excluded").map((v) => Number(v));
+    const formationKey =
+      ((formData.get("formation") as string) || DEFAULT_FORMATION_KEY) as FormationKey;
 
     const isHome = condicion === "home";
 
-    const allPlayers = await jugadoresService.getByEquipo(1);
-    const formation = ["GK", "LB", "LCB", "RCB", "RB", "LM", "CM", "RM", "LW", "ST", "RW"];
+    const allPlayers = await jugadoresService.getByEquipo(nuestro.id);
+    const dorsalLookup = allPlayers.reduce<Record<number, number | undefined>>(
+      (acc, player: any) => {
+        acc[player.id] = player.dorsal ?? undefined;
+        return acc;
+      },
+      {}
+    );
+    const formation = getFormationPositions(formationKey);
     const lineup: PlayerSlot[] = [];
     starters.slice(0, formation.length).forEach((id, idx) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
       lineup.push({
         playerId: id,
-        number: pl?.dorsal ?? undefined,
+        number: dorsalLookup[id],
         role: "field",
         position: formation[idx],
         minutes: 0,
       });
     });
     bench.forEach((id) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
-      if (pl) {
+      if (id in dorsalLookup) {
         lineup.push({
           playerId: id,
-          number: pl.dorsal ?? undefined,
+          number: dorsalLookup[id],
           role: "bench",
           position: undefined,
           minutes: 0,
@@ -82,8 +101,20 @@ export default async function NuevoPartidoPage() {
       }
     });
 
-    await createMatch({
-      teamId: 1,
+    excluded.forEach((id) => {
+      if (id in dorsalLookup) {
+        lineup.push({
+          playerId: id,
+          number: dorsalLookup[id],
+          role: "excluded",
+          position: undefined,
+          minutes: 0,
+        });
+      }
+    });
+
+    const created = await createMatch({
+      teamId: nuestro.id,
       rivalId: opponentId,
       isHome,
       kickoff,
@@ -91,63 +122,30 @@ export default async function NuevoPartidoPage() {
       matchday,
       lineup,
       events: [],
+      score: null,
     });
     revalidatePath("/dashboard/partidos");
+    const nextStep = formData.get("next");
+    if (nextStep === "start") {
+      redirect(`/dashboard/partidos/${created.id}`);
+    }
     redirect("/dashboard/partidos");
-  }
-
-  if (!nuestro) {
-    return <div className="p-4">No se encuentra el equipo principal (ID 1)</div>;
   }
 
   return (
     <div className="p-4 lg:p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Nuevo Partido</h1>
-      <form action={crearPartido} className="flex flex-col lg:flex-row gap-6">
-        <div className="flex-1">
-          <PlayerSelector
-            players={players}
-            teamColor={teamColor}
-            goalkeeperColor={GOALKEEPER_COLOR}
-            textColor={textColor}
-          />
-        </div>
-        <div className="w-full max-w-xs space-y-4">
-          <h2 className="font-semibold">Información del partido</h2>
-          <div className="space-y-1">
-            <label className="text-sm font-medium">
-              ¿Dónde se juega el partido?
-            </label>
-            <select
-              name="condicion"
-              className="w-full rounded border p-2"
-              required
-            >
-              <option value="home">Local</option>
-              <option value="away">Visitante</option>
-            </select>
-          </div>
-          <OpponentSelect teams={rivales} colors={TEAM_COLORS} />
-          <div className="space-y-1">
-            <label className="text-sm font-medium">Tipo de competición</label>
-            <select
-              name="competition"
-              className="w-full rounded border p-2"
-              required
-            >
-              <option value="liga">Liga</option>
-              <option value="playoff">Play Off</option>
-              <option value="copa">Copa</option>
-              <option value="amistoso">Amistoso</option>
-            </select>
-          </div>
-          <Input type="number" name="matchday" placeholder="Jornada" />
-          <Input type="datetime-local" name="kickoff" required />
-          <Button type="submit" className="w-full">
-            Continuar
-          </Button>
-        </div>
-      </form>
+      <MatchForm
+        players={simplifiedPlayers}
+        rivales={simplifiedRivals}
+        action={crearPartido}
+        teamColor={teamColor}
+        goalkeeperColor={GOALKEEPER_COLOR}
+        textColor={textColor}
+        primaryLabel="Crear partido"
+        startLabel="Crear e iniciar"
+        showStartButton
+      />
     </div>
   );
 }
