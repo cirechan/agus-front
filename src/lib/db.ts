@@ -57,7 +57,8 @@ const seedPlayers = async (equipoId: number) => {
     ['Alejandro Puente Mauleón', 'Delantero'],
     ['David Albert Fañanás', 'Delantero'],
   ];
-  for (const [index, [nombre, posicion]] of jugadores.entries()) {
+  for (let index = 0; index < jugadores.length; index += 1) {
+    const [nombre, posicion] = jugadores[index];
     await db.query(
       'INSERT INTO jugadores (nombre, posicion, equipoId, logs, dorsal) VALUES ($1,$2,$3,$4,$5)',
       [nombre, posicion, equipoId, '{}', index + 1]
