@@ -21,7 +21,14 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -57,9 +64,19 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
 
 const EVENT_ICONS = [
   { type: "gol", icon: "⚽" },
+  { type: "asistencia", icon: "🅰️" },
   { type: "amarilla", icon: "🟨" },
   { type: "roja", icon: "🟥" },
 ] as const;
+
+function sortPlayersByDorsal(players: Player[]) {
+  return [...players].sort((a, b) => {
+    const dorsalA = a.dorsal ?? Number.MAX_SAFE_INTEGER;
+    const dorsalB = b.dorsal ?? Number.MAX_SAFE_INTEGER;
+    if (dorsalA !== dorsalB) return dorsalA - dorsalB;
+    return a.nombre.localeCompare(b.nombre);
+  });
+}
 
 const GOALKEEPER_COLOR = "#16a34a"; // green-600
 
@@ -201,15 +218,18 @@ export default function MatchDetail({
     return map;
   }, [players]);
 
+  const startersCount = initialLineup.length;
+
   const benchInitial = useMemo(() => {
     if (match.lineup.length) {
-      return match.lineup
+      const benchPlayers = match.lineup
         .filter((slot) => slot.role === "bench")
         .map((slot) => playerMap[slot.playerId as number])
         .filter(Boolean) as Player[];
+      return sortPlayersByDorsal(benchPlayers);
     }
-    return players.slice(initialLineup.length);
-  }, [match.lineup, players, playerMap, initialLineup.length]);
+    return sortPlayersByDorsal(players.slice(startersCount));
+  }, [match.lineup, playerMap, players, startersCount]);
 
   const initialBenchPositions = useMemo(() => {
     const map: Record<number, string | undefined> = {};
@@ -227,6 +247,10 @@ export default function MatchDetail({
     Record<number, string | undefined>
   >(initialBenchPositions);
   const [subbedOut, setSubbedOut] = useState<number[]>([]);
+  const [selectedBenchPlayerId, setSelectedBenchPlayerId] = useState<number | null>(
+    null
+  );
+  const [changeDialogOpen, setChangeDialogOpen] = useState(false);
 
   const initialStats = useMemo(() => {
     const stats: Record<number, { minutes: number; enterSecond?: number }> = {};
@@ -245,6 +269,20 @@ export default function MatchDetail({
   const [half, setHalf] = useState(1);
   const [subsMade, setSubsMade] = useState(0);
   const [eventsOpen, setEventsOpen] = useState(false);
+
+  useEffect(() => {
+    setBench(benchInitial);
+  }, [benchInitial]);
+
+  useEffect(() => {
+    if (
+      selectedBenchPlayerId &&
+      !bench.some((player) => player.id === selectedBenchPlayerId)
+    ) {
+      setSelectedBenchPlayerId(null);
+      setChangeDialogOpen(false);
+    }
+  }, [bench, selectedBenchPlayerId]);
 
   const teamGoals = useMemo(
     () =>
@@ -449,9 +487,11 @@ export default function MatchDetail({
     // Actualizar banquillo
     setBench((prev) => {
       const filtered = prev.filter((p) => p.id !== playerInId);
-      return outgoingId && playerMap[outgoingId]
-        ? [...filtered, playerMap[outgoingId]]
-        : filtered;
+      const updated =
+        outgoingId && playerMap[outgoingId]
+          ? [...filtered, playerMap[outgoingId]]
+          : filtered;
+      return sortPlayersByDorsal(updated);
     });
 
     // Guardar la posición del que sale
@@ -483,6 +523,8 @@ export default function MatchDetail({
       setSubbedOut((prev) => [...prev, outgoingId]);
     }
     setSubsMade((c) => c + 1);
+    setSelectedBenchPlayerId(null);
+    setChangeDialogOpen(false);
   }
 
   function swapPlayers(fromPos: string, toPos: string) {
@@ -630,7 +672,15 @@ export default function MatchDetail({
                         .filter((e) => e.playerId === player.id)
                         .map((e) => (
                           <span key={e.id}>
-                            {e.type === "gol" ? "⚽" : e.type === "amarilla" ? "🟨" : "🟥"}
+                            {e.type === "gol"
+                              ? "⚽"
+                              : e.type === "amarilla"
+                              ? "🟨"
+                              : e.type === "roja"
+                              ? "🟥"
+                              : e.type === "asistencia"
+                              ? "🅰️"
+                              : e.type}
                           </span>
                         ))}
                     </div>
@@ -685,17 +735,83 @@ export default function MatchDetail({
       </div>
 
       {/* Banquillo */}
-      <div className="md:w-32 w-full bg-black/60 text-white p-2 overflow-x-auto md:overflow-y-auto md:h-auto h-24">
-        <div className="text-xs md:text-right text-center mb-2">{subsMade}/5</div>
+      <div className="md:w-32 w-full bg-black/60 text-white p-2 overflow-x-auto md:overflow-y-auto md:h-auto h-28 space-y-2">
+        <div className="flex flex-col md:items-end items-center gap-2 md:text-right text-center">
+          <div className="text-xs">{subsMade}/5</div>
+          <Dialog open={changeDialogOpen} onOpenChange={setChangeDialogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="w-full md:w-auto"
+                disabled={!selectedBenchPlayerId}
+              >
+                Hacer cambio
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Selecciona quién sale</DialogTitle>
+                <DialogDescription>
+                  {selectedBenchPlayerId
+                    ? `Elige al jugador que dejará su lugar a ${
+                        playerMap[selectedBenchPlayerId]?.nombre ?? "el suplente"
+                      }.`
+                    : "Selecciona primero un suplente para continuar."}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-2">
+                {lineup
+                  .filter((slot) => slot.playerId)
+                  .map((slot) => {
+                    const fieldPlayer = slot.playerId
+                      ? playerMap[slot.playerId]
+                      : null;
+                    if (!fieldPlayer || !selectedBenchPlayerId) return null;
+                    return (
+                      <Button
+                        key={slot.position}
+                        variant="outline"
+                        className="justify-start"
+                        onClick={() => substitute(selectedBenchPlayerId, slot.position)}
+                      >
+                        <span className="font-semibold mr-2">
+                          {fieldPlayer.dorsal ? `#${fieldPlayer.dorsal}` : ""}
+                        </span>
+                        <span className="text-left">
+                          {fieldPlayer.nombre}
+                          <span className="ml-2 text-xs uppercase text-muted-foreground">
+                            {slot.position}
+                          </span>
+                        </span>
+                      </Button>
+                    );
+                  })}
+                {lineup.filter((slot) => slot.playerId).length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No hay titulares disponibles para el cambio.
+                  </p>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
         <div className="flex md:flex-col gap-4 items-center justify-center">
           {bench.map((pl) => (
             <div
               key={pl.id}
-              className={`flex flex-col items-center ${subbedOut.includes(pl.id) ? "opacity-50" : ""}`}
+              className={`flex flex-col items-center transition-opacity ${
+                subbedOut.includes(pl.id) ? "opacity-50" : ""
+              }`}
             >
               <div
                 draggable
                 onDragStart={(e) => handleBenchDragStart(pl.id, e)}
+                onClick={() =>
+                  setSelectedBenchPlayerId((prev) =>
+                    prev === pl.id ? null : pl.id
+                  )
+                }
                 className="w-10 h-10 rounded-full flex items-center justify-center border-2 cursor-grab"
                 style={{
                   backgroundColor:
@@ -703,8 +819,15 @@ export default function MatchDetail({
                   color: benchPositions[pl.id] === "GK" ? "#fff" : playerTextColor,
                 }}
                 title={pl.nombre}
+                aria-pressed={selectedBenchPlayerId === pl.id}
               >
-                {pl.dorsal ?? ""}
+                <span
+                  className={`inline-flex h-full w-full items-center justify-center rounded-full border-2 border-transparent ${
+                    selectedBenchPlayerId === pl.id ? "border-white" : ""
+                  }`}
+                >
+                  {pl.dorsal ?? ""}
+                </span>
               </div>
               <span className="mt-1 text-xs text-white text-center w-full">{pl.nombre}</span>
             </div>
