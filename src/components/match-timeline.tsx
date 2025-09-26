@@ -90,7 +90,17 @@ export function MatchTimeline({
                   style={{ left: `${left}%` }}
                 >
                   <span className="block -translate-x-1/2">
-                    {config.icon}
+                    <span
+                      className="relative flex flex-col items-center"
+                    >
+                      {ours && (
+                        <span className="mb-1 h-4 w-px bg-border" />
+                      )}
+                      {config.icon}
+                      {!ours && (
+                        <span className="mt-1 h-4 w-px bg-border" />
+                      )}
+                    </span>
                   </span>
                 </div>
               </TooltipTrigger>

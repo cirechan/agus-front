@@ -78,8 +78,19 @@ export const equiposService = {
   },
 
   getByTemporada: async (temporadaId) => {
-    const rows = await all('SELECT * FROM equipos WHERE temporadaId = $1', [temporadaId]);
-    return rows.map(camelize);
+    try {
+      const rows = await all(
+        'SELECT * FROM equipos WHERE temporadaId = $1',
+        [temporadaId]
+      );
+      return rows.map(camelize);
+    } catch (err) {
+      if (err.code === '42703') {
+        const rows = await all('SELECT * FROM equipos');
+        return rows.map(camelize);
+      }
+      throw err;
+    }
   },
 
   create: async (equipoData) => {
