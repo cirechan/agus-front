@@ -249,7 +249,7 @@ function mapEvent(row: EventRow): MatchEvent {
 export async function listMatches(): Promise<Match[]> {
   const sql = getSql();
   if (sql) {
-    const rows = await sql<MatchRow>`
+    const rows = (await sql`
     SELECT p.id,
            p.equipo_id AS "teamId",
            p.rival_id AS "rivalId",
@@ -268,7 +268,7 @@ export async function listMatches(): Promise<Match[]> {
            ) AS events
     FROM partidos p
     ORDER BY p.inicio DESC
-  `;
+  `) as MatchRow[];
 
     return rows.map((row) =>
       mapMatch(
@@ -290,7 +290,7 @@ export async function listMatches(): Promise<Match[]> {
 export async function getMatch(id: number): Promise<Match | null> {
   const sql = getSql();
   if (sql) {
-    const rows = await sql<MatchRow>`
+    const rows = (await sql`
     SELECT p.id,
            p.equipo_id AS "teamId",
            p.rival_id AS "rivalId",
@@ -303,11 +303,11 @@ export async function getMatch(id: number): Promise<Match | null> {
            p.finalizado AS finished
     FROM partidos p
     WHERE p.id = ${id}
-  `;
+  `) as MatchRow[];
     const row = rows[0];
     if (!row) return null;
 
-    const events = await sql<EventRow>`
+    const events = (await sql`
     SELECT id,
            partido_id AS "matchId",
            minuto AS "minute",
@@ -319,7 +319,7 @@ export async function getMatch(id: number): Promise<Match | null> {
     FROM eventos_partido
     WHERE partido_id = ${id}
     ORDER BY minuto
-  `;
+  `) as EventRow[];
     return mapMatch(
       { ...row, lineup: row.lineup ? row.lineup : [] },
       events.map((e) => mapEvent(e))
@@ -334,7 +334,7 @@ export async function getMatch(id: number): Promise<Match | null> {
 export async function createMatch(match: NewMatch): Promise<Match> {
   const sql = getSql();
   if (sql) {
-    const [row] = await sql<MatchRow>`
+    const [row] = (await sql`
     INSERT INTO partidos (equipo_id, rival_id, condicion, inicio, competicion, jornada, alineacion, notas_rival)
     VALUES (
       ${match.teamId},
@@ -356,7 +356,7 @@ export async function createMatch(match: NewMatch): Promise<Match> {
               alineacion AS lineup,
               notas_rival AS "opponentNotes",
               finalizado AS finished
-  `;
+  `) as MatchRow[];
     return mapMatch({ ...row, lineup: row.lineup ? row.lineup : [] }, []);
   }
 
@@ -376,7 +376,7 @@ export async function createMatch(match: NewMatch): Promise<Match> {
 export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   const sql = getSql();
   if (sql) {
-    const [row] = await sql<EventRow>`
+    const [row] = (await sql`
     INSERT INTO eventos_partido (partido_id, minuto, tipo, jugador_id, equipo_id, rival_id, datos)
     VALUES (
       ${event.matchId},
@@ -395,7 +395,7 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
               equipo_id AS "teamId",
               rival_id AS "rivalId",
               datos AS data
-  `;
+  `) as EventRow[];
     return mapEvent(row);
   }
 
@@ -451,7 +451,7 @@ export async function updateLineup(
 ): Promise<Match> {
   const sql = getSql();
   if (sql) {
-    const [row] = await sql<MatchRow>`
+    const [row] = (await sql`
     UPDATE partidos
     SET alineacion = ${JSON.stringify(lineup)},
         notas_rival = ${opponentNotes},
@@ -467,9 +467,9 @@ export async function updateLineup(
               alineacion AS lineup,
               notas_rival AS "opponentNotes",
               finalizado AS finished
-  `;
+  `) as MatchRow[];
 
-    const events = await sql<EventRow>`
+    const events = (await sql`
     SELECT id,
            partido_id AS "matchId",
            minuto AS "minute",
@@ -481,7 +481,7 @@ export async function updateLineup(
     FROM eventos_partido
     WHERE partido_id = ${matchId}
     ORDER BY minuto
-  `;
+  `) as EventRow[];
 
     return mapMatch(
       { ...row, lineup: row.lineup ? row.lineup : [] },
