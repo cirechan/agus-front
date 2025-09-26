@@ -98,6 +98,14 @@ export default function PlayerSelector({
     }
   }
 
+  function handleCardClick(id: number, isUnavailable: boolean) {
+    if (isUnavailable && tab !== 'unavailable') {
+      setLimitWarning('Este jugador está desconvocado. Cambia a la pestaña de desconvocados para modificarlo.')
+      return
+    }
+    toggle(id)
+  }
+
   const cardHighlight = (id: number) => {
     const isStarter = starters.includes(id)
     const isBench = bench.includes(id)
@@ -105,8 +113,8 @@ export default function PlayerSelector({
     if (isStarter) return 'ring-2 ring-emerald-500'
     if (isBench) return 'ring-2 ring-sky-500'
     if (isUnavailable) return 'ring-2 ring-muted'
-    if (tab === 'starters' && (isBench || isUnavailable)) return 'opacity-40'
-    if (tab === 'bench' && (isStarter || isUnavailable)) return 'opacity-40'
+    if (tab === 'starters' && isBench) return 'opacity-40'
+    if (tab === 'bench' && isStarter) return 'opacity-40'
     if (tab === 'unavailable' && (isStarter || isBench)) return 'opacity-40'
     return ''
   }
@@ -188,14 +196,21 @@ export default function PlayerSelector({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
         {players.map(p => {
           const bg = p.posicion === 'Portero' ? goalkeeperColor : teamColor
+          const isUnavailable = unavailable.includes(p.id)
+          const disabled = isUnavailable && tab !== 'unavailable'
           return (
             <div
               key={p.id}
-              onClick={() => toggle(p.id)}
+              onClick={() => {
+                if (disabled) return
+                handleCardClick(p.id, isUnavailable)
+              }}
               className={cn(
-                'border rounded-md p-2 flex flex-col items-center gap-2 cursor-pointer select-none transition-shadow hover:shadow-sm',
+                'border rounded-md p-2 flex flex-col items-center gap-2 select-none transition-shadow hover:shadow-sm',
+                disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
                 cardHighlight(p.id)
               )}
+              aria-disabled={disabled}
             >
               <div
                 className="w-12 h-12 flex items-center justify-center rounded"
