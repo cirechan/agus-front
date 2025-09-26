@@ -57,10 +57,10 @@ const seedPlayers = async (equipoId: number) => {
     ['Alejandro Puente Mauleón', 'Delantero'],
     ['David Albert Fañanás', 'Delantero'],
   ];
-  for (const [nombre, posicion] of jugadores) {
+  for (const [index, [nombre, posicion]] of jugadores.entries()) {
     await db.query(
-      'INSERT INTO jugadores (nombre, posicion, equipoId, logs) VALUES ($1,$2,$3,$4)',
-      [nombre, posicion, equipoId, '{}']
+      'INSERT INTO jugadores (nombre, posicion, equipoId, logs, dorsal) VALUES ($1,$2,$3,$4,$5)',
+      [nombre, posicion, equipoId, '{}', index + 1]
     );
   }
 };
@@ -83,8 +83,10 @@ export const ready = (async () => {
       nombre TEXT NOT NULL,
       posicion TEXT,
       equipoId INTEGER REFERENCES equipos(id),
-      logs TEXT
+      logs TEXT,
+      dorsal INTEGER
     )`);
+    await db.query('ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS dorsal INTEGER');
     await db.query(`CREATE TABLE IF NOT EXISTS asistencias (
       id SERIAL PRIMARY KEY,
       jugadorId INTEGER REFERENCES jugadores(id),

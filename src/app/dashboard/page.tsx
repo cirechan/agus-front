@@ -198,7 +198,7 @@ export default async function DashboardPage() {
   }
 
   const teamMatches = (matches as Match[]).filter((match) =>
-    equipo ? match.teamId === equipo.id : true
+    equipo ? Number(match.teamId) === Number(equipo.id) : true
   )
 
   const now = new Date()

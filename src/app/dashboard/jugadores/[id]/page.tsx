@@ -12,6 +12,8 @@ import { RatingStars } from "@/components/rating-stars"
 import { PlayerRadarChart } from "@/components/player-radar-chart"
 import { revalidatePath } from "next/cache"
 
+const POSITIONS = ["Portero", "Defensa", "Centrocampista", "Delantero"]
+
 export default async function JugadorPage({ params }: { params: { id: string } }) {
   const jugadorId = Number(params.id)
   const jugador = await jugadoresService.getById(jugadorId)
@@ -50,7 +52,9 @@ export default async function JugadorPage({ params }: { params: { id: string } }
     "use server"
     const nombre = formData.get("nombre") as string
     const posicion = formData.get("posicion") as string
-    await jugadoresService.update(jugadorId, { nombre, posicion })
+    const dorsalRaw = formData.get("dorsal")
+    const dorsal = dorsalRaw !== null && dorsalRaw !== "" ? Number(dorsalRaw) : null
+    await jugadoresService.update(jugadorId, { nombre, posicion, dorsal })
     revalidatePath(`/dashboard/jugadores/${jugadorId}`)
     revalidatePath('/dashboard/jugadores')
   }
@@ -138,13 +142,47 @@ export default async function JugadorPage({ params }: { params: { id: string } }
               action={actualizarJugador}
             >
               <Input name="nombre" defaultValue={jugador.nombre} placeholder="Nombre" />
-              <Input name="posicion" defaultValue={jugador.posicion} placeholder="Posición" />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-muted-foreground" htmlFor="player-position">
+                    Posición
+                  </label>
+                  <select
+                    id="player-position"
+                    name="posicion"
+                    defaultValue={jugador.posicion}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {POSITIONS.map((position) => (
+                      <option key={position} value={position}>
+                        {position}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium text-muted-foreground" htmlFor="player-number">
+                    Dorsal
+                  </label>
+                  <Input
+                    id="player-number"
+                    name="dorsal"
+                    type="number"
+                    min={1}
+                    defaultValue={jugador.dorsal ?? ""}
+                    placeholder="Número"
+                  />
+                </div>
+              </div>
               <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
             </FormDialog>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <div><span className="font-medium">Nombre:</span> {jugador.nombre}</div>
             <div><span className="font-medium">Posición:</span> {jugador.posicion}</div>
+            <div>
+              <span className="font-medium">Dorsal:</span> {jugador.dorsal ?? "Sin asignar"}
+            </div>
             <div><span className="font-medium">Asistencias:</span> {presentes}/{totalSesiones} ({porcentajeAsistencia}%)</div>
           </CardContent>
         </Card>
