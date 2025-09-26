@@ -7,11 +7,18 @@ import OpponentSelect from "./opponent-select";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type { PlayerSlot } from "@/types/match";
+import {
+  DEFAULT_FORMATION_KEY,
+  FORMATIONS,
+  FORMATION_OPTIONS,
+} from "@/data/formations";
 
 export default async function NuevoPartidoPage() {
-  const nuestro = await equiposService.getById(1);
+  const equipos = await equiposService.getAll();
+  const nuestro = equipos[0] ?? null;
   const rivales = await rivalesService.getAll();
-  const players = await jugadoresService.getByEquipo(1);
+  const teamId = nuestro?.id;
+  const players = teamId ? await jugadoresService.getByEquipo(teamId) : [];
   const teamColor = nuestro?.color || '#dc2626';
   const GOALKEEPER_COLOR = '#16a34a';
 
@@ -53,23 +60,36 @@ export default async function NuevoPartidoPage() {
     const matchday = matchdayRaw ? Number(matchdayRaw) : null;
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
+    const unavailable = formData.getAll("unavailable").map((v) => Number(v));
+    const formationKeyRaw = (formData.get("formation") as string) || DEFAULT_FORMATION_KEY;
+    const formationPositions =
+      FORMATIONS[formationKeyRaw]?.positions ?? FORMATIONS[DEFAULT_FORMATION_KEY].positions;
 
     const isHome = condicion === "home";
 
-    const allPlayers = await jugadoresService.getByEquipo(1);
-    const formation = ["GK", "LB", "LCB", "RCB", "RB", "LM", "CM", "RM", "LW", "ST", "RW"];
+    if (!teamId) {
+      throw new Error("No hay equipo principal disponible para crear el partido");
+    }
+
+    const allPlayers = await jugadoresService.getByEquipo(teamId);
     const lineup: PlayerSlot[] = [];
-    starters.slice(0, formation.length).forEach((id, idx) => {
+    const uniqueStarters = Array.from(new Set(starters));
+    const uniqueBench = Array.from(new Set(bench));
+    const uniqueUnavailable = Array.from(new Set(unavailable));
+
+    uniqueStarters.slice(0, formationPositions.length).forEach((id, idx) => {
       const pl = allPlayers.find((p: any) => p.id === id);
       lineup.push({
         playerId: id,
         number: pl?.dorsal ?? undefined,
         role: "field",
-        position: formation[idx],
+        position: formationPositions[idx],
         minutes: 0,
       });
     });
-    bench.forEach((id) => {
+    uniqueBench
+      .filter((id) => !uniqueStarters.includes(id))
+      .forEach((id) => {
       const pl = allPlayers.find((p: any) => p.id === id);
       if (pl) {
         lineup.push({
@@ -81,9 +101,23 @@ export default async function NuevoPartidoPage() {
         });
       }
     });
+    uniqueUnavailable
+      .filter((id) => !uniqueStarters.includes(id) && !uniqueBench.includes(id))
+      .forEach((id) => {
+        const pl = allPlayers.find((p: any) => p.id === id);
+        if (pl) {
+          lineup.push({
+            playerId: id,
+            number: pl.dorsal ?? undefined,
+            role: "unavailable",
+            position: undefined,
+            minutes: 0,
+          });
+        }
+      });
 
     await createMatch({
-      teamId: 1,
+      teamId,
       rivalId: opponentId,
       isHome,
       kickoff,
@@ -97,7 +131,12 @@ export default async function NuevoPartidoPage() {
   }
 
   if (!nuestro) {
-    return <div className="p-4">No se encuentra el equipo principal (ID 1)</div>;
+    return (
+      <div className="p-4">
+        No se encontró ningún equipo principal. Crea uno antes de generar un
+        partido.
+      </div>
+    );
   }
 
   return (
@@ -110,6 +149,8 @@ export default async function NuevoPartidoPage() {
             teamColor={teamColor}
             goalkeeperColor={GOALKEEPER_COLOR}
             textColor={textColor}
+            formations={FORMATION_OPTIONS}
+            defaultFormation={DEFAULT_FORMATION_KEY}
           />
         </div>
         <div className="w-full max-w-xs space-y-4">
@@ -144,7 +185,7 @@ export default async function NuevoPartidoPage() {
           <Input type="number" name="matchday" placeholder="Jornada" />
           <Input type="datetime-local" name="kickoff" required />
           <Button type="submit" className="w-full">
-            Continuar
+            Guardar partido
           </Button>
         </div>
       </form>

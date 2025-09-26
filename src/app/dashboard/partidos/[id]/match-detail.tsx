@@ -8,6 +8,11 @@ import {
   useCallback,
 } from "react";
 import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
+import {
+  DEFAULT_FORMATION_KEY,
+  FORMATIONS,
+  type FormationKey,
+} from "@/data/formations";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,6 +53,9 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   CM: { x: 50, y: 50 },
   RCM: { x: 50, y: 60 },
   RM: { x: 50, y: 70 },
+  LDM: { x: 48, y: 42 },
+  RDM: { x: 48, y: 58 },
+  CAM: { x: 66, y: 50 },
   LW: { x: 70, y: 25 },
   LS: { x: 70, y: 40 },
   ST: { x: 70, y: 50 },
@@ -78,36 +86,7 @@ function getContrastColor(hex: string) {
   return yiq >= 128 ? "#000" : "#fff";
 }
 
-const DEFAULT_FORMATION = [
-  "GK",
-  "LB",
-  "LCB",
-  "RCB",
-  "RB",
-  "LM",
-  "CM",
-  "RM",
-  "LW",
-  "ST",
-  "RW",
-];
-
-const FORMATIONS: Record<string, string[]> = {
-  "4-3-3": DEFAULT_FORMATION,
-  "4-4-2": [
-    "GK",
-    "LB",
-    "LCB",
-    "RCB",
-    "RB",
-    "LM",
-    "LCM",
-    "RCM",
-    "RM",
-    "LS",
-    "RS",
-  ],
-};
+const DEFAULT_FORMATION = FORMATIONS[DEFAULT_FORMATION_KEY].positions;
 
 interface Player {
   id: number;
@@ -164,13 +143,13 @@ export default function MatchDetail({
   const homeTextColor = getContrastColor(homeTeamColor);
   const awayTextColor = getContrastColor(awayTeamColor);
 
-  const formationKeys = Object.keys(FORMATIONS);
+  const formationKeys = Object.keys(FORMATIONS) as FormationKey[];
   const [formationIndex, setFormationIndex] = useState(0);
 
   function cycleFormation() {
     const next = (formationIndex + 1) % formationKeys.length;
     setFormationIndex(next);
-    const formation = FORMATIONS[formationKeys[next]];
+    const formation = FORMATIONS[formationKeys[next]].positions;
     setLineup((prev) =>
       prev.map((slot, idx) => {
         const pos = formation[idx];
@@ -232,6 +211,11 @@ export default function MatchDetail({
       players.filter((player) => !startersIds.has(player.id) && player.dorsal != null)
     );
   }, [match.lineup, players, playerMap, initialLineup]);
+
+  const unavailableSlots = useMemo(
+    () => match.lineup.filter((slot) => slot.role === "unavailable"),
+    [match.lineup]
+  );
 
   const initialBenchPositions = useMemo(() => {
     const map: Record<number, string | undefined> = {};
@@ -437,6 +421,15 @@ export default function MatchDetail({
         position: benchPositions[p.id],
         minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
       })),
+      ...unavailableSlots
+        .filter((slot) => slot.playerId != null)
+        .map((slot) => ({
+          playerId: slot.playerId as number,
+          number: playerMap[slot.playerId as number]?.dorsal ?? slot.number,
+          role: "unavailable" as const,
+          position: slot.position,
+          minutes: 0,
+        })),
     ];
 
     await saveLineup(lineupPayload, true);
