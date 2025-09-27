@@ -308,6 +308,16 @@ export default function MatchDetail({
   const [manualEventPlayerId, setManualEventPlayerId] = useState<number | null>(null);
   const [manualEventSaving, setManualEventSaving] = useState(false);
   const [manualEventError, setManualEventError] = useState<string | null>(null);
+  const [assistPrompt, setAssistPrompt] = useState<
+    | {
+        minute: number;
+        goalScorerId: number | null;
+      }
+    | null
+  >(null);
+  const [assistPlayerId, setAssistPlayerId] = useState<number | null>(null);
+  const [assistSaving, setAssistSaving] = useState(false);
+  const [assistError, setAssistError] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
   const [lateWindowReminderShown, setLateWindowReminderShown] = useState(false);
   const [lateWindowUsed, setLateWindowUsed] = useState(false);
@@ -410,6 +420,21 @@ export default function MatchDetail({
     }
   }, [bench, selectedBenchId]);
 
+  const promptAssist = useCallback(
+    (minute: number, goalScorerId: number | null) => {
+      const fallback = squadPlayers.find(
+        (entry) =>
+          entry.role !== "unavailable" &&
+          entry.player.id !== (goalScorerId ?? -1)
+      );
+      setAssistPlayerId(fallback ? fallback.player.id : null);
+      setAssistError(null);
+      setAssistSaving(false);
+      setAssistPrompt({ minute, goalScorerId });
+    },
+    [squadPlayers]
+  );
+
   async function quickAddEvent({
     playerId,
     type,
@@ -431,6 +456,9 @@ export default function MatchDetail({
       const created = await addEvent(fd);
       setEvents((prev) => [...prev, created]);
       toast(`Evento ${type} añadido`);
+      if (type === "gol" && teamId === match.teamId) {
+        promptAssist(created.minute, created.playerId ?? null);
+      }
     } catch (error) {
       console.error("No se pudo registrar el evento rápido", error);
       toast("No se pudo registrar el evento. Inténtalo de nuevo.", {
@@ -484,6 +512,12 @@ export default function MatchDetail({
       const created = await addEvent(fd);
       setEvents((prev) => [...prev, created]);
       toast(`Evento ${manualEventType} añadido`);
+      if (
+        manualEventType === "gol" &&
+        manualEventTeam === "ours"
+      ) {
+        promptAssist(created.minute, created.playerId ?? null);
+      }
       setManualEventOpen(false);
     } catch (error) {
       console.error("No se pudo registrar el evento", error);
@@ -491,6 +525,38 @@ export default function MatchDetail({
     } finally {
       setManualEventSaving(false);
     }
+  }
+
+  async function handleAssistSave() {
+    if (!assistPrompt) return;
+    if (!assistPlayerId) {
+      setAssistError("Selecciona el jugador que dio la asistencia.");
+      return;
+    }
+
+    try {
+      setAssistSaving(true);
+      const fd = new FormData();
+      fd.append("minute", String(assistPrompt.minute));
+      fd.append("type", "asistencia");
+      fd.append("playerId", String(assistPlayerId));
+      fd.append("teamId", String(match.teamId));
+      const created = await addEvent(fd);
+      setEvents((prev) => [...prev, created]);
+      toast("Asistencia registrada");
+      setAssistPrompt(null);
+    } catch (error) {
+      console.error("No se pudo registrar la asistencia", error);
+      setAssistError("No se pudo registrar la asistencia. Inténtalo nuevamente.");
+    } finally {
+      setAssistSaving(false);
+    }
+  }
+
+  function handleAssistSkip() {
+    setAssistPrompt(null);
+    setAssistError(null);
+    setAssistPlayerId(null);
   }
 
   function toggleRunning() {
@@ -1062,6 +1128,76 @@ export default function MatchDetail({
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={assistPrompt != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleAssistSkip();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Hubo asistencia?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecciona al jugador que dio el último pase antes del gol del minuto {assistPrompt?.minute}
+              &apos; o indica que no hubo asistencia.
+            </p>
+            <div className="grid gap-2">
+              <Label htmlFor="assist-player">Jugador que asiste</Label>
+              <Select
+                value={assistPlayerId ? String(assistPlayerId) : ""}
+                onValueChange={(value) =>
+                  setAssistPlayerId(value ? Number(value) : null)
+                }
+              >
+                <SelectTrigger id="assist-player">
+                  <SelectValue placeholder="Selecciona jugador" />
+                </SelectTrigger>
+                <SelectContent>
+                  {squadPlayers.map(({ player, role }) => (
+                    <SelectItem
+                      key={player.id}
+                      value={String(player.id)}
+                      disabled={
+                        role === "unavailable" ||
+                        player.id === assistPrompt?.goalScorerId
+                      }
+                    >
+                      {player.nombre}
+                      {player.id === assistPrompt?.goalScorerId
+                        ? " (Autor del gol)"
+                        : role === "bench"
+                        ? " (Suplente)"
+                        : role === "unavailable"
+                        ? " (Desconvocado)"
+                        : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {assistError ? (
+                <p className="text-sm text-destructive">{assistError}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={handleAssistSkip}>
+                No hubo asistencia
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAssistSave}
+                disabled={assistSaving}
+              >
+                {assistSaving ? "Guardando..." : "Guardar asistencia"}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
