@@ -7,9 +7,17 @@ import {
   useMemo,
   useCallback,
 } from "react";
+import type { FormEvent } from "react";
 import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
+import {
+  DEFAULT_FORMATION_KEY,
+  FORMATIONS,
+  type FormationKey,
+} from "@/data/formations";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverTrigger,
@@ -22,6 +30,17 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@/components/ui/radio-group";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -41,6 +60,7 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 10, y: 50 },
   LB: { x: 30, y: 25 },
   LCB: { x: 30, y: 40 },
+  CB: { x: 30, y: 50 },
   RCB: { x: 30, y: 60 },
   RB: { x: 30, y: 75 },
   LM: { x: 50, y: 30 },
@@ -48,6 +68,9 @@ const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   CM: { x: 50, y: 50 },
   RCM: { x: 50, y: 60 },
   RM: { x: 50, y: 70 },
+  LDM: { x: 48, y: 42 },
+  RDM: { x: 48, y: 58 },
+  CAM: { x: 66, y: 50 },
   LW: { x: 70, y: 25 },
   LS: { x: 70, y: 40 },
   ST: { x: 70, y: 50 },
@@ -61,6 +84,13 @@ const EVENT_ICONS = [
   { type: "roja", icon: "🟥" },
   { type: "asistencia", icon: "🅰️" },
 ] as const;
+
+const EVENT_LABELS: Record<string, string> = {
+  gol: "Gol",
+  amarilla: "Tarjeta amarilla",
+  roja: "Tarjeta roja",
+  asistencia: "Asistencia",
+};
 
 const EVENT_ICON_MAP = EVENT_ICONS.reduce<Record<string, string>>((acc, item) => {
   acc[item.type] = item.icon;
@@ -78,36 +108,7 @@ function getContrastColor(hex: string) {
   return yiq >= 128 ? "#000" : "#fff";
 }
 
-const DEFAULT_FORMATION = [
-  "GK",
-  "LB",
-  "LCB",
-  "RCB",
-  "RB",
-  "LM",
-  "CM",
-  "RM",
-  "LW",
-  "ST",
-  "RW",
-];
-
-const FORMATIONS: Record<string, string[]> = {
-  "4-3-3": DEFAULT_FORMATION,
-  "4-4-2": [
-    "GK",
-    "LB",
-    "LCB",
-    "RCB",
-    "RB",
-    "LM",
-    "LCM",
-    "RCM",
-    "RM",
-    "LS",
-    "RS",
-  ],
-};
+const DEFAULT_FORMATION = FORMATIONS[DEFAULT_FORMATION_KEY].positions;
 
 interface Player {
   id: number;
@@ -164,13 +165,13 @@ export default function MatchDetail({
   const homeTextColor = getContrastColor(homeTeamColor);
   const awayTextColor = getContrastColor(awayTeamColor);
 
-  const formationKeys = Object.keys(FORMATIONS);
+  const formationKeys = Object.keys(FORMATIONS) as FormationKey[];
   const [formationIndex, setFormationIndex] = useState(0);
 
   function cycleFormation() {
     const next = (formationIndex + 1) % formationKeys.length;
     setFormationIndex(next);
-    const formation = FORMATIONS[formationKeys[next]];
+    const formation = FORMATIONS[formationKeys[next]].positions;
     setLineup((prev) =>
       prev.map((slot, idx) => {
         const pos = formation[idx];
@@ -233,6 +234,37 @@ export default function MatchDetail({
     );
   }, [match.lineup, players, playerMap, initialLineup]);
 
+  const unavailableSlots = useMemo(
+    () => match.lineup.filter((slot) => slot.role === "unavailable"),
+    [match.lineup]
+  );
+
+  const squadPlayers = useMemo(() => {
+    const seen = new Set<number>();
+    const entries: { player: Player; role: PlayerSlot["role"] }[] = [];
+    if (match.lineup.length) {
+      match.lineup.forEach((slot) => {
+        if (!slot.playerId || seen.has(slot.playerId)) return;
+        const player = playerMap[slot.playerId];
+        if (!player) return;
+        seen.add(slot.playerId);
+        entries.push({ player, role: slot.role });
+      });
+    } else {
+      players.forEach((player) => {
+        if (seen.has(player.id)) return;
+        seen.add(player.id);
+        entries.push({ player, role: "field" });
+      });
+    }
+    return entries.sort((a, b) => {
+      const dorsalA = a.player.dorsal ?? Number.POSITIVE_INFINITY;
+      const dorsalB = b.player.dorsal ?? Number.POSITIVE_INFINITY;
+      if (dorsalA !== dorsalB) return dorsalA - dorsalB;
+      return a.player.nombre.localeCompare(b.player.nombre);
+    });
+  }, [match.lineup, playerMap, players]);
+
   const initialBenchPositions = useMemo(() => {
     const map: Record<number, string | undefined> = {};
     match.lineup
@@ -269,6 +301,31 @@ export default function MatchDetail({
   const [half, setHalf] = useState(1);
   const [subsMade, setSubsMade] = useState(0);
   const [eventsOpen, setEventsOpen] = useState(false);
+  const [manualEventOpen, setManualEventOpen] = useState(false);
+  const [manualEventType, setManualEventType] = useState<string>("gol");
+  const [manualEventMinute, setManualEventMinute] = useState(0);
+  const [manualEventTeam, setManualEventTeam] = useState<"ours" | "rival">("ours");
+  const [manualEventPlayerId, setManualEventPlayerId] = useState<number | null>(null);
+  const [manualEventSaving, setManualEventSaving] = useState(false);
+  const [manualEventError, setManualEventError] = useState<string | null>(null);
+  const [assistPrompt, setAssistPrompt] = useState<
+    | {
+        minute: number;
+        goalScorerId: number | null;
+      }
+    | null
+  >(null);
+  const [assistPlayerId, setAssistPlayerId] = useState<number | null>(null);
+  const [assistSaving, setAssistSaving] = useState(false);
+  const [assistError, setAssistError] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
+  const [lateWindowReminderShown, setLateWindowReminderShown] = useState(false);
+  const [lateWindowUsed, setLateWindowUsed] = useState(false);
+
+  const currentMinute = useMemo(
+    () => Math.floor(seconds / 60) + (half - 1) * 40,
+    [seconds, half]
+  );
 
   const teamGoals = useMemo(
     () =>
@@ -284,12 +341,32 @@ export default function MatchDetail({
   );
   const homeGoals = match.isHome ? teamGoals : rivalGoals;
   const awayGoals = match.isHome ? rivalGoals : teamGoals;
+  const ourTeamLabel = match.isHome ? homeTeamName : awayTeamName;
+  const rivalTeamLabel = match.isHome ? awayTeamName : homeTeamName;
 
   useEffect(() => {
     if (!running) return;
     const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [running]);
+
+  useEffect(() => {
+    if (currentMinute >= 70 && !lateWindowReminderShown) {
+      toast("Recuerda: a partir del 70' solo hay una ventana de cambios");
+      setLateWindowReminderShown(true);
+    }
+  }, [currentMinute, lateWindowReminderShown]);
+
+  useEffect(() => {
+    if (manualEventTeam === "ours") {
+      if (!manualEventPlayerId) {
+        const fallback = squadPlayers.find((entry) => entry.role !== "unavailable");
+        setManualEventPlayerId(fallback ? fallback.player.id : null);
+      }
+    } else if (manualEventPlayerId != null) {
+      setManualEventPlayerId(null);
+    }
+  }, [manualEventTeam, manualEventPlayerId, squadPlayers]);
 
   const paint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -343,6 +420,21 @@ export default function MatchDetail({
     }
   }, [bench, selectedBenchId]);
 
+  const promptAssist = useCallback(
+    (minute: number, goalScorerId: number | null) => {
+      const fallback = squadPlayers.find(
+        (entry) =>
+          entry.role !== "unavailable" &&
+          entry.player.id !== (goalScorerId ?? -1)
+      );
+      setAssistPlayerId(fallback ? fallback.player.id : null);
+      setAssistError(null);
+      setAssistSaving(false);
+      setAssistPrompt({ minute, goalScorerId });
+    },
+    [squadPlayers]
+  );
+
   async function quickAddEvent({
     playerId,
     type,
@@ -354,15 +446,28 @@ export default function MatchDetail({
     teamId?: number;
     rivalId?: number;
   }) {
-    const fd = new FormData();
-    if (playerId) fd.append("playerId", String(playerId));
-    fd.append("type", type);
-    if (teamId) fd.append("teamId", String(teamId));
-    if (rivalId) fd.append("rivalId", String(rivalId));
-    fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
-    const created = await addEvent(fd);
-    setEvents((prev) => [...prev, created]);
-    toast(`Evento ${type} añadido`);
+    try {
+      const fd = new FormData();
+      if (playerId) fd.append("playerId", String(playerId));
+      fd.append("type", type);
+      if (teamId) fd.append("teamId", String(teamId));
+      if (rivalId) fd.append("rivalId", String(rivalId));
+      fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
+      const created = await addEvent(fd);
+      setEvents((prev) => [...prev, created]);
+      toast(`Evento ${type} añadido`);
+      if (type === "gol" && teamId === match.teamId) {
+        promptAssist(created.minute, created.playerId ?? null);
+      }
+    } catch (error) {
+      console.error("No se pudo registrar el evento rápido", error);
+      toast("No se pudo registrar el evento. Inténtalo de nuevo.", {
+        style: {
+          background: "#7f1d1d",
+          color: "#fff",
+        },
+      });
+    }
   }
 
   async function undoLastEvent() {
@@ -377,6 +482,81 @@ export default function MatchDetail({
     await deleteEvent(id);
     setEvents((prev) => prev.filter((e) => e.id !== id));
     toast("Evento eliminado");
+  }
+
+  async function handleManualEventSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setManualEventError(null);
+    const minuteNumber = Number.isFinite(manualEventMinute)
+      ? manualEventMinute
+      : 0;
+    const safeMinute = Math.max(0, Math.min(130, Math.round(minuteNumber)));
+    if (manualEventTeam === "ours" && !manualEventPlayerId) {
+      setManualEventError("Selecciona un jugador para registrar el evento.");
+      return;
+    }
+
+    try {
+      setManualEventSaving(true);
+      const fd = new FormData();
+      fd.append("minute", String(safeMinute));
+      fd.append("type", manualEventType);
+      if (manualEventTeam === "ours") {
+        if (manualEventPlayerId) {
+          fd.append("playerId", String(manualEventPlayerId));
+        }
+        fd.append("teamId", String(match.teamId));
+      } else {
+        fd.append("rivalId", String(match.rivalId));
+      }
+      const created = await addEvent(fd);
+      setEvents((prev) => [...prev, created]);
+      toast(`Evento ${manualEventType} añadido`);
+      if (
+        manualEventType === "gol" &&
+        manualEventTeam === "ours"
+      ) {
+        promptAssist(created.minute, created.playerId ?? null);
+      }
+      setManualEventOpen(false);
+    } catch (error) {
+      console.error("No se pudo registrar el evento", error);
+      setManualEventError("No se pudo registrar el evento, inténtalo de nuevo.");
+    } finally {
+      setManualEventSaving(false);
+    }
+  }
+
+  async function handleAssistSave() {
+    if (!assistPrompt) return;
+    if (!assistPlayerId) {
+      setAssistError("Selecciona el jugador que dio la asistencia.");
+      return;
+    }
+
+    try {
+      setAssistSaving(true);
+      const fd = new FormData();
+      fd.append("minute", String(assistPrompt.minute));
+      fd.append("type", "asistencia");
+      fd.append("playerId", String(assistPlayerId));
+      fd.append("teamId", String(match.teamId));
+      const created = await addEvent(fd);
+      setEvents((prev) => [...prev, created]);
+      toast("Asistencia registrada");
+      setAssistPrompt(null);
+    } catch (error) {
+      console.error("No se pudo registrar la asistencia", error);
+      setAssistError("No se pudo registrar la asistencia. Inténtalo nuevamente.");
+    } finally {
+      setAssistSaving(false);
+    }
+  }
+
+  function handleAssistSkip() {
+    setAssistPrompt(null);
+    setAssistError(null);
+    setAssistPlayerId(null);
   }
 
   function toggleRunning() {
@@ -411,36 +591,61 @@ export default function MatchDetail({
   }
 
   async function handleFinish() {
-    const stats = { ...playerStats };
-    lineup.forEach((slot) => {
-      const pid = slot.playerId;
-      if (pid && stats[pid]?.enterSecond != null) {
-        stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
-        delete stats[pid].enterSecond;
-      }
-    });
+    setFinishing(true);
+    setRunning(false);
+    try {
+      const stats = { ...playerStats };
+      lineup.forEach((slot) => {
+        const pid = slot.playerId;
+        if (pid && stats[pid]?.enterSecond != null) {
+          stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+          delete stats[pid].enterSecond;
+        }
+      });
 
-    const lineupPayload: PlayerSlot[] = [
-      ...lineup
-        .filter((s) => s.playerId)
-        .map((s) => ({
-          playerId: s.playerId as number,
-          number: playerMap[s.playerId as number]?.dorsal ?? undefined,
-          role: "field" as const,
-          position: s.position,
-          minutes: Math.floor((stats[s.playerId as number]?.minutes ?? 0) / 60),
+      const lineupPayload: PlayerSlot[] = [
+        ...lineup
+          .filter((s) => s.playerId)
+          .map((s) => ({
+            playerId: s.playerId as number,
+            number: playerMap[s.playerId as number]?.dorsal ?? undefined,
+            role: "field" as const,
+            position: s.position,
+            minutes: Math.floor((stats[s.playerId as number]?.minutes ?? 0) / 60),
+          })),
+        ...bench.map((p) => ({
+          playerId: p.id,
+          number: p.dorsal ?? undefined,
+          role: "bench" as const,
+          position: benchPositions[p.id],
+          minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
         })),
-      ...bench.map((p) => ({
-        playerId: p.id,
-        number: p.dorsal ?? undefined,
-        role: "bench" as const,
-        position: benchPositions[p.id],
-        minutes: Math.floor((stats[p.id]?.minutes ?? 0) / 60),
-      })),
-    ];
+        ...unavailableSlots
+          .filter((slot) => slot.playerId != null)
+          .map((slot) => ({
+            playerId: slot.playerId as number,
+            number: playerMap[slot.playerId as number]?.dorsal ?? slot.number,
+            role: "unavailable" as const,
+            position: slot.position,
+            minutes: 0,
+          })),
+      ];
 
-    await saveLineup(lineupPayload, true);
-    router.push(`/dashboard/partidos`);
+      await saveLineup(lineupPayload, true);
+      toast("Partido finalizado y guardado");
+      router.replace(`/dashboard/partidos/${match.id}`);
+      router.refresh();
+    } catch (error) {
+      console.error("No se pudo finalizar el partido", error);
+      toast("No se pudo finalizar el partido. Inténtalo otra vez.", {
+        style: {
+          background: "#7f1d1d",
+          color: "#fff",
+        },
+      });
+    } finally {
+      setFinishing(false);
+    }
   }
 
   function handlePlayerDragStart(
@@ -516,6 +721,11 @@ export default function MatchDetail({
     }
     setSubsMade((c) => c + 1);
     setSelectedBenchId(null);
+    const minute = Math.floor(seconds / 60) + (half - 1) * 40;
+    if (minute >= 70 && !lateWindowUsed) {
+      setLateWindowUsed(true);
+      toast("Has consumido la ventana de cambios permitida tras el 70'.");
+    }
   }
 
   function swapPlayers(fromPos: string, toPos: string) {
@@ -608,17 +818,29 @@ export default function MatchDetail({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => {
+                    setManualEventError(null);
+                    setManualEventType("gol");
+                    setManualEventTeam("ours");
+                    setManualEventMinute(currentMinute);
+                    const fallback = squadPlayers.find((entry) => entry.role !== "unavailable");
+                    setManualEventPlayerId(fallback ? fallback.player.id : null);
+                    setManualEventOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4" /> Registrar evento
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setEventsOpen(true)}>
                   <List className="h-4 w-4" /> Eventos
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={undoLastEvent}>
                   <Undo2 className="h-4 w-4" /> Deshacer
                 </DropdownMenuItem>
-                {half === 2 && !running && (
-                  <DropdownMenuItem onClick={handleFinish}>
-                    <Flag className="h-4 w-4" /> Finalizar
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onClick={handleFinish} disabled={finishing}>
+                  <Flag className="h-4 w-4" />
+                  {finishing ? " Finalizando..." : " Finalizar"}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -717,17 +939,8 @@ export default function MatchDetail({
 
       {/* Banquillo */}
       <div className="md:w-32 w-full bg-black/60 text-white p-2 overflow-x-auto md:overflow-y-auto md:h-auto h-24">
-        <div className="flex items-center justify-between mb-2 text-xs">
-          <div className="md:text-right text-center w-full md:w-auto">{subsMade}/5</div>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="hidden md:inline-flex"
-            disabled={!selectedBenchId}
-            onClick={() => setChangeDialogOpen(true)}
-          >
-            Hacer cambio
-          </Button>
+        <div className="flex items-center justify-center mb-2 text-xs">
+          <div className="text-center w-full">{subsMade}/5</div>
         </div>
         <div className="flex md:flex-col gap-4 items-center justify-center">
           {bench.map((pl) => {
@@ -770,17 +983,223 @@ export default function MatchDetail({
             );
           })}
         </div>
-        <div className="mt-2 md:hidden flex justify-center">
+        <div className="mt-3 flex flex-col items-center gap-2">
+          {currentMinute >= 70 && (
+            <p className="text-[10px] leading-tight text-amber-200 text-center">
+              {lateWindowUsed
+                ? "Ventana de cambios tras el 70' ya utilizada."
+                : "Recuerda: a partir del 70' solo hay una ventana de cambios."}
+            </p>
+          )}
           <Button
             size="sm"
             variant="secondary"
+            className="w-full"
             disabled={!selectedBenchId}
-            onClick={() => setChangeDialogOpen(true)}
+            onClick={() => {
+              if (!selectedBenchId) return;
+              if (currentMinute >= 70) {
+                toast(
+                  lateWindowUsed
+                    ? "Ya has usado la ventana permitida tras el 70'."
+                    : "Estás dentro de la última ventana de cambios disponible."
+                );
+              }
+              setChangeDialogOpen(true);
+            }}
           >
             Hacer cambio
           </Button>
         </div>
       </div>
+
+      <Dialog
+        open={manualEventOpen}
+        onOpenChange={(open) => {
+          setManualEventOpen(open);
+          if (!open) {
+            setManualEventError(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar evento</DialogTitle>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleManualEventSubmit}>
+            <div className="grid gap-2">
+              <Label htmlFor="manual-event-minute">Minuto</Label>
+              <Input
+                id="manual-event-minute"
+                type="number"
+                min={0}
+                max={130}
+                value={Number.isNaN(manualEventMinute) ? "" : manualEventMinute}
+                onChange={(e) => setManualEventMinute(Number(e.target.value))}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="manual-event-type">Tipo</Label>
+              <Select value={manualEventType} onValueChange={setManualEventType}>
+                <SelectTrigger id="manual-event-type">
+                  <SelectValue placeholder="Tipo de evento" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(EVENT_LABELS).map((key) => (
+                    <SelectItem key={key} value={key}>
+                      {EVENT_LABELS[key]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Equipo</Label>
+              <RadioGroup
+                value={manualEventTeam}
+                onValueChange={(value) => setManualEventTeam(value as "ours" | "rival")}
+                className="flex gap-4"
+              >
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="ours" id="manual-team-ours" />
+                  <Label htmlFor="manual-team-ours" className="font-normal">
+                    {ourTeamLabel}
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="rival" id="manual-team-rival" />
+                  <Label htmlFor="manual-team-rival" className="font-normal">
+                    {rivalTeamLabel}
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+            {manualEventTeam === "ours" && (
+              <div className="grid gap-2">
+                <Label htmlFor="manual-event-player">Jugador</Label>
+                <Select
+                  value={manualEventPlayerId ? String(manualEventPlayerId) : ""}
+                  onValueChange={(value) =>
+                    setManualEventPlayerId(value ? Number(value) : null)
+                  }
+                >
+                  <SelectTrigger id="manual-event-player">
+                    <SelectValue placeholder="Selecciona jugador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {squadPlayers.map(({ player, role }) => (
+                      <SelectItem
+                        key={player.id}
+                        value={String(player.id)}
+                        disabled={role === "unavailable"}
+                      >
+                        {player.nombre}
+                        {role === "bench"
+                          ? " (Suplente)"
+                          : role === "unavailable"
+                          ? " (Desconvocado)"
+                          : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {manualEventError ? (
+              <p className="text-sm text-destructive">{manualEventError}</p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setManualEventOpen(false)}
+                disabled={manualEventSaving}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={
+                  manualEventSaving ||
+                  (manualEventTeam === "ours" && !manualEventPlayerId)
+                }
+              >
+                {manualEventSaving ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={assistPrompt != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleAssistSkip();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Hubo asistencia?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Selecciona al jugador que dio el último pase antes del gol del minuto {assistPrompt?.minute}
+              &apos; o indica que no hubo asistencia.
+            </p>
+            <div className="grid gap-2">
+              <Label htmlFor="assist-player">Jugador que asiste</Label>
+              <Select
+                value={assistPlayerId ? String(assistPlayerId) : ""}
+                onValueChange={(value) =>
+                  setAssistPlayerId(value ? Number(value) : null)
+                }
+              >
+                <SelectTrigger id="assist-player">
+                  <SelectValue placeholder="Selecciona jugador" />
+                </SelectTrigger>
+                <SelectContent>
+                  {squadPlayers.map(({ player, role }) => (
+                    <SelectItem
+                      key={player.id}
+                      value={String(player.id)}
+                      disabled={
+                        role === "unavailable" ||
+                        player.id === assistPrompt?.goalScorerId
+                      }
+                    >
+                      {player.nombre}
+                      {player.id === assistPrompt?.goalScorerId
+                        ? " (Autor del gol)"
+                        : role === "bench"
+                        ? " (Suplente)"
+                        : role === "unavailable"
+                        ? " (Desconvocado)"
+                        : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {assistError ? (
+                <p className="text-sm text-destructive">{assistError}</p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="ghost" onClick={handleAssistSkip}>
+                No hubo asistencia
+              </Button>
+              <Button
+                type="button"
+                onClick={handleAssistSave}
+                disabled={assistSaving}
+              >
+                {assistSaving ? "Guardando..." : "Guardar asistencia"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Listado de eventos */}
       <Dialog open={eventsOpen} onOpenChange={setEventsOpen}>

@@ -3,6 +3,7 @@ import { jugadoresService, equiposService, rivalesService } from "@/lib/api/serv
 import MatchDetail from "./match-detail";
 import MatchSummary from "./match-summary";
 import type { PlayerSlot } from "@/types/match";
+import { revalidatePath } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const teamId = teamIdRaw ? Number(teamIdRaw) : null;
     const rivalIdRaw = formData.get("rivalId");
     const rivalId = rivalIdRaw ? Number(rivalIdRaw) : null;
-    return await recordEvent({
+    const created = await recordEvent({
       matchId: id,
       minute,
       type,
@@ -50,20 +51,34 @@ export default async function MatchPage({ params }: MatchPageProps) {
       rivalId,
       data: null,
     });
+    revalidatePath(`/dashboard/partidos/${id}`);
+    revalidatePath("/dashboard/partidos");
+    return created;
   }
 
   async function deleteEventById(eventId: number) {
     "use server";
     await removeEvent(eventId);
+    revalidatePath(`/dashboard/partidos/${id}`);
+    revalidatePath("/dashboard/partidos");
   }
 
   async function saveLineupServer(lineup: PlayerSlot[], finished = false) {
     "use server";
     await updateLineup(id, lineup, opponentNotes, finished);
+    revalidatePath(`/dashboard/partidos/${id}`);
+    revalidatePath("/dashboard/partidos");
   }
 
   return match.finished ? (
-    <MatchSummary match={match} players={allPlayers} />
+    <MatchSummary
+      match={match}
+      players={allPlayers}
+      homeTeamName={homeTeamName ?? "Local"}
+      awayTeamName={awayTeamName ?? "Rival"}
+      homeTeamColor={homeTeamColor ?? "#dc2626"}
+      awayTeamColor={awayTeamColor ?? "#1d4ed8"}
+    />
   ) : (
     <MatchDetail
       match={match}
