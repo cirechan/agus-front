@@ -209,6 +209,22 @@ export const ready = (async () => {
     await db.query(
       'ALTER TABLE eventos_partido ALTER COLUMN minuto SET DEFAULT 0'
     );
+    await db.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'eventos_partido_tipo_check'
+            AND conrelid = 'eventos_partido'::regclass
+        ) THEN
+          ALTER TABLE eventos_partido
+          ADD CONSTRAINT eventos_partido_tipo_check
+          CHECK (tipo IN ('gol','amarilla','roja','asistencia'));
+        END IF;
+      END;
+      $$;
+    `);
     await db.query(`CREATE TABLE IF NOT EXISTS sanciones (
       id SERIAL PRIMARY KEY,
       player_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,

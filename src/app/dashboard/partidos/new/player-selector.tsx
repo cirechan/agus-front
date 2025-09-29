@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import {
   Select,
@@ -34,6 +34,7 @@ interface Props {
   initialBench?: number[]
   initialUnavailable?: number[]
   initialFormation?: string
+  initialAssignments?: { position: string; playerId: number | null }[]
 }
 
 export default function PlayerSelector({
@@ -47,6 +48,7 @@ export default function PlayerSelector({
   initialBench = [],
   initialUnavailable = [],
   initialFormation,
+  initialAssignments,
 }: Props) {
   const [tab, setTab] = useState<'starters' | 'bench' | 'unavailable'>('starters')
   const [starters, setStarters] = useState<number[]>(initialStarters)
@@ -54,12 +56,38 @@ export default function PlayerSelector({
   const [unavailable, setUnavailable] = useState<number[]>(initialUnavailable)
   const [formation, setFormation] = useState(initialFormation ?? defaultFormation)
   const [limitWarning, setLimitWarning] = useState<string | null>(null)
+  const [assignments, setAssignments] = useState<{ position: string; playerId: number | null }[]>([])
 
   const activeFormation = useMemo(
     () => formations.find(f => f.value === formation) ?? formations[0],
     [formation, formations]
   )
   const maxStarters = activeFormation?.positions.length ?? 11
+
+  const POSITION_LABELS: Record<string, string> = useMemo(
+    () => ({
+      GK: 'Portero',
+      LB: 'Lateral izquierdo',
+      LCB: 'Central izquierdo',
+      CB: 'Central',
+      RCB: 'Central derecho',
+      RB: 'Lateral derecho',
+      LM: 'Extremo izquierdo',
+      LCM: 'Centrocampista izquierdo',
+      CM: 'Centrocampista',
+      RCM: 'Centrocampista derecho',
+      RM: 'Extremo derecho',
+      LDM: 'Pivote izquierdo',
+      RDM: 'Pivote derecho',
+      CAM: 'Mediapunta',
+      LW: 'Extremo izquierdo',
+      LS: 'Delantero izquierdo',
+      ST: 'Delantero centro',
+      RS: 'Delantero derecho',
+      RW: 'Extremo derecho',
+    }),
+    []
+  )
 
   function enforceStarterLimit(nextStarters: number[]) {
     if (nextStarters.length <= maxStarters) {
@@ -105,6 +133,93 @@ export default function PlayerSelector({
     }
     toggle(id)
   }
+
+  const initialAssignmentsList = useMemo(
+    () => initialAssignments ?? [],
+    [initialAssignments]
+  )
+
+  useEffect(() => {
+    setAssignments(prev => {
+      const positions = activeFormation?.positions ?? []
+      const useInitial = prev.length === 0
+      const initialMap = new Map(initialAssignmentsList.map(item => [item.position, item.playerId]))
+      const next: { position: string; playerId: number | null }[] = []
+      const alreadyAssigned = new Set<number>()
+
+      positions.forEach(position => {
+        let playerId: number | null = null
+        const previous = prev.find(slot => slot.position === position)
+        if (previous) {
+          playerId = previous.playerId
+        } else if (useInitial && initialMap.has(position)) {
+          playerId = initialMap.get(position) ?? null
+        }
+
+        if (playerId != null) {
+          if (!starters.includes(playerId) || alreadyAssigned.has(playerId)) {
+            playerId = null
+          }
+        }
+
+        if (playerId != null) {
+          alreadyAssigned.add(playerId)
+        }
+        next.push({ position, playerId })
+      })
+
+      const remaining = starters.filter(id => !alreadyAssigned.has(id))
+      return next.map(slot => {
+        if (slot.playerId != null) {
+          return slot
+        }
+        const nextPlayer = remaining.shift() ?? null
+        return { ...slot, playerId: nextPlayer }
+      })
+    })
+  }, [activeFormation, starters, initialAssignmentsList])
+
+  useEffect(() => {
+    setAssignments(prev =>
+      prev.map(slot =>
+        slot.playerId != null && !starters.includes(slot.playerId)
+          ? { ...slot, playerId: null }
+          : slot
+      )
+    )
+  }, [starters])
+
+  function assignPlayerToSlot(position: string, value: string) {
+    setAssignments(prev => {
+      const playerId = value === 'none' ? null : Number(value)
+      const next = prev.map(slot => ({ ...slot }))
+      const target = next.find(slot => slot.position === position)
+      if (!target) {
+        return prev
+      }
+
+      if (playerId != null && !Number.isFinite(playerId)) {
+        return prev
+      }
+
+      next.forEach(slot => {
+        if (slot.position !== position && slot.playerId === playerId) {
+          slot.playerId = null
+        }
+      })
+
+      target.playerId = playerId
+      return next
+    })
+  }
+
+  const starterOptions = useMemo(
+    () =>
+      starters
+        .map(id => players.find(p => p.id === id) ?? null)
+        .filter((p): p is Player => Boolean(p)),
+    [players, starters]
+  )
 
   const cardHighlight = (id: number) => {
     const isStarter = starters.includes(id)
@@ -235,6 +350,50 @@ export default function PlayerSelector({
         <input key={`u-${id}`} type="hidden" name="unavailable" value={id} />
       ))}
       <input type="hidden" name="formation" value={formation} />
+      {assignments.map(slot => {
+        const hiddenValue =
+          slot.playerId != null
+            ? `${slot.position}:${slot.playerId}`
+            : `${slot.position}:`;
+        return (
+          <input
+            key={`slot-${slot.position}`}
+            type="hidden"
+            name="starterSlot"
+            value={hiddenValue}
+          />
+        );
+      })}
+      {starterOptions.length > 0 && (
+        <div className="mt-4 space-y-3">
+          <p className="text-sm font-medium">Posición de los titulares</p>
+          <div className="grid gap-3">
+            {assignments.map(slot => (
+              <div key={slot.position} className="grid gap-1">
+                <span className="text-xs font-medium text-muted-foreground">
+                  {POSITION_LABELS[slot.position] ?? slot.position}
+                </span>
+                <Select
+                  value={slot.playerId != null ? String(slot.playerId) : 'none'}
+                  onValueChange={value => assignPlayerToSlot(slot.position, value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona jugador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin asignar</SelectItem>
+                    {starterOptions.map(player => (
+                      <SelectItem key={player.id} value={String(player.id)}>
+                        {player.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
