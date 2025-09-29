@@ -12,21 +12,29 @@ const projectDataDir = path.join(process.cwd(), 'src', 'data');
 const runtimeDataDir = path.join('/tmp', 'data');
 
 function camelize(row) {
-  if (!row) return row;
-  const res = { ...row };
-  if (res.equipoid !== undefined) {
-    res.equipoId = res.equipoid;
-    delete res.equipoid;
+  if (!row || typeof row !== 'object') return row;
+  const entries = Object.entries(row);
+  const transformed = {};
+
+  for (const [key, value] of entries) {
+    let nextKey = key;
+
+    if (nextKey.includes('_')) {
+      nextKey = nextKey.replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+    }
+
+    if (
+      nextKey !== 'id' &&
+      /^[a-z]+id$/.test(nextKey) &&
+      nextKey === nextKey.toLowerCase()
+    ) {
+      nextKey = nextKey.replace(/id$/, 'Id');
+    }
+
+    transformed[nextKey] = value;
   }
-  if (res.jugadorid !== undefined) {
-    res.jugadorId = res.jugadorid;
-    delete res.jugadorid;
-  }
-  if (res.temporadaid !== undefined) {
-    res.temporadaId = res.temporadaid;
-    delete res.temporadaid;
-  }
-  return res;
+
+  return transformed;
 }
 
 function parseJsonField(value, fallback = {}) {
