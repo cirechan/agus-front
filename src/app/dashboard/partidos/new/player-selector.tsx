@@ -235,7 +235,7 @@ export default function PlayerSelector({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       <div className="flex flex-wrap items-center gap-3">
         <div>
           <p className="text-sm font-medium">Formación</p>
@@ -308,7 +308,7 @@ export default function PlayerSelector({
           Desconvocados ({unavailable.length})
         </button>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+      <div className="grid w-full grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {players.map(p => {
           const bg = p.posicion === 'Portero' ? goalkeeperColor : teamColor
           const isUnavailable = unavailable.includes(p.id)

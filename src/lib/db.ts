@@ -212,6 +212,17 @@ export const ready = (async () => {
     await db.query(`
       DO $$
       BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'eventos_partido_tipo_check'
+            AND conrelid = 'eventos_partido'::regclass
+            AND pg_get_constraintdef(oid) NOT ILIKE '%asistencia%'
+        ) THEN
+          ALTER TABLE eventos_partido
+          DROP CONSTRAINT eventos_partido_tipo_check;
+        END IF;
+
         IF NOT EXISTS (
           SELECT 1
           FROM pg_constraint

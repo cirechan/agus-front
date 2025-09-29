@@ -199,8 +199,11 @@ export default async function EditarPartidoPage({ params }: PageProps) {
           <CardTitle>Editar convocatoria</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={guardarConvocatoria} className="flex flex-col gap-6 lg:flex-row">
-            <div className="flex-1">
+          <form
+            action={guardarConvocatoria}
+            className="flex flex-col gap-6 lg:flex-row lg:items-start"
+          >
+            <div className="flex-1 min-w-0">
               <PlayerSelector
                 players={players}
                 teamColor={teamColor}

@@ -1,4 +1,10 @@
-import { getMatch, recordEvent, removeEvent, updateLineup } from "@/lib/api/matches";
+import {
+  getMatch,
+  recordEvent,
+  removeEvent,
+  updateEvent as persistEventUpdate,
+  updateLineup,
+} from "@/lib/api/matches";
 import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 import MatchSummary from "./match-summary";
@@ -63,6 +69,44 @@ export default async function MatchPage({ params }: MatchPageProps) {
     revalidatePath("/dashboard/partidos");
   }
 
+  async function updateEvent(formData: FormData) {
+    "use server";
+    const idRaw = formData.get("id");
+    const minuteRaw = formData.get("minute");
+    const type = String(formData.get("type") ?? "");
+    const playerIdRaw = formData.get("playerId");
+    const teamIdRaw = formData.get("teamId");
+    const rivalIdRaw = formData.get("rivalId");
+
+    const eventId = idRaw ? Number(idRaw) : NaN;
+    if (!Number.isFinite(eventId)) {
+      throw new Error("Evento inválido");
+    }
+
+    const minuteValue = minuteRaw ? Number(minuteRaw) : 0;
+    const minute = Number.isFinite(minuteValue) ? minuteValue : 0;
+    const playerValue = playerIdRaw ? Number(playerIdRaw) : null;
+    const playerId =
+      playerValue != null && Number.isFinite(playerValue) ? playerValue : null;
+    const teamValue = teamIdRaw ? Number(teamIdRaw) : null;
+    const teamId = teamValue != null && Number.isFinite(teamValue) ? teamValue : null;
+    const rivalValue = rivalIdRaw ? Number(rivalIdRaw) : null;
+    const rivalId =
+      rivalValue != null && Number.isFinite(rivalValue) ? rivalValue : null;
+
+    const updated = await persistEventUpdate(eventId, {
+      minute,
+      type,
+      playerId,
+      teamId,
+      rivalId,
+      data: null,
+    });
+    revalidatePath(`/dashboard/partidos/${id}`);
+    revalidatePath("/dashboard/partidos");
+    return updated;
+  }
+
   async function saveLineupServer(lineup: PlayerSlot[], finished = false) {
     "use server";
     await updateLineup(id, lineup, opponentNotes, finished);
@@ -78,6 +122,9 @@ export default async function MatchPage({ params }: MatchPageProps) {
       awayTeamName={awayTeamName ?? "Rival"}
       homeTeamColor={homeTeamColor ?? "#dc2626"}
       awayTeamColor={awayTeamColor ?? "#1d4ed8"}
+      addEvent={addEvent}
+      updateEvent={updateEvent}
+      deleteEvent={deleteEventById}
     />
   ) : (
     <MatchDetail
