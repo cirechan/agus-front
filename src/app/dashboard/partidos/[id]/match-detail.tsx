@@ -322,6 +322,42 @@ export default function MatchDetail({
   const [lateWindowReminderShown, setLateWindowReminderShown] = useState(false);
   const [lateWindowUsed, setLateWindowUsed] = useState(false);
 
+  const elapsedMillisRef = useRef(0);
+  const tickStartRef = useRef<number | null>(null);
+
+  const getCurrentSeconds = useCallback(() => {
+    if (tickStartRef.current != null) {
+      const now = Date.now();
+      return Math.floor(
+        (elapsedMillisRef.current + (now - tickStartRef.current)) / 1000
+      );
+    }
+    return Math.floor(elapsedMillisRef.current / 1000);
+  }, []);
+
+  const pauseClock = useCallback(() => {
+    if (tickStartRef.current != null) {
+      const now = Date.now();
+      elapsedMillisRef.current += now - tickStartRef.current;
+      tickStartRef.current = null;
+    }
+    const totalSeconds = Math.floor(elapsedMillisRef.current / 1000);
+    setSeconds(totalSeconds);
+    return totalSeconds;
+  }, []);
+
+  const resumeClock = useCallback(() => {
+    if (tickStartRef.current == null) {
+      tickStartRef.current = Date.now();
+    }
+  }, []);
+
+  const resetClock = useCallback(() => {
+    elapsedMillisRef.current = 0;
+    tickStartRef.current = running ? Date.now() : null;
+    setSeconds(0);
+  }, [running]);
+
   const currentMinute = useMemo(
     () => Math.floor(seconds / 60) + (half - 1) * 40,
     [seconds, half]
@@ -346,9 +382,33 @@ export default function MatchDetail({
 
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
-  }, [running]);
+    if (tickStartRef.current == null) {
+      tickStartRef.current = Date.now();
+    }
+
+    let rafId = 0;
+    const updateSeconds = () => {
+      const totalSeconds = getCurrentSeconds();
+      setSeconds((prev) => (prev === totalSeconds ? prev : totalSeconds));
+      rafId = window.requestAnimationFrame(updateSeconds);
+    };
+
+    rafId = window.requestAnimationFrame(updateSeconds);
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        const totalSeconds = getCurrentSeconds();
+        setSeconds((prev) => (prev === totalSeconds ? prev : totalSeconds));
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [running, getCurrentSeconds]);
 
   useEffect(() => {
     if (currentMinute >= 70 && !lateWindowReminderShown) {
@@ -561,13 +621,14 @@ export default function MatchDetail({
 
   function toggleRunning() {
     if (running) {
-      // Pausar: cerrar intervalos de los titulares
+      const currentSeconds = pauseClock();
       setPlayerStats((prev) => {
         const stats = { ...prev };
         lineup.forEach((slot) => {
           const pid = slot.playerId;
           if (pid && stats[pid]?.enterSecond != null) {
-            stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+            stats[pid].minutes +=
+              currentSeconds - (stats[pid].enterSecond as number);
             delete stats[pid].enterSecond;
           }
         });
@@ -575,13 +636,14 @@ export default function MatchDetail({
       });
       setRunning(false);
     } else {
-      // Reanudar: reabrir intervalos de los titulares
+      const currentSeconds = getCurrentSeconds();
+      resumeClock();
       setPlayerStats((prev) => {
         const stats = { ...prev };
         lineup.forEach((slot) => {
           const pid = slot.playerId;
           if (pid) {
-            stats[pid] = { ...stats[pid], enterSecond: seconds };
+            stats[pid] = { ...stats[pid], enterSecond: currentSeconds };
           }
         });
         return stats;
@@ -592,13 +654,15 @@ export default function MatchDetail({
 
   async function handleFinish() {
     setFinishing(true);
+    const currentSeconds = pauseClock();
     setRunning(false);
     try {
       const stats = { ...playerStats };
       lineup.forEach((slot) => {
         const pid = slot.playerId;
         if (pid && stats[pid]?.enterSecond != null) {
-          stats[pid].minutes += seconds - (stats[pid].enterSecond as number);
+          stats[pid].minutes +=
+            currentSeconds - (stats[pid].enterSecond as number);
           delete stats[pid].enterSecond;
         }
       });
@@ -673,6 +737,7 @@ export default function MatchDetail({
 
   function substitute(playerInId: number, targetPos: string) {
     const outgoingId = lineup.find((s) => s.position === targetPos)?.playerId;
+    const liveSeconds = getCurrentSeconds();
 
     // Cambiar campo
     setLineup((prev) =>
@@ -706,22 +771,27 @@ export default function MatchDetail({
       const stats = { ...prev };
       if (outgoingId && stats[outgoingId]?.enterSecond != null) {
         stats[outgoingId].minutes +=
-          seconds - (stats[outgoingId].enterSecond as number);
+          liveSeconds - (stats[outgoingId].enterSecond as number);
         delete stats[outgoingId].enterSecond;
       }
       stats[playerInId] = {
         ...stats[playerInId],
-        enterSecond: seconds,
+        enterSecond: liveSeconds,
       };
       return stats;
     });
 
     if (outgoingId) {
-      setSubbedOut((prev) => [...prev, outgoingId]);
+      setSubbedOut((prev) => {
+        if (liveSeconds >= 70 * 60) {
+          return prev.includes(outgoingId) ? prev : [...prev, outgoingId];
+        }
+        return prev.filter((id) => id !== outgoingId);
+      });
     }
     setSubsMade((c) => c + 1);
     setSelectedBenchId(null);
-    const minute = Math.floor(seconds / 60) + (half - 1) * 40;
+    const minute = Math.floor(liveSeconds / 60) + (half - 1) * 40;
     if (minute >= 70 && !lateWindowUsed) {
       setLateWindowUsed(true);
       toast("Has consumido la ventana de cambios permitida tras el 70'.");
@@ -800,7 +870,7 @@ export default function MatchDetail({
                 className="gap-1"
                 onClick={() => {
                   setHalf(2);
-                  setSeconds(0);
+                  resetClock();
                 }}
               >
                 <ArrowRightCircle className="h-4 w-4" />

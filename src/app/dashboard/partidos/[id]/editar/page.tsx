@@ -78,6 +78,9 @@ export default async function EditarPartidoPage({ params }: PageProps) {
   const initialUnavailable = match.lineup
     .filter((slot) => slot.role === "unavailable" && slot.playerId != null)
     .map((slot) => slot.playerId as number);
+  const initialAssignments = match.lineup
+    .filter((slot) => slot.role === "field" && slot.position && slot.playerId != null)
+    .map((slot) => ({ position: slot.position as string, playerId: slot.playerId as number }));
 
   const initialFormation = inferFormationKey(match.lineup);
   const teamColor = equipo?.color ?? "#dc2626";
@@ -108,6 +111,9 @@ export default async function EditarPartidoPage({ params }: PageProps) {
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
     const unavailable = formData.getAll("unavailable").map((v) => Number(v));
+    const starterSlotsRaw = formData
+      .getAll("starterSlot")
+      .map((value) => String(value));
     const formationKey = (formData.get("formation") as string) || initialFormation;
     const formation =
       FORMATIONS[formationKey as FormationKey]?.positions ??
@@ -119,19 +125,45 @@ export default async function EditarPartidoPage({ params }: PageProps) {
 
     const lineup: PlayerSlot[] = [];
 
-    uniqueStarters.slice(0, formation.length).forEach((id, idx) => {
-      if (!id) return;
+    const assignmentMap = new Map<string, number>();
+    starterSlotsRaw.forEach((entry) => {
+      const [position, playerRaw] = entry.split(":");
+      if (!position) return;
+      const trimmed = (playerRaw ?? "").trim();
+      if (!trimmed) return;
+      const playerId = Number(trimmed);
+      if (!Number.isFinite(playerId)) return;
+      if (!uniqueStarters.includes(playerId)) return;
+      if (assignmentMap.has(position)) return;
+      assignmentMap.set(position, playerId);
+    });
+
+    const usedStarters = new Set<number>();
+    const actualStarters: number[] = [];
+    formation.forEach((position) => {
+      const assigned = assignmentMap.get(position);
+      let playerId: number | null = null;
+      if (assigned != null && !usedStarters.has(assigned)) {
+        playerId = assigned;
+      } else {
+        playerId = uniqueStarters.find((id) => !usedStarters.has(id)) ?? null;
+      }
+      if (playerId == null) return;
+      usedStarters.add(playerId);
+      actualStarters.push(playerId);
       lineup.push({
-        playerId: id,
-        number: dorsalMap.get(id) ?? undefined,
+        playerId,
+        number: dorsalMap.get(playerId) ?? undefined,
         role: "field",
-        position: formation[idx],
-        minutes: minutesMap.get(id) ?? 0,
+        position,
+        minutes: minutesMap.get(playerId) ?? 0,
       });
     });
 
+    const startersSet = new Set(actualStarters);
+
     uniqueBench
-      .filter((id) => id && !uniqueStarters.includes(id))
+      .filter((id) => id && !startersSet.has(id))
       .forEach((id) => {
         lineup.push({
           playerId: id,
@@ -143,9 +175,7 @@ export default async function EditarPartidoPage({ params }: PageProps) {
       });
 
     uniqueUnavailable
-      .filter((id) =>
-        id && !uniqueStarters.includes(id) && !uniqueBench.includes(id)
-      )
+      .filter((id) => id && !startersSet.has(id) && !uniqueBench.includes(id))
       .forEach((id) => {
         lineup.push({
           playerId: id,
@@ -169,8 +199,11 @@ export default async function EditarPartidoPage({ params }: PageProps) {
           <CardTitle>Editar convocatoria</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={guardarConvocatoria} className="flex flex-col gap-6 lg:flex-row">
-            <div className="flex-1">
+          <form
+            action={guardarConvocatoria}
+            className="flex flex-col gap-6 lg:flex-row lg:items-start"
+          >
+            <div className="flex-1 min-w-0">
               <PlayerSelector
                 players={players}
                 teamColor={teamColor}
@@ -182,6 +215,7 @@ export default async function EditarPartidoPage({ params }: PageProps) {
                 initialBench={initialBench as number[]}
                 initialUnavailable={initialUnavailable as number[]}
                 initialFormation={initialFormation}
+                initialAssignments={initialAssignments}
               />
             </div>
             <div className="w-full max-w-xs space-y-4">

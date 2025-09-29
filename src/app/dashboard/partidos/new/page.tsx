@@ -61,6 +61,9 @@ export default async function NuevoPartidoPage() {
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
     const unavailable = formData.getAll("unavailable").map((v) => Number(v));
+    const starterSlotsRaw = formData
+      .getAll("starterSlot")
+      .map((value) => String(value));
     const formationKeyRaw = (formData.get("formation") as string) || DEFAULT_FORMATION_KEY;
     const formationPositions =
       FORMATIONS[formationKeyRaw]?.positions ?? FORMATIONS[DEFAULT_FORMATION_KEY].positions;
@@ -77,32 +80,58 @@ export default async function NuevoPartidoPage() {
     const uniqueBench = Array.from(new Set(bench));
     const uniqueUnavailable = Array.from(new Set(unavailable));
 
-    uniqueStarters.slice(0, formationPositions.length).forEach((id, idx) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
+    const assignmentMap = new Map<string, number>();
+    starterSlotsRaw.forEach((entry) => {
+      const [position, playerRaw] = entry.split(":");
+      if (!position) return;
+      const trimmed = (playerRaw ?? "").trim();
+      if (!trimmed) return;
+      const playerId = Number(trimmed);
+      if (!Number.isFinite(playerId)) return;
+      if (!uniqueStarters.includes(playerId)) return;
+      if (assignmentMap.has(position)) return;
+      assignmentMap.set(position, playerId);
+    });
+
+    const usedStarters = new Set<number>();
+    const actualStarters: number[] = [];
+    formationPositions.forEach((position) => {
+      const assigned = assignmentMap.get(position);
+      let playerId: number | null = null;
+      if (assigned != null && !usedStarters.has(assigned)) {
+        playerId = assigned;
+      } else {
+        playerId = uniqueStarters.find((id) => !usedStarters.has(id)) ?? null;
+      }
+      if (playerId == null) return;
+      usedStarters.add(playerId);
+      actualStarters.push(playerId);
+      const pl = allPlayers.find((p: any) => p.id === playerId);
       lineup.push({
-        playerId: id,
+        playerId,
         number: pl?.dorsal ?? undefined,
         role: "field",
-        position: formationPositions[idx],
+        position,
         minutes: 0,
       });
     });
+    const startersSet = new Set(actualStarters);
     uniqueBench
-      .filter((id) => !uniqueStarters.includes(id))
+      .filter((id) => !startersSet.has(id))
       .forEach((id) => {
-      const pl = allPlayers.find((p: any) => p.id === id);
-      if (pl) {
-        lineup.push({
-          playerId: id,
-          number: pl.dorsal ?? undefined,
-          role: "bench",
-          position: undefined,
-          minutes: 0,
-        });
-      }
-    });
+        const pl = allPlayers.find((p: any) => p.id === id);
+        if (pl) {
+          lineup.push({
+            playerId: id,
+            number: pl.dorsal ?? undefined,
+            role: "bench",
+            position: undefined,
+            minutes: 0,
+          });
+        }
+      });
     uniqueUnavailable
-      .filter((id) => !uniqueStarters.includes(id) && !uniqueBench.includes(id))
+      .filter((id) => !startersSet.has(id) && !uniqueBench.includes(id))
       .forEach((id) => {
         const pl = allPlayers.find((p: any) => p.id === id);
         if (pl) {

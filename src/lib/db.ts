@@ -79,6 +79,17 @@ export const ready = (async () => {
     )`);
     await db.query('ALTER TABLE equipos ADD COLUMN IF NOT EXISTS temporadaId TEXT');
     await db.query("ALTER TABLE equipos ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#dc2626'");
+    await db.query(`CREATE TABLE IF NOT EXISTS rivales (
+      id SERIAL PRIMARY KEY,
+      nombre TEXT NOT NULL,
+      color TEXT DEFAULT '#1d4ed8'
+    )`);
+    await db.query(
+      "ALTER TABLE rivales ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#1d4ed8'"
+    );
+    await db.query(
+      "ALTER TABLE rivales ALTER COLUMN color SET DEFAULT '#1d4ed8'"
+    );
     await db.query(`CREATE TABLE IF NOT EXISTS jugadores (
       id SERIAL PRIMARY KEY,
       nombre TEXT NOT NULL,
@@ -88,6 +99,54 @@ export const ready = (async () => {
       dorsal INTEGER
     )`);
     await db.query('ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS dorsal INTEGER');
+    await db.query(`CREATE TABLE IF NOT EXISTS partidos (
+      id SERIAL PRIMARY KEY,
+      equipo_id INTEGER REFERENCES equipos(id) ON DELETE CASCADE,
+      rival_id INTEGER REFERENCES rivales(id) ON DELETE SET NULL,
+      condicion TEXT NOT NULL DEFAULT 'local',
+      inicio TIMESTAMPTZ NOT NULL,
+      competicion TEXT NOT NULL DEFAULT 'liga',
+      jornada INTEGER,
+      alineacion JSONB,
+      notas_rival TEXT,
+      finalizado BOOLEAN NOT NULL DEFAULT FALSE
+    )`);
+    await db.query(
+      'ALTER TABLE partidos ADD COLUMN IF NOT EXISTS equipo_id INTEGER REFERENCES equipos(id) ON DELETE CASCADE'
+    );
+    await db.query(
+      "ALTER TABLE partidos ADD COLUMN IF NOT EXISTS rival_id INTEGER REFERENCES rivales(id) ON DELETE SET NULL"
+    );
+    await db.query(
+      "ALTER TABLE partidos ADD COLUMN IF NOT EXISTS condicion TEXT DEFAULT 'local'"
+    );
+    await db.query(
+      "ALTER TABLE partidos ALTER COLUMN condicion SET DEFAULT 'local'"
+    );
+    await db.query(
+      "ALTER TABLE partidos ADD COLUMN IF NOT EXISTS inicio TIMESTAMPTZ"
+    );
+    await db.query(
+      "ALTER TABLE partidos ADD COLUMN IF NOT EXISTS competicion TEXT DEFAULT 'liga'"
+    );
+    await db.query(
+      "ALTER TABLE partidos ALTER COLUMN competicion SET DEFAULT 'liga'"
+    );
+    await db.query(
+      'ALTER TABLE partidos ADD COLUMN IF NOT EXISTS jornada INTEGER'
+    );
+    await db.query(
+      'ALTER TABLE partidos ADD COLUMN IF NOT EXISTS alineacion JSONB'
+    );
+    await db.query(
+      'ALTER TABLE partidos ADD COLUMN IF NOT EXISTS notas_rival TEXT'
+    );
+    await db.query(
+      'ALTER TABLE partidos ADD COLUMN IF NOT EXISTS finalizado BOOLEAN DEFAULT FALSE'
+    );
+    await db.query(
+      "ALTER TABLE partidos ALTER COLUMN finalizado SET DEFAULT FALSE"
+    );
     await db.query(`CREATE TABLE IF NOT EXISTS asistencias (
       id SERIAL PRIMARY KEY,
       jugadorId INTEGER REFERENCES jugadores(id),
@@ -116,6 +175,67 @@ export const ready = (async () => {
       id SERIAL PRIMARY KEY,
       data TEXT
     )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS eventos_partido (
+      id SERIAL PRIMARY KEY,
+      partido_id INTEGER NOT NULL REFERENCES partidos(id) ON DELETE CASCADE,
+      minuto INTEGER NOT NULL DEFAULT 0,
+      tipo TEXT NOT NULL,
+      jugador_id INTEGER REFERENCES jugadores(id) ON DELETE SET NULL,
+      equipo_id INTEGER REFERENCES equipos(id) ON DELETE SET NULL,
+      rival_id INTEGER REFERENCES rivales(id) ON DELETE SET NULL,
+      datos JSONB
+    )`);
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS partido_id INTEGER REFERENCES partidos(id) ON DELETE CASCADE'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS minuto INTEGER DEFAULT 0'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS tipo TEXT'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS jugador_id INTEGER REFERENCES jugadores(id) ON DELETE SET NULL'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS equipo_id INTEGER REFERENCES equipos(id) ON DELETE SET NULL'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS rival_id INTEGER REFERENCES rivales(id) ON DELETE SET NULL'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ADD COLUMN IF NOT EXISTS datos JSONB'
+    );
+    await db.query(
+      'ALTER TABLE eventos_partido ALTER COLUMN minuto SET DEFAULT 0'
+    );
+    await db.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'eventos_partido_tipo_check'
+            AND conrelid = 'eventos_partido'::regclass
+            AND pg_get_constraintdef(oid) NOT ILIKE '%asistencia%'
+        ) THEN
+          ALTER TABLE eventos_partido
+          DROP CONSTRAINT eventos_partido_tipo_check;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1
+          FROM pg_constraint
+          WHERE conname = 'eventos_partido_tipo_check'
+            AND conrelid = 'eventos_partido'::regclass
+        ) THEN
+          ALTER TABLE eventos_partido
+          ADD CONSTRAINT eventos_partido_tipo_check
+          CHECK (tipo IN ('gol','amarilla','roja','asistencia'));
+        END IF;
+      END;
+      $$;
+    `);
     await db.query(`CREATE TABLE IF NOT EXISTS sanciones (
       id SERIAL PRIMARY KEY,
       player_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,

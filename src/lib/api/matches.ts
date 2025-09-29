@@ -7,6 +7,7 @@ import type {
   PlayerSlot,
   NewMatch,
   NewMatchEvent,
+  UpdateMatchEvent,
 } from '@/types/match';
 
 type SqlClient = ReturnType<typeof neon>;
@@ -419,6 +420,111 @@ export async function recordEvent(event: NewMatchEvent): Promise<MatchEvent> {
   matches[index] = updatedMatch;
   await writeMatchesStore(matches);
   return cloneEvent(storedEvent);
+}
+
+export async function updateEvent(
+  id: number,
+  updates: UpdateMatchEvent
+): Promise<MatchEvent> {
+  const sql = getSql();
+  if (sql) {
+    const existingRows = (await sql`
+      SELECT id,
+             partido_id AS "matchId",
+             minuto AS "minute",
+             tipo AS "type",
+             jugador_id AS "playerId",
+             equipo_id AS "teamId",
+             rival_id AS "rivalId",
+             datos AS data
+      FROM eventos_partido
+      WHERE id = ${id}
+    `) as EventRow[];
+
+    const existing = existingRows[0];
+    if (!existing) {
+      throw new Error(`Event ${id} not found`);
+    }
+
+    const nextMinute =
+      updates.minute !== undefined
+        ? Math.max(0, Math.round(updates.minute))
+        : existing.minute;
+    const nextType = updates.type ?? existing.type;
+    const nextPlayerId =
+      updates.playerId !== undefined ? updates.playerId : existing.playerId;
+    const nextTeamId =
+      updates.teamId !== undefined ? updates.teamId : existing.teamId;
+    const nextRivalId =
+      updates.rivalId !== undefined ? updates.rivalId : existing.rivalId;
+    const nextData = updates.data !== undefined ? updates.data : existing.data;
+
+    const [row] = (await sql`
+      UPDATE eventos_partido
+      SET minuto = ${nextMinute},
+          tipo = ${nextType},
+          jugador_id = ${nextPlayerId ?? null},
+          equipo_id = ${nextTeamId ?? null},
+          rival_id = ${nextRivalId ?? null},
+          datos = ${JSON.stringify(nextData ?? null)}
+      WHERE id = ${id}
+      RETURNING id,
+                partido_id AS "matchId",
+                minuto AS "minute",
+                tipo AS "type",
+                jugador_id AS "playerId",
+                equipo_id AS "teamId",
+                rival_id AS "rivalId",
+                datos AS data
+    `) as EventRow[];
+
+    return mapEvent(row);
+  }
+
+  const matches = await readMatchesStore();
+  let updatedEvent: MatchEvent | null = null;
+
+  const nextMatches = matches.map((match) => {
+    let changed = false;
+    const nextEvents = match.events.map((event) => {
+      if (event.id !== id) {
+        return event;
+      }
+      changed = true;
+      const merged = {
+        ...event,
+        minute: updates.minute ?? event.minute,
+        type: updates.type ?? event.type,
+        playerId:
+          updates.playerId !== undefined ? updates.playerId : event.playerId ?? null,
+        teamId: updates.teamId !== undefined ? updates.teamId : event.teamId ?? null,
+        rivalId:
+          updates.rivalId !== undefined ? updates.rivalId : event.rivalId ?? null,
+        data: updates.data !== undefined ? updates.data : event.data ?? null,
+      };
+      const sanitized = sanitizeEvent({
+        ...merged,
+        id: event.id,
+        matchId: event.matchId,
+      });
+      updatedEvent = sanitized;
+      return sanitized;
+    });
+
+    if (!changed) {
+      return match;
+    }
+
+    const sortedEvents = [...nextEvents].sort((a, b) => a.minute - b.minute);
+    return { ...match, events: sortedEvents };
+  });
+
+  if (!updatedEvent) {
+    throw new Error(`Event ${id} not found`);
+  }
+
+  await writeMatchesStore(nextMatches);
+  return cloneEvent(updatedEvent);
 }
 
 export async function removeEvent(id: number): Promise<void> {

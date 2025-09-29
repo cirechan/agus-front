@@ -7,7 +7,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { Match } from "@/types/match";
+import type { Match, MatchEvent } from "@/types/match";
+import EventManager from "./event-manager";
 import type { LucideIcon } from "lucide-react";
 import {
   Clock3,
@@ -29,6 +30,9 @@ interface Props {
   awayTeamName: string;
   homeTeamColor: string;
   awayTeamColor: string;
+  addEvent: (formData: FormData) => Promise<MatchEvent>;
+  updateEvent: (formData: FormData) => Promise<MatchEvent>;
+  deleteEvent: (id: number) => Promise<void>;
 }
 
 interface EventDescriptor {
@@ -95,6 +99,9 @@ export default function MatchSummary({
   awayTeamName,
   homeTeamColor,
   awayTeamColor,
+  addEvent,
+  updateEvent,
+  deleteEvent,
 }: Props) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
   const starters = match.lineup
@@ -344,6 +351,15 @@ export default function MatchSummary({
               </CardContent>
             </Card>
             <div className="flex min-h-0 flex-col gap-6">
+              <EventManager
+                initialEvents={match.events}
+                players={players}
+                teamId={match.teamId}
+                rivalId={match.rivalId}
+                addEvent={addEvent}
+                updateEvent={updateEvent}
+                deleteEvent={deleteEvent}
+              />
               <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
                 <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
                   <CardTitle>Convocatoria</CardTitle>
