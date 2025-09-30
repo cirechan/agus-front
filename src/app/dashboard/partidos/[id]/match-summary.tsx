@@ -133,6 +133,26 @@ export default function MatchSummary({
 
   const timelineEvents = [...match.events].sort((a, b) => a.minute - b.minute);
 
+  const eventBreakdown = match.events.reduce(
+    (acc, event) => {
+      if (event.teamId === match.teamId) {
+        if (event.type === "gol") acc.ours.goals += 1;
+        if (event.type === "amarilla") acc.ours.yellow += 1;
+        if (event.type === "roja") acc.ours.red += 1;
+      }
+      if (event.rivalId === match.rivalId) {
+        if (event.type === "gol") acc.rival.goals += 1;
+        if (event.type === "amarilla") acc.rival.yellow += 1;
+        if (event.type === "roja") acc.rival.red += 1;
+      }
+      return acc;
+    },
+    {
+      ours: { goals: 0, yellow: 0, red: 0 },
+      rival: { goals: 0, yellow: 0, red: 0 },
+    }
+  );
+
   function renderPlayerList(items: Player[], emptyMessage: string) {
     if (!items.length) {
       return <p className="text-sm text-slate-400">{emptyMessage}</p>;
@@ -169,6 +189,15 @@ export default function MatchSummary({
     dateStyle: "long",
     timeStyle: "short",
   }).format(kickoff);
+  const opponentName = (match.isHome ? awayTeamName : homeTeamName) ?? "el rival";
+  const locationSummary = match.isHome ? "como locales" : "como visitantes";
+
+  const summaryText =
+    ourGoals === rivalGoals
+      ? `Empatamos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`
+      : ourGoals > rivalGoals
+      ? `Ganamos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`
+      : `Perdimos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`;
 
   let resultLabel = "Empate";
   let resultClass = "border-slate-500/50 bg-slate-800/70 text-slate-200";
@@ -255,17 +284,101 @@ export default function MatchSummary({
           </div>
         </div>
       </section>
-      <main className="flex-1 overflow-hidden">
-        <div className="mx-auto flex h-full max-w-5xl flex-col gap-6 px-4 pb-10 sm:px-6 lg:px-10">
-          <div className="grid h-full min-h-0 gap-6 lg:grid-cols-[2fr,1fr]">
-            <Card className="flex min-h-0 flex-col border-slate-800 bg-slate-900/60 text-slate-100">
+      <main className="flex-1 overflow-y-auto">
+        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-10 sm:px-6 lg:px-10">
+          <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
+            <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
+              <CardTitle>Resumen del partido</CardTitle>
+              <CardDescription className="text-slate-300">
+                {summaryText}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3 text-sm text-slate-200/90">
+                <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
+                  <span className="text-slate-400">Competición</span>
+                  <span className="font-semibold text-white">{competitionLabel}</span>
+                </div>
+                {match.matchday ? (
+                  <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
+                    <span className="text-slate-400">Jornada</span>
+                    <span className="font-semibold text-white">{match.matchday}</span>
+                  </div>
+                ) : null}
+                <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
+                  <span className="text-slate-400">Condición</span>
+                  <span className="font-semibold text-white">
+                    {match.isHome ? "Local" : "Visitante"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
+                  <span className="text-slate-400">Fecha</span>
+                  <span className="font-semibold text-white">{formattedKickoff}</span>
+                </div>
+              </div>
+              <div className="grid gap-3 text-sm text-slate-200/90">
+                <div className="rounded-lg border border-slate-800/60 bg-slate-900/80 p-4">
+                  <h4 className="text-xs uppercase tracking-wide text-slate-400">
+                    Nuestro equipo
+                  </h4>
+                  <dl className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <dt>Goles</dt>
+                      <dd className="font-semibold text-white">
+                        {eventBreakdown.ours.goals}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt>Tarjetas amarillas</dt>
+                      <dd className="font-semibold text-amber-300">
+                        {eventBreakdown.ours.yellow}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt>Tarjetas rojas</dt>
+                      <dd className="font-semibold text-rose-300">
+                        {eventBreakdown.ours.red}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+                <div className="rounded-lg border border-slate-800/60 bg-slate-900/80 p-4">
+                  <h4 className="text-xs uppercase tracking-wide text-slate-400">
+                    Rival
+                  </h4>
+                  <dl className="mt-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <dt>Goles</dt>
+                      <dd className="font-semibold text-white">
+                        {eventBreakdown.rival.goals}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt>Tarjetas amarillas</dt>
+                      <dd className="font-semibold text-amber-300">
+                        {eventBreakdown.rival.yellow}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <dt>Tarjetas rojas</dt>
+                      <dd className="font-semibold text-rose-300">
+                        {eventBreakdown.rival.red}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+            <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
               <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
                 <CardTitle>Timeline del partido</CardTitle>
                 <CardDescription className="text-slate-400">
                   Resumen cronológico de los momentos clave del encuentro.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="relative flex-1 overflow-auto pr-4">
+              <CardContent className="relative pr-4">
                 {timelineEvents.length === 0 ? (
                   <p className="text-sm text-slate-400">
                     Aún no se registraron eventos para este partido.
@@ -350,7 +463,7 @@ export default function MatchSummary({
                 )}
               </CardContent>
             </Card>
-            <div className="flex min-h-0 flex-col gap-6">
+            <div className="flex flex-col gap-6">
               <EventManager
                 initialEvents={match.events}
                 players={players}
