@@ -16,7 +16,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -78,14 +77,19 @@ function buildRows(
       const player = playerMap.get(slot.playerId);
       const position = slot.position;
       const isGoalkeeper = (position ?? "").toUpperCase() === "GK";
+      const minutes = Number(slot.minutes ?? 0);
+      const goalsConceded = Number(slot.goalsConceded ?? 0);
       return {
         playerId: slot.playerId,
         name: player?.nombre ?? `Jugador ${slot.playerId}`,
         role: slot.role,
         position,
-        minutes: String(slot.minutes ?? 0),
-        cleanSheet: Boolean(slot.cleanSheet),
-        goalsConceded: String(slot.goalsConceded ?? 0),
+        minutes: String(minutes),
+        cleanSheet:
+          isGoalkeeper && Number.isFinite(minutes) && minutes > 0
+            ? goalsConceded === 0
+            : false,
+        goalsConceded: String(isGoalkeeper ? goalsConceded : 0),
         isGoalkeeper,
       };
     });
@@ -110,9 +114,23 @@ export default function MinutesEditor({
 
   function updateRow(playerId: number, patch: Partial<EditableRow>) {
     setRows((current) =>
-      current.map((row) =>
-        row.playerId === playerId ? { ...row, ...patch } : row
-      )
+      current.map((row) => {
+        if (row.playerId !== playerId) {
+          return row;
+        }
+        const next: EditableRow = { ...row, ...patch };
+        if (next.isGoalkeeper) {
+          const minutesValue = Number(next.minutes);
+          const goalsConcededValue = Number(next.goalsConceded);
+          const hasMinutes = Number.isFinite(minutesValue) && minutesValue > 0;
+          const conceded = Number.isFinite(goalsConcededValue)
+            ? Math.max(0, Math.round(goalsConcededValue))
+            : 0;
+          next.goalsConceded = String(conceded);
+          next.cleanSheet = hasMinutes && conceded === 0;
+        }
+        return next;
+      })
     );
   }
 
@@ -159,8 +177,9 @@ export default function MinutesEditor({
         <DialogHeader>
           <DialogTitle>Actualizar minutos y porterías a cero</DialogTitle>
           <DialogDescription>
-            Ajusta los minutos jugados, marca porterías a cero y registra los
-            goles encajados para tus guardametas.
+            Ajusta los minutos jugados y registra los goles encajados para tus
+            guardametas. Las porterías a cero se calculan automáticamente cuando
+            un portero termina sin encajar.
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -213,15 +232,15 @@ export default function MinutesEditor({
                     </TableCell>
                     <TableCell className="text-center">
                       {row.isGoalkeeper ? (
-                        <div className="flex items-center justify-center gap-2">
-                          <Switch
-                            checked={row.cleanSheet}
-                            onCheckedChange={(value) =>
-                              updateRow(row.playerId, { cleanSheet: value })
-                            }
-                            aria-label="Marcar portería a cero"
-                          />
-                        </div>
+                        <span
+                          className={`text-sm font-medium ${
+                            row.cleanSheet
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-muted-foreground"
+                          }`}
+                        >
+                          {row.cleanSheet ? "Sí" : "No"}
+                        </span>
                       ) : (
                         <span className="text-sm text-muted-foreground">—</span>
                       )}
