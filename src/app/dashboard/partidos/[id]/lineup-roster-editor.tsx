@@ -135,17 +135,18 @@ export default function LineupRosterEditor({
     if (!Number.isFinite(id)) return;
     const player = playerMap.get(id);
     if (!player) return;
+    const newEntry: EditableEntry = {
+      playerId: player.id,
+      name: player.nombre,
+      role: "bench",
+      number: player.dorsal ?? undefined,
+      minutes: 0,
+      cleanSheet: false,
+      goalsConceded: 0,
+      position: undefined,
+    };
     setEntries((current) =>
-      [...current, {
-        playerId: player.id,
-        name: player.nombre,
-        role: "bench",
-        number: player.dorsal ?? undefined,
-        minutes: 0,
-        cleanSheet: false,
-        goalsConceded: 0,
-        position: undefined,
-      }].sort((a, b) => a.name.localeCompare(b.name))
+      [...current, newEntry].sort((a, b) => a.name.localeCompare(b.name))
     );
     setSelectedPlayerId("");
   }
