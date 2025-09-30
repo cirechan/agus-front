@@ -213,6 +213,8 @@ export default function MatchSummary({
   ).length;
   const homeGoals = match.isHome ? ourGoals : rivalGoals;
   const awayGoals = match.isHome ? rivalGoals : ourGoals;
+  const ourTeamName = match.isHome ? homeTeamName : awayTeamName;
+  const rivalTeamName = match.isHome ? awayTeamName : homeTeamName;
   const homeLabel = match.isHome ? "Nuestro equipo" : "Rival";
   const awayLabel = match.isHome ? "Rival" : "Nuestro equipo";
   const homeContrast = getContrastColor(homeTeamColor);
@@ -224,15 +226,15 @@ export default function MatchSummary({
     dateStyle: "long",
     timeStyle: "short",
   }).format(kickoff);
-  const opponentName = (match.isHome ? awayTeamName : homeTeamName) ?? "el rival";
-  const locationSummary = match.isHome ? "como locales" : "como visitantes";
+  const conditionLabel = match.isHome ? "Local" : "Visitante";
+  const locationSummary = match.isHome ? "en casa" : "a domicilio";
 
-  const summaryText =
+  const summaryHeadline =
     ourGoals === rivalGoals
-      ? `Empatamos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`
+      ? `${ourTeamName} empató ${ourGoals}-${rivalGoals} ${locationSummary} frente a ${rivalTeamName}.`
       : ourGoals > rivalGoals
-      ? `Ganamos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`
-      : `Perdimos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`;
+      ? `${ourTeamName} ganó ${ourGoals}-${rivalGoals} ${locationSummary} frente a ${rivalTeamName}.`
+      : `${ourTeamName} perdió ${ourGoals}-${rivalGoals} ${locationSummary} frente a ${rivalTeamName}.`;
 
   let resultLabel = "Empate";
   let resultClass = "border-slate-200 bg-slate-100 text-slate-600";
@@ -255,71 +257,131 @@ export default function MatchSummary({
   }
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900">
+    <div className="min-h-screen w-full bg-white text-slate-900">
       <section className="px-4 pb-6 pt-8 sm:px-6 lg:px-10">
-        <div className="mx-auto w-full max-w-5xl space-y-6">
-          <div className="rounded-3xl border border-white/60 bg-white/90 p-6 shadow-xl backdrop-blur-sm">
-            <div className="flex flex-wrap items-center justify-between gap-6">
-              <div className="flex flex-1 flex-wrap items-center gap-6">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg"
-                    style={{ backgroundColor: homeTeamColor, color: homeContrast }}
-                  >
-                    {homeTeamName.slice(0, 2).toUpperCase()}
+        <div className="mx-auto w-full max-w-5xl">
+          <Card className="border border-slate-200 shadow-xl">
+            <CardHeader className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-6">
+                <div className="flex flex-1 flex-wrap items-center gap-6">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow"
+                      style={{ backgroundColor: homeTeamColor, color: homeContrast }}
+                    >
+                      {homeTeamName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {homeLabel}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-900">{homeTeamName}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {homeLabel}
-                    </p>
-                    <p className="text-lg font-semibold text-slate-900">{homeTeamName}</p>
+                  <div className="flex items-center gap-3 text-4xl font-bold tabular-nums text-slate-900 sm:text-5xl">
+                    <span>{homeGoals}</span>
+                    <span className="text-muted-foreground">-</span>
+                    <span>{awayGoals}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow"
+                      style={{ backgroundColor: awayTeamColor, color: awayContrast }}
+                    >
+                      {awayTeamName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {awayLabel}
+                      </p>
+                      <p className="text-lg font-semibold text-slate-900">{awayTeamName}</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 text-4xl font-bold tabular-nums text-slate-900 sm:text-5xl">
-                  <span>{homeGoals}</span>
-                  <span className="text-muted-foreground">-</span>
-                  <span>{awayGoals}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg"
-                    style={{ backgroundColor: awayTeamColor, color: awayContrast }}
-                  >
-                    {awayTeamName.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {awayLabel}
-                    </p>
-                    <p className="text-lg font-semibold text-slate-900">{awayTeamName}</p>
-                  </div>
-                </div>
-              </div>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "border px-3 py-1 text-sm font-semibold uppercase tracking-wide",
-                  resultClass
-                )}
-              >
-                {resultLabel}
-              </Badge>
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-              <div className="flex items-center gap-3">
-                <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
-                  {competitionLabel}
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "border px-3 py-1 text-sm font-semibold uppercase tracking-wide",
+                    resultClass
+                  )}
+                >
+                  {resultLabel}
                 </Badge>
-                {match.matchday ? (
-                  <span className="font-medium text-slate-900">Jornada {match.matchday}</span>
-                ) : null}
               </div>
-              <div className="flex items-center gap-2 text-xs sm:text-sm">
-                <Clock3 className="h-4 w-4 text-muted-foreground" />
-                <span>{formattedKickoff}</span>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="space-y-4">
+                  <p className="text-base font-medium text-slate-900">{summaryHeadline}</p>
+                  <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                      {competitionLabel}
+                    </Badge>
+                    {match.matchday ? (
+                      <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                        Jornada {match.matchday}
+                      </Badge>
+                    ) : null}
+                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                      {conditionLabel}
+                    </Badge>
+                    <span className="inline-flex items-center gap-1">
+                      <Clock3 className="h-4 w-4" />
+                      {formattedKickoff}
+                    </span>
+                  </div>
+                  {match.opponentNotes ? (
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Notas del partido
+                      </p>
+                      <p className="mt-1 text-sm text-slate-700">{match.opponentNotes}</p>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="grid gap-3 text-sm text-slate-700">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {ourTeamName}
+                    </h4>
+                    <dl className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <dt>Goles</dt>
+                        <dd className="font-semibold text-slate-900">{eventBreakdown.ours.goals}</dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt>Tarjetas amarillas</dt>
+                        <dd className="font-semibold text-amber-600">{eventBreakdown.ours.yellow}</dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt>Tarjetas rojas</dt>
+                        <dd className="font-semibold text-rose-600">{eventBreakdown.ours.red}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {rivalTeamName}
+                    </h4>
+                    <dl className="mt-2 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <dt>Goles</dt>
+                        <dd className="font-semibold text-slate-900">{eventBreakdown.rival.goals}</dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt>Tarjetas amarillas</dt>
+                        <dd className="font-semibold text-amber-600">{eventBreakdown.rival.yellow}</dd>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <dt>Tarjetas rojas</dt>
+                        <dd className="font-semibold text-rose-600">{eventBreakdown.rival.red}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-10 sm:px-6 lg:px-10">
@@ -330,7 +392,7 @@ export default function MatchSummary({
               Repasa los momentos clave minuto a minuto justo debajo del marcador.
             </CardDescription>
           </CardHeader>
-          <CardContent className="relative pr-4">
+          <CardContent className="relative">
             {timelineEvents.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Aún no se registraron eventos para este partido.
@@ -410,74 +472,6 @@ export default function MatchSummary({
         </Card>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-6">
-            <Card>
-              <CardHeader className="space-y-2">
-                <CardTitle>Resumen del partido</CardTitle>
-                <CardDescription>{summaryText}</CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-3 text-sm text-slate-700">
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                    <span className="text-muted-foreground">Competición</span>
-                    <span className="font-semibold text-slate-900">{competitionLabel}</span>
-                  </div>
-                  {match.matchday ? (
-                    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                      <span className="text-muted-foreground">Jornada</span>
-                      <span className="font-semibold text-slate-900">{match.matchday}</span>
-                    </div>
-                  ) : null}
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                    <span className="text-muted-foreground">Condición</span>
-                    <span className="font-semibold text-slate-900">
-                      {match.isHome ? "Local" : "Visitante"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
-                    <span className="text-muted-foreground">Fecha</span>
-                    <span className="font-semibold text-slate-900">{formattedKickoff}</span>
-                  </div>
-                </div>
-                <div className="grid gap-3 text-sm text-slate-700">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
-                      Nuestro equipo
-                    </h4>
-                    <dl className="mt-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <dt>Goles</dt>
-                        <dd className="font-semibold text-slate-900">{eventBreakdown.ours.goals}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas amarillas</dt>
-                        <dd className="font-semibold text-amber-600">{eventBreakdown.ours.yellow}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas rojas</dt>
-                        <dd className="font-semibold text-rose-600">{eventBreakdown.ours.red}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">Rival</h4>
-                    <dl className="mt-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <dt>Goles</dt>
-                        <dd className="font-semibold text-slate-900">{eventBreakdown.rival.goals}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas amarillas</dt>
-                        <dd className="font-semibold text-amber-600">{eventBreakdown.rival.yellow}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas rojas</dt>
-                        <dd className="font-semibold text-rose-600">{eventBreakdown.rival.red}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
             <Card>
               <CardHeader className="space-y-4 sm:flex sm:items-center sm:justify-between sm:space-y-0">
                 <div className="space-y-2">
