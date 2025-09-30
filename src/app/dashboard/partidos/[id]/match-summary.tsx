@@ -218,8 +218,8 @@ export default function MatchSummary({
   }
 
   return (
-    <div className="min-h-screen w-full overflow-x-hidden overflow-y-auto bg-slate-950 text-slate-100">
-      <section className="relative overflow-hidden px-4 pb-6 pt-8 sm:px-6 lg:px-10">
+    <div className="min-h-screen w-full bg-slate-950 text-slate-100">
+      <section className="relative px-4 pb-6 pt-8 sm:px-6 lg:px-10">
         <div
           className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900"
           aria-hidden

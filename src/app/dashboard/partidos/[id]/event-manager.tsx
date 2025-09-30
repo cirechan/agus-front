@@ -71,6 +71,7 @@ export default function EventManager({
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const playerMap = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
@@ -79,7 +80,7 @@ export default function EventManager({
     [events]
   );
 
-  function resetForm() {
+  function resetForm(closeForm = false) {
     setMode("create");
     setEditingId(null);
     setMinute("0");
@@ -87,6 +88,9 @@ export default function EventManager({
     setTeamScope("ours");
     setPlayerId("none");
     setError(null);
+    if (closeForm) {
+      setFormOpen(false);
+    }
   }
 
   function resolveTeamScope(event: MatchEvent): TeamScope {
@@ -96,6 +100,7 @@ export default function EventManager({
   }
 
   function beginEdit(event: MatchEvent) {
+    setFormOpen(true);
     setMode("edit");
     setEditingId(event.id);
     setMinute(String(event.minute));
@@ -169,7 +174,7 @@ export default function EventManager({
         );
         toast("Evento añadido correctamente");
       }
-      resetForm();
+      resetForm(true);
       router.refresh();
     } catch (err) {
       console.error("No se pudo guardar el evento", err);
@@ -187,7 +192,7 @@ export default function EventManager({
       await deleteEvent(id);
       setEvents((prev) => prev.filter((evt) => evt.id !== id));
       if (editingId === id) {
-        resetForm();
+        resetForm(true);
       }
       router.refresh();
       toast("Evento eliminado");
@@ -199,6 +204,13 @@ export default function EventManager({
     }
   }
 
+  const isEditing = mode === "edit";
+  const toggleLabel = formOpen
+    ? isEditing
+      ? "Cancelar edición"
+      : "Ocultar formulario"
+    : "Añadir evento";
+
   return (
     <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
       <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
@@ -208,111 +220,143 @@ export default function EventManager({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="grid gap-1">
-              <Label htmlFor="event-minute">Minuto</Label>
-              <Input
-                id="event-minute"
-                type="number"
-                min={0}
-                max={130}
-                value={minute}
-                onChange={(e) => setMinute(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Tipo</Label>
-              <Select
-                value={type}
-                onValueChange={(value) => {
-                  setType(value);
-                  if (value === "asistencia") {
-                    setTeamScope("ours");
-                  }
-                  if (value !== "asistencia" && teamScope === "rival") {
-                    setPlayerId("none");
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(EVENT_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label>Equipo</Label>
-              <Select
-                value={type === "asistencia" ? "ours" : teamScope}
-                onValueChange={(value) => {
-                  const scoped = value as TeamScope;
-                  setTeamScope(scoped);
-                  if (scoped === "rival") {
-                    setPlayerId("none");
-                  }
-                }}
-                disabled={type === "asistencia"}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona equipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ours">Nuestro equipo</SelectItem>
-                  <SelectItem value="rival">Rival</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label>Jugador</Label>
-              <Select
-                value={playerId}
-                onValueChange={(value) => setPlayerId(value)}
-                disabled={type !== "asistencia" && teamScope === "rival"}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona jugador" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin especificar</SelectItem>
-                  {players.map((player) => (
-                    <SelectItem key={player.id} value={String(player.id)}>
-                      {player.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-slate-200">
+              {isEditing ? "Editando evento" : "Acta del partido"}
+            </p>
+            <p className="text-xs text-slate-400">
+              {isEditing
+                ? "Guarda los cambios o cancela para volver al listado."
+                : "Despliega el formulario solo cuando vayas a registrar un evento."}
+            </p>
           </div>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={saving}>
-              {saving
-                ? mode === "edit"
-                  ? "Guardando..."
-                  : "Creando..."
-                : mode === "edit"
-                ? "Guardar cambios"
-                : "Añadir evento"}
-            </Button>
-            {mode === "edit" ? (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={resetForm}
-                disabled={saving}
-              >
-                Cancelar edición
+          <Button
+            type="button"
+            variant={formOpen ? "ghost" : "outline"}
+            onClick={() => {
+              if (formOpen) {
+                resetForm(true);
+              } else {
+                resetForm();
+                setFormOpen(true);
+              }
+            }}
+            disabled={saving}
+          >
+            {toggleLabel}
+          </Button>
+        </div>
+        {formOpen ? (
+          <form
+            className="grid gap-4 rounded-lg border border-slate-800/60 bg-slate-900/70 p-4"
+            onSubmit={handleSubmit}
+          >
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="grid gap-1">
+                <Label htmlFor="event-minute">Minuto</Label>
+                <Input
+                  id="event-minute"
+                  type="number"
+                  min={0}
+                  max={130}
+                  value={minute}
+                  onChange={(e) => setMinute(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label>Tipo</Label>
+                <Select
+                  value={type}
+                  onValueChange={(value) => {
+                    setType(value);
+                    if (value === "asistencia") {
+                      setTeamScope("ours");
+                    }
+                    if (value !== "asistencia" && teamScope === "rival") {
+                      setPlayerId("none");
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(EVENT_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label>Equipo</Label>
+                <Select
+                  value={type === "asistencia" ? "ours" : teamScope}
+                  onValueChange={(value) => {
+                    const scoped = value as TeamScope;
+                    setTeamScope(scoped);
+                    if (scoped === "rival") {
+                      setPlayerId("none");
+                    }
+                  }}
+                  disabled={type === "asistencia"}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona equipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ours">Nuestro equipo</SelectItem>
+                    <SelectItem value="rival">Rival</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-1">
+                <Label>Jugador</Label>
+                <Select
+                  value={playerId}
+                  onValueChange={(value) => setPlayerId(value)}
+                  disabled={type !== "asistencia" && teamScope === "rival"}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona jugador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin especificar</SelectItem>
+                    {players.map((player) => (
+                      <SelectItem key={player.id} value={String(player.id)}>
+                        {player.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="submit" disabled={saving}>
+                {saving
+                  ? mode === "edit"
+                    ? "Guardando..."
+                    : "Creando..."
+                  : mode === "edit"
+                  ? "Guardar cambios"
+                  : "Añadir evento"}
               </Button>
-            ) : null}
-          </div>
-        </form>
+              {mode === "edit" ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => resetForm(true)}
+                  disabled={saving}
+                >
+                  Cancelar edición
+                </Button>
+              ) : null}
+            </div>
+          </form>
+        ) : null}
 
         <div className="space-y-3">
           <div className="flex items-center justify-between">
