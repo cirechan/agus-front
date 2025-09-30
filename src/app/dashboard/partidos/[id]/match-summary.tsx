@@ -18,6 +18,7 @@ import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
 import { revalidatePath } from "next/cache";
 import EventManager from "./event-manager";
 import MatchAdminPanel from "./match-admin-panel";
+import LineupRosterEditor from "./lineup-roster-editor";
 import MinutesEditor from "./minutes-editor";
 import type { LucideIcon } from "lucide-react";
 import { Clock3, Goal, Octagon, Sparkles, Square } from "lucide-react";
@@ -478,11 +479,18 @@ export default function MatchSummary({
               </CardContent>
             </Card>
             <Card>
-              <CardHeader className="space-y-2">
-                <CardTitle>Convocatoria</CardTitle>
-                <CardDescription>
-                  Distribución de la plantilla entre titulares, suplentes y desconvocados.
-                </CardDescription>
+              <CardHeader className="space-y-4 sm:flex sm:items-center sm:justify-between sm:space-y-0">
+                <div className="space-y-2">
+                  <CardTitle>Convocatoria</CardTitle>
+                  <CardDescription>
+                    Distribución de la plantilla entre titulares, suplentes y desconvocados.
+                  </CardDescription>
+                </div>
+                <LineupRosterEditor
+                  lineup={match.lineup}
+                  players={players}
+                  onSave={handleSaveLineup}
+                />
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
