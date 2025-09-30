@@ -1,15 +1,24 @@
 import { Badge } from "@/components/ui/badge";
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { updateLineup } from "@/lib/api/matches";
 import { cn } from "@/lib/utils";
-import type { Match, MatchEvent } from "@/types/match";
+import type { Match, MatchEvent, PlayerSlot } from "@/types/match";
+import { revalidatePath } from "next/cache";
 import EventManager from "./event-manager";
 import MatchAdminPanel from "./match-admin-panel";
+import MinutesEditor from "./minutes-editor";
 import type { LucideIcon } from "lucide-react";
 import { Clock3, Goal, Octagon, Sparkles, Square } from "lucide-react";
 
@@ -139,6 +148,23 @@ export default function MatchSummary({
     ? Math.max(90, ...minutesData.map((item) => item.minutes))
     : 90;
 
+  const goalkeepers = match.lineup
+    .filter(
+      (slot) =>
+        slot.playerId &&
+        typeof slot.position === "string" &&
+        slot.position.toUpperCase() === "GK"
+    )
+    .map((slot) => ({
+      slot,
+      player: playerMap.get(slot.playerId as number),
+    }));
+  const totalCleanSheets = goalkeepers.filter((item) => item.slot.cleanSheet).length;
+  const totalGoalsConceded = goalkeepers.reduce(
+    (sum, item) => sum + (item.slot.goalsConceded ?? 0),
+    0
+  );
+
   const timelineEvents = [...match.events].sort((a, b) => a.minute - b.minute);
 
   const eventBreakdown = match.events.reduce(
@@ -163,14 +189,14 @@ export default function MatchSummary({
 
   function renderPlayerList(items: Player[], emptyMessage: string) {
     if (!items.length) {
-      return <p className="text-sm text-slate-400">{emptyMessage}</p>;
+      return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
     }
     const sorted = [...items].sort((a, b) => a.nombre.localeCompare(b.nombre));
     return (
-      <ul className="mt-2 grid gap-1 text-sm text-slate-200/90">
+      <ul className="mt-2 grid gap-1 text-sm text-slate-700">
         {sorted.map((player) => (
           <li key={player.id} className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-primary/70" aria-hidden />
+            <span className="h-2 w-2 rounded-full bg-primary/60" aria-hidden />
             <span>{player.nombre}</span>
           </li>
         ))}
@@ -208,106 +234,109 @@ export default function MatchSummary({
       : `Perdimos ${ourGoals}-${rivalGoals} ${locationSummary} ante ${opponentName}.`;
 
   let resultLabel = "Empate";
-  let resultClass = "border-slate-500/50 bg-slate-800/70 text-slate-200";
+  let resultClass = "border-slate-200 bg-slate-100 text-slate-600";
   if (ourGoals > rivalGoals) {
     resultLabel = "Victoria";
-    resultClass = "border-emerald-500/40 bg-emerald-500/10 text-emerald-300";
+    resultClass = "border-emerald-200 bg-emerald-50 text-emerald-700";
   } else if (ourGoals < rivalGoals) {
     resultLabel = "Derrota";
-    resultClass = "border-rose-500/40 bg-rose-500/10 text-rose-300";
+    resultClass = "border-rose-200 bg-rose-50 text-rose-700";
+  }
+
+  const matchId = match.id;
+  const opponentNotes = match.opponentNotes ?? null;
+
+  async function handleSaveLineup(lineup: PlayerSlot[]) {
+    "use server";
+    await updateLineup(matchId, lineup, opponentNotes, true);
+    revalidatePath(`/dashboard/partidos/${matchId}`);
+    revalidatePath("/dashboard/partidos");
   }
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 text-slate-100">
-      <section className="relative px-4 pb-6 pt-8 sm:px-6 lg:px-10">
-        <div
-          className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900"
-          aria-hidden
-        />
-        <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 rounded-3xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className="flex flex-1 flex-wrap items-center gap-6">
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg"
-                  style={{ backgroundColor: homeTeamColor, color: homeContrast }}
-                >
-                  {homeTeamName.slice(0, 2).toUpperCase()}
+    <div className="min-h-screen w-full bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900">
+      <section className="px-4 pb-6 pt-8 sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-5xl space-y-6">
+          <div className="rounded-3xl border border-white/60 bg-white/90 p-6 shadow-xl backdrop-blur-sm">
+            <div className="flex flex-wrap items-center justify-between gap-6">
+              <div className="flex flex-1 flex-wrap items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg"
+                    style={{ backgroundColor: homeTeamColor, color: homeContrast }}
+                  >
+                    {homeTeamName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {homeLabel}
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">{homeTeamName}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-300">
-                    {homeLabel}
-                  </p>
-                  <p className="text-lg font-semibold text-white">
-                    {homeTeamName}
-                  </p>
+                <div className="flex items-center gap-3 text-4xl font-bold tabular-nums text-slate-900 sm:text-5xl">
+                  <span>{homeGoals}</span>
+                  <span className="text-muted-foreground">-</span>
+                  <span>{awayGoals}</span>
                 </div>
-              </div>
-              <div className="flex items-center gap-3 text-4xl font-bold tabular-nums text-white sm:text-5xl">
-                <span>{homeGoals}</span>
-                <span className="text-slate-400">-</span>
-                <span>{awayGoals}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg"
-                  style={{ backgroundColor: awayTeamColor, color: awayContrast }}
-                >
-                  {awayTeamName.slice(0, 2).toUpperCase()}
-                </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-300">
-                    {awayLabel}
-                  </p>
-                  <p className="text-lg font-semibold text-white">
-                    {awayTeamName}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div
+                    className="flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold shadow-lg"
+                    style={{ backgroundColor: awayTeamColor, color: awayContrast }}
+                  >
+                    {awayTeamName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {awayLabel}
+                    </p>
+                    <p className="text-lg font-semibold text-slate-900">{awayTeamName}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <Badge
-              variant="outline"
-              className={cn(
-                "border px-3 py-1 text-sm font-semibold uppercase tracking-wide",
-                resultClass
-              )}
-            >
-              {resultLabel}
-            </Badge>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-slate-200/90">
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="border-white/20 bg-white/10 text-white">
-                {competitionLabel}
+              <Badge
+                variant="outline"
+                className={cn(
+                  "border px-3 py-1 text-sm font-semibold uppercase tracking-wide",
+                  resultClass
+                )}
+              >
+                {resultLabel}
               </Badge>
-              {match.matchday ? <span>Jornada {match.matchday}</span> : null}
             </div>
-            <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-              <Clock3 className="h-4 w-4" />
-              <span>{formattedKickoff}</span>
+            <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-3">
+                <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                  {competitionLabel}
+                </Badge>
+                {match.matchday ? (
+                  <span className="font-medium text-slate-900">Jornada {match.matchday}</span>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2 text-xs sm:text-sm">
+                <Clock3 className="h-4 w-4 text-muted-foreground" />
+                <span>{formattedKickoff}</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pb-10 sm:px-6 lg:px-10">
-        <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-          <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
+        <Card>
+          <CardHeader className="space-y-2">
             <CardTitle>Timeline del partido</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription>
               Repasa los momentos clave minuto a minuto justo debajo del marcador.
             </CardDescription>
           </CardHeader>
           <CardContent className="relative pr-4">
             {timelineEvents.length === 0 ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-muted-foreground">
                 Aún no se registraron eventos para este partido.
               </p>
             ) : (
               <div className="relative space-y-6 pb-6 pl-5">
-                <div
-                  className="absolute left-2 top-0 h-full w-px bg-slate-700"
-                  aria-hidden
-                />
+                <div className="absolute left-2 top-0 h-full w-px bg-slate-200" aria-hidden />
                 <ul className="space-y-6">
                   {timelineEvents.map((event) => {
                     const descriptor = EVENT_CONFIG[event.type] ?? DEFAULT_EVENT;
@@ -330,16 +359,16 @@ export default function MatchSummary({
                             "absolute left-[-10px] top-2 h-3 w-3 rounded-full border",
                             descriptor.dotClass,
                             isOurEvent
-                              ? "ring-2 ring-emerald-400/70"
+                              ? "ring-2 ring-emerald-300/70"
                               : isRivalEvent
-                              ? "ring-2 ring-rose-400/70"
-                              : "ring-2 ring-slate-500/60"
+                              ? "ring-2 ring-rose-300/70"
+                              : "ring-2 ring-slate-300/70"
                           )}
                           aria-hidden
                         />
                         <div className="flex flex-wrap items-start justify-between gap-3">
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm font-semibold">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                               <span
                                 className={cn(
                                   "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
@@ -349,19 +378,15 @@ export default function MatchSummary({
                                 <Icon className="h-3.5 w-3.5" />
                                 {descriptor.label}
                               </span>
-                              {playerName ? (
-                                <span className="text-sm font-medium text-white">
-                                  {playerName}
-                                </span>
-                              ) : null}
+                              {playerName ? <span>{playerName}</span> : null}
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               {isOurEvent ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-300">
+                                <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
                                   Nuestro equipo
                                 </Badge>
                               ) : isRivalEvent ? (
-                                <Badge className="bg-rose-500/10 text-rose-300">
+                                <Badge className="border border-rose-200 bg-rose-50 text-rose-700">
                                   Rival
                                 </Badge>
                               ) : null}
@@ -370,7 +395,7 @@ export default function MatchSummary({
                               ) : null}
                             </div>
                           </div>
-                          <Badge variant="outline" className="border-slate-700/70 text-xs font-semibold text-white">
+                          <Badge className="border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700">
                             {event.minute}&apos;
                           </Badge>
                         </div>
@@ -384,120 +409,104 @@ export default function MatchSummary({
         </Card>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-6">
-            <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-              <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
+            <Card>
+              <CardHeader className="space-y-2">
                 <CardTitle>Resumen del partido</CardTitle>
-                <CardDescription className="text-slate-300">
-                  {summaryText}
-                </CardDescription>
+                <CardDescription>{summaryText}</CardDescription>
               </CardHeader>
               <CardContent className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-3 text-sm text-slate-200/90">
-                  <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
-                    <span className="text-slate-400">Competición</span>
-                    <span className="font-semibold text-white">{competitionLabel}</span>
+                <div className="space-y-3 text-sm text-slate-700">
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                    <span className="text-muted-foreground">Competición</span>
+                    <span className="font-semibold text-slate-900">{competitionLabel}</span>
                   </div>
                   {match.matchday ? (
-                    <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
-                      <span className="text-slate-400">Jornada</span>
-                      <span className="font-semibold text-white">{match.matchday}</span>
+                    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                      <span className="text-muted-foreground">Jornada</span>
+                      <span className="font-semibold text-slate-900">{match.matchday}</span>
                     </div>
                   ) : null}
-                  <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
-                    <span className="text-slate-400">Condición</span>
-                    <span className="font-semibold text-white">
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                    <span className="text-muted-foreground">Condición</span>
+                    <span className="font-semibold text-slate-900">
                       {match.isHome ? "Local" : "Visitante"}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
-                    <span className="text-slate-400">Fecha</span>
-                    <span className="font-semibold text-white">{formattedKickoff}</span>
+                  <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                    <span className="text-muted-foreground">Fecha</span>
+                    <span className="font-semibold text-slate-900">{formattedKickoff}</span>
                   </div>
                 </div>
-                <div className="grid gap-3 text-sm text-slate-200/90">
-                  <div className="rounded-lg border border-slate-800/60 bg-slate-900/80 p-4">
-                    <h4 className="text-xs uppercase tracking-wide text-slate-400">
+                <div className="grid gap-3 text-sm text-slate-700">
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
                       Nuestro equipo
                     </h4>
                     <dl className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
                         <dt>Goles</dt>
-                        <dd className="font-semibold text-white">
-                          {eventBreakdown.ours.goals}
-                        </dd>
+                        <dd className="font-semibold text-slate-900">{eventBreakdown.ours.goals}</dd>
                       </div>
                       <div className="flex items-center justify-between">
                         <dt>Tarjetas amarillas</dt>
-                        <dd className="font-semibold text-amber-300">
-                          {eventBreakdown.ours.yellow}
-                        </dd>
+                        <dd className="font-semibold text-amber-600">{eventBreakdown.ours.yellow}</dd>
                       </div>
                       <div className="flex items-center justify-between">
                         <dt>Tarjetas rojas</dt>
-                        <dd className="font-semibold text-rose-300">
-                          {eventBreakdown.ours.red}
-                        </dd>
+                        <dd className="font-semibold text-rose-600">{eventBreakdown.ours.red}</dd>
                       </div>
                     </dl>
                   </div>
-                  <div className="rounded-lg border border-slate-800/60 bg-slate-900/80 p-4">
-                    <h4 className="text-xs uppercase tracking-wide text-slate-400">
-                      Rival
-                    </h4>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">Rival</h4>
                     <dl className="mt-2 space-y-2">
                       <div className="flex items-center justify-between">
                         <dt>Goles</dt>
-                        <dd className="font-semibold text-white">
-                          {eventBreakdown.rival.goals}
-                        </dd>
+                        <dd className="font-semibold text-slate-900">{eventBreakdown.rival.goals}</dd>
                       </div>
                       <div className="flex items-center justify-between">
                         <dt>Tarjetas amarillas</dt>
-                        <dd className="font-semibold text-amber-300">
-                          {eventBreakdown.rival.yellow}
-                        </dd>
+                        <dd className="font-semibold text-amber-600">{eventBreakdown.rival.yellow}</dd>
                       </div>
                       <div className="flex items-center justify-between">
                         <dt>Tarjetas rojas</dt>
-                        <dd className="font-semibold text-rose-300">
-                          {eventBreakdown.rival.red}
-                        </dd>
+                        <dd className="font-semibold text-rose-600">{eventBreakdown.rival.red}</dd>
                       </div>
                     </dl>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-              <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
+            <Card>
+              <CardHeader className="space-y-2">
                 <CardTitle>Convocatoria</CardTitle>
-                <CardDescription className="text-slate-400">
+                <CardDescription>
                   Distribución de la plantilla entre titulares, suplentes y desconvocados.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <div className="flex items-center justify-between text-sm font-semibold">
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
                     <span>Titulares</span>
-                    <Badge variant="outline" className="border-slate-700/70 text-white">
+                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
                       {starters.length}
                     </Badge>
                   </div>
                   {renderPlayerList(starters, "Sin titulares asignados")}
                 </div>
                 <div>
-                  <div className="flex items-center justify-between text-sm font-semibold">
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
                     <span>Suplentes</span>
-                    <Badge variant="outline" className="border-slate-700/70 text-white">
+                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
                       {bench.length}
                     </Badge>
                   </div>
                   {renderPlayerList(bench, "Sin suplentes seleccionados")}
                 </div>
                 <div>
-                  <div className="flex items-center justify-between text-sm font-semibold">
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-900">
                     <span>Desconvocados</span>
-                    <Badge variant="outline" className="border-slate-700/70 text-white">
+                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
                       {unavailable.length}
                     </Badge>
                   </div>
@@ -508,96 +517,143 @@ export default function MatchSummary({
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-              <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
-                <CardTitle>Minutos jugados</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Seguimiento del tiempo en cancha de los jugadores utilizados.
-                </CardDescription>
+            <Card>
+              <CardHeader className="space-y-4 sm:flex sm:items-center sm:justify-between sm:space-y-0">
+                <div className="space-y-2">
+                  <CardTitle>Minutos jugados</CardTitle>
+                  <CardDescription>
+                    Seguimiento del tiempo en cancha de los jugadores utilizados.
+                  </CardDescription>
+                </div>
+                <MinutesEditor
+                  lineup={match.lineup}
+                  players={players}
+                  onSave={handleSaveLineup}
+                />
               </CardHeader>
-              <CardContent className="space-y-4">
-                {minutesData.length === 0 ? (
-                  <p className="text-sm text-slate-400">
-                    Todavía no hay minutos registrados en este encuentro.
+              <CardContent className="space-y-6">
+                {minutesSorted.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Aún no se han registrado minutos para este partido.
                   </p>
                 ) : (
-                  minutesSorted.map((entry) => {
-                    const player = playerMap.get(entry.id);
-                    if (!player) return null;
-                    const percentage = Math.min(
-                      100,
-                      Math.round((entry.minutes / maxMinutes) * 100)
-                    );
-                    return (
-                      <div key={entry.id} className="space-y-2">
-                        <div className="flex items-center justify-between text-sm font-medium">
-                          <span>{player.nombre}</span>
-                          <span>{entry.minutes}&apos;</span>
-                        </div>
-                        <div className="h-2 w-full rounded-full bg-slate-800">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-            <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-              <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
-                <CardTitle>Valoraciones</CardTitle>
-                <CardDescription className="text-slate-400">
-                  Accede rápidamente a la ficha de valoración de cada jugador con minutos.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {minutesData.length === 0 ? (
-                  <p className="text-sm text-slate-400">
-                    Una vez que registres minutos podrás valorar el rendimiento individual.
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="space-y-4">
                     {minutesSorted.map((entry) => {
                       const player = playerMap.get(entry.id);
                       if (!player) return null;
+                      const percentage = Math.min(
+                        100,
+                        Math.round((entry.minutes / maxMinutes) * 100)
+                      );
                       return (
-                        <a
-                          key={entry.id}
-                          href={`/dashboard/valoraciones?jugador=${entry.id}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-900 px-3 py-1 text-sm transition-colors hover:border-primary/60 hover:bg-primary/10"
-                        >
-                          <span className="font-medium">{player.nombre}</span>
-                          <Badge className="bg-primary/10 text-primary">
-                            {entry.minutes}&apos;
-                          </Badge>
-                        </a>
+                        <div key={entry.id} className="space-y-2">
+                          <div className="flex items-center justify-between text-sm font-medium text-slate-900">
+                            <span>{player.nombre}</span>
+                            <span>{entry.minutes}&apos;</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
                 )}
+                {goalkeepers.length ? (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                      <p className="text-sm font-medium text-emerald-700">Porterías a cero</p>
+                      <p className="text-2xl font-semibold text-emerald-700">{totalCleanSheets}</p>
+                      <p className="text-xs text-emerald-700/80">
+                        Marca el interruptor correspondiente al editar minutos.
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                      <p className="text-sm font-medium text-slate-900">Goles encajados</p>
+                      <p className="text-2xl font-semibold text-rose-600">{totalGoalsConceded}</p>
+                      <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {goalkeepers.map((item) => (
+                          <li key={item.slot.playerId}>
+                            {item.player?.nombre ?? `Jugador ${item.slot.playerId}`} · {item.slot.goalsConceded ?? 0} goles
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-muted-foreground">
+                    Registra al menos un guardameta en la alineación para controlar las porterías a cero y goles encajados.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="space-y-2">
+                <CardTitle>Valoraciones</CardTitle>
+                <CardDescription>
+                  Accede rápidamente a la ficha de valoración de cada jugador con minutos.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-wrap gap-2">
+                  {match.lineup
+                    .filter((slot) => slot.playerId && slot.role !== "unavailable")
+                    .map((slot) => {
+                      const player = playerMap.get(slot.playerId as number);
+                      if (!player) return null;
+                      return (
+                        <a
+                          key={slot.playerId}
+                          href={`/dashboard/valoraciones?jugador=${slot.playerId}`}
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-sm transition-colors hover:border-primary/60 hover:bg-primary/10"
+                        >
+                          <span className="font-medium text-slate-900">{player.nombre}</span>
+                          <Badge className="border border-primary/40 bg-primary/10 text-xs font-semibold text-primary">
+                            {slot.minutes ?? 0}&apos;
+                          </Badge>
+                        </a>
+                      );
+                    })}
+                </div>
               </CardContent>
             </Card>
           </div>
-          <div className="flex flex-col gap-6">
-            <EventManager
-              initialEvents={match.events}
-              players={players}
-              teamId={match.teamId}
-              rivalId={match.rivalId}
-              addEvent={addEvent}
-              updateEvent={updateEvent}
-              deleteEvent={deleteEvent}
-            />
-            <MatchAdminPanel
-              match={match}
-              teams={teams}
-              rivals={rivals}
-              onUpdate={updateMatch}
-              onDelete={deleteMatch}
-            />
+          <div className="flex flex-col gap-4">
+            <Accordion type="multiple" className="space-y-4">
+              <AccordionItem value="events">
+                <AccordionTrigger className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-base font-semibold shadow-sm hover:bg-slate-50">
+                  Gestionar eventos
+                </AccordionTrigger>
+                <AccordionContent className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <EventManager
+                    initialEvents={match.events}
+                    players={players}
+                    teamId={match.teamId}
+                    rivalId={match.rivalId}
+                    addEvent={addEvent}
+                    updateEvent={updateEvent}
+                    deleteEvent={deleteEvent}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="admin">
+                <AccordionTrigger className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-left text-base font-semibold shadow-sm hover:bg-slate-50">
+                  Administrar partido
+                </AccordionTrigger>
+                <AccordionContent className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                  <MatchAdminPanel
+                    match={match}
+                    teams={teams}
+                    rivals={rivals}
+                    onUpdate={updateMatch}
+                    onDelete={deleteMatch}
+                  />
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
         </div>
       </main>

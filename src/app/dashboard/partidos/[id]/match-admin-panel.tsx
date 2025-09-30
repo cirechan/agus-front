@@ -4,13 +4,6 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -125,170 +118,169 @@ export default function MatchAdminPanel({
   }
 
   return (
-    <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-      <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
-        <CardTitle>Administrar partido</CardTitle>
-        <CardDescription className="text-slate-400">
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <h3 className="text-base font-semibold text-slate-900">Administrar partido</h3>
+        <p className="text-sm text-muted-foreground">
           Corrige datos del encuentro o elimínalo en caso de duplicados.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <form className="grid gap-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4">
-            <div className="grid gap-1">
-              <Label>Equipo propio</Label>
-              <Select
-                value={String(teamId)}
-                onValueChange={(value) => setTeamId(Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona equipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {teamsOptions.map((team) => (
-                    <SelectItem key={team.id} value={String(team.id)}>
-                      {team.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label>Rival</Label>
-              <Select
-                value={String(rivalId)}
-                onValueChange={(value) => setRivalId(Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona rival" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rivalsOptions.map((rival) => (
-                    <SelectItem key={rival.id} value={String(rival.id)}>
-                      {rival.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center justify-between rounded-lg border border-slate-800/60 bg-slate-900/80 px-4 py-3">
-              <div>
-                <p className="text-sm font-medium text-white">Condición</p>
-                <p className="text-xs text-slate-400">
-                  Marca si jugamos como locales o visitantes.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Visitante</span>
-                <Switch
-                  checked={isHome}
-                  onCheckedChange={setIsHome}
-                  aria-label="Cambiar condición del partido"
-                />
-                <span className="text-xs text-slate-200 font-medium">Local</span>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleSwapCondition}
-              disabled={isPending}
+        </p>
+      </div>
+      <form
+        className="grid gap-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+        onSubmit={handleSubmit}
+      >
+        <div className="grid gap-4">
+          <div className="grid gap-1">
+            <Label>Equipo propio</Label>
+            <Select
+              value={String(teamId)}
+              onValueChange={(value) => setTeamId(Number(value))}
             >
-              Invertir local/visitante
-            </Button>
-            <div className="grid gap-1">
-              <Label htmlFor="match-kickoff">Fecha y hora</Label>
-              <Input
-                id="match-kickoff"
-                type="datetime-local"
-                value={kickoff}
-                onChange={(event) => setKickoff(event.target.value)}
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label>Competición</Label>
-              <Select
-                value={competition}
-                onValueChange={(value) =>
-                  setCompetition(value as Match["competition"])
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona competición" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="liga">Liga</SelectItem>
-                  <SelectItem value="playoff">Play Off</SelectItem>
-                  <SelectItem value="copa">Copa</SelectItem>
-                  <SelectItem value="amistoso">Amistoso</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="matchday">Jornada</Label>
-              <Input
-                id="matchday"
-                type="number"
-                min={1}
-                value={matchday}
-                onChange={(event) => setMatchday(event.target.value)}
-                placeholder="Deja vacío si no aplica"
-              />
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="opponent-notes">Notas del rival</Label>
-              <Textarea
-                id="opponent-notes"
-                value={opponentNotes}
-                onChange={(event) => setOpponentNotes(event.target.value)}
-                placeholder="Observaciones sobre el rival o contexto"
-                rows={3}
-              />
-            </div>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona equipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {teamsOptions.map((team) => (
+                  <SelectItem key={team.id} value={String(team.id)}>
+                    {team.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Guardando..." : "Guardar cambios"}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setTeamId(match.teamId);
-                setRivalId(match.rivalId);
-                setIsHome(match.isHome);
-                setKickoff(toDateTimeLocal(match.kickoff));
-                setCompetition(match.competition);
-                setMatchday(match.matchday != null ? String(match.matchday) : "");
-                setOpponentNotes(match.opponentNotes ?? "");
-              }}
-              disabled={isPending}
+          <div className="grid gap-1">
+            <Label>Rival</Label>
+            <Select
+              value={String(rivalId)}
+              onValueChange={(value) => setRivalId(Number(value))}
             >
-              Restablecer
-            </Button>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona rival" />
+              </SelectTrigger>
+              <SelectContent>
+                {rivalsOptions.map((rival) => (
+                  <SelectItem key={rival.id} value={String(rival.id)}>
+                    {rival.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
-        </form>
-        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-destructive">
-                Eliminar partido
-              </p>
-              <p className="text-xs text-destructive/70">
-                Borra el partido si es un duplicado o se creó por error.
+              <p className="text-sm font-medium text-slate-900">Condición</p>
+              <p className="text-xs text-muted-foreground">
+                Marca si jugamos como locales o visitantes.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isPending}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Visitante</span>
+              <Switch
+                checked={isHome}
+                onCheckedChange={setIsHome}
+                aria-label="Cambiar condición del partido"
+              />
+              <span className="text-xs font-medium text-slate-900">Local</span>
+            </div>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleSwapCondition}
+            disabled={isPending}
+          >
+            Invertir local/visitante
+          </Button>
+          <div className="grid gap-1">
+            <Label htmlFor="match-kickoff">Fecha y hora</Label>
+            <Input
+              id="match-kickoff"
+              type="datetime-local"
+              value={kickoff}
+              onChange={(event) => setKickoff(event.target.value)}
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label>Competición</Label>
+            <Select
+              value={competition}
+              onValueChange={(value) =>
+                setCompetition(value as Match["competition"])
+              }
             >
-              {isPending ? "Eliminando..." : "Eliminar partido"}
-            </Button>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona competición" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="liga">Liga</SelectItem>
+                <SelectItem value="playoff">Play Off</SelectItem>
+                <SelectItem value="copa">Copa</SelectItem>
+                <SelectItem value="amistoso">Amistoso</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="matchday">Jornada</Label>
+            <Input
+              id="matchday"
+              type="number"
+              min={1}
+              value={matchday}
+              onChange={(event) => setMatchday(event.target.value)}
+              placeholder="Deja vacío si no aplica"
+            />
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="opponent-notes">Notas del rival</Label>
+            <Textarea
+              id="opponent-notes"
+              value={opponentNotes}
+              onChange={(event) => setOpponentNotes(event.target.value)}
+              placeholder="Observaciones sobre el rival o contexto"
+              rows={3}
+            />
           </div>
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={isPending}>
+            {isPending ? "Guardando..." : "Guardar cambios"}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setTeamId(match.teamId);
+              setRivalId(match.rivalId);
+              setIsHome(match.isHome);
+              setKickoff(toDateTimeLocal(match.kickoff));
+              setCompetition(match.competition);
+              setMatchday(match.matchday != null ? String(match.matchday) : "");
+              setOpponentNotes(match.opponentNotes ?? "");
+            }}
+            disabled={isPending}
+          >
+            Restablecer
+          </Button>
+        </div>
+      </form>
+      <div className="rounded-lg border border-rose-200 bg-rose-50 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-rose-700">Eliminar partido</p>
+            <p className="text-xs text-rose-600">
+              Borra el partido si es un duplicado o se creó por error.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isPending}
+          >
+            {isPending ? "Eliminando..." : "Eliminar partido"}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }

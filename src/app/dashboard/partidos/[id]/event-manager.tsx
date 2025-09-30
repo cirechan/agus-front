@@ -6,13 +6,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { MatchEvent } from "@/types/match";
+import { cn } from "@/lib/utils";
 
 interface PlayerOption {
   id: number;
@@ -212,222 +206,218 @@ export default function EventManager({
     : "Añadir evento";
 
   return (
-    <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-      <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
-        <CardTitle>Gestionar eventos</CardTitle>
-        <CardDescription className="text-slate-400">
-          Ajusta el acta del partido añadiendo, editando o eliminando incidencias.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="space-y-1">
-            <p className="text-sm font-semibold text-slate-200">
-              {isEditing ? "Editando evento" : "Acta del partido"}
-            </p>
-            <p className="text-xs text-slate-400">
-              {isEditing
-                ? "Guarda los cambios o cancela para volver al listado."
-                : "Despliega el formulario solo cuando vayas a registrar un evento."}
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant={formOpen ? "ghost" : "outline"}
-            onClick={() => {
-              if (formOpen) {
-                resetForm(true);
-              } else {
-                resetForm();
-                setFormOpen(true);
-              }
-            }}
-            disabled={saving}
-          >
-            {toggleLabel}
-          </Button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-slate-900">
+            {isEditing ? "Editando evento" : "Acta del partido"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {isEditing
+              ? "Guarda los cambios o cancela para volver al listado."
+              : "Despliega el formulario solo cuando vayas a registrar un evento."}
+          </p>
         </div>
-        {formOpen ? (
-          <form
-            className="grid gap-4 rounded-lg border border-slate-800/60 bg-slate-900/70 p-4"
-            onSubmit={handleSubmit}
-          >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="grid gap-1">
-                <Label htmlFor="event-minute">Minuto</Label>
-                <Input
-                  id="event-minute"
-                  type="number"
-                  min={0}
-                  max={130}
-                  value={minute}
-                  onChange={(e) => setMinute(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-1">
-                <Label>Tipo</Label>
-                <Select
-                  value={type}
-                  onValueChange={(value) => {
-                    setType(value);
-                    if (value === "asistencia") {
-                      setTeamScope("ours");
-                    }
-                    if (value !== "asistencia" && teamScope === "rival") {
-                      setPlayerId("none");
-                    }
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(EVENT_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>
-                        {label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1">
-                <Label>Equipo</Label>
-                <Select
-                  value={type === "asistencia" ? "ours" : teamScope}
-                  onValueChange={(value) => {
-                    const scoped = value as TeamScope;
-                    setTeamScope(scoped);
-                    if (scoped === "rival") {
-                      setPlayerId("none");
-                    }
-                  }}
-                  disabled={type === "asistencia"}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona equipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ours">Nuestro equipo</SelectItem>
-                    <SelectItem value="rival">Rival</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-1">
-                <Label>Jugador</Label>
-                <Select
-                  value={playerId}
-                  onValueChange={(value) => setPlayerId(value)}
-                  disabled={type !== "asistencia" && teamScope === "rival"}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona jugador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin especificar</SelectItem>
-                    {players.map((player) => (
-                      <SelectItem key={player.id} value={String(player.id)}>
-                        {player.nombre}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+        <Button
+          type="button"
+          variant={formOpen ? "secondary" : "outline"}
+          onClick={() => {
+            if (formOpen) {
+              resetForm(true);
+            } else {
+              resetForm();
+              setFormOpen(true);
+            }
+          }}
+          disabled={saving}
+        >
+          {toggleLabel}
+        </Button>
+      </div>
+      {formOpen ? (
+        <form
+          className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm"
+          onSubmit={handleSubmit}
+        >
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid gap-1">
+              <Label htmlFor="event-minute">Minuto</Label>
+              <Input
+                id="event-minute"
+                type="number"
+                min={0}
+                max={130}
+                value={minute}
+                onChange={(e) => setMinute(e.target.value)}
+              />
             </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" disabled={saving}>
-                {saving
-                  ? mode === "edit"
-                    ? "Guardando..."
-                    : "Creando..."
-                  : mode === "edit"
-                  ? "Guardar cambios"
-                  : "Añadir evento"}
+            <div className="grid gap-1">
+              <Label>Tipo</Label>
+              <Select
+                value={type}
+                onValueChange={(value) => {
+                  setType(value);
+                  if (value === "asistencia") {
+                    setTeamScope("ours");
+                  }
+                  if (value !== "asistencia" && teamScope === "rival") {
+                    setPlayerId("none");
+                  }
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(EVENT_LABELS).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label>Equipo</Label>
+              <Select
+                value={type === "asistencia" ? "ours" : teamScope}
+                onValueChange={(value) => {
+                  const scoped = value as TeamScope;
+                  setTeamScope(scoped);
+                  if (scoped === "rival") {
+                    setPlayerId("none");
+                  }
+                }}
+                disabled={type === "asistencia"}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona equipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ours">Nuestro equipo</SelectItem>
+                  <SelectItem value="rival">Rival</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1">
+              <Label>Jugador</Label>
+              <Select
+                value={playerId}
+                onValueChange={(value) => setPlayerId(value)}
+                disabled={type !== "asistencia" && teamScope === "rival"}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona jugador" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin especificar</SelectItem>
+                  {players.map((player) => (
+                    <SelectItem key={player.id} value={String(player.id)}>
+                      {player.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" disabled={saving}>
+              {saving
+                ? mode === "edit"
+                  ? "Guardando..."
+                  : "Creando..."
+                : mode === "edit"
+                ? "Guardar cambios"
+                : "Añadir evento"}
+            </Button>
+            {mode === "edit" ? (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => resetForm(true)}
+                disabled={saving}
+              >
+                Cancelar edición
               </Button>
-              {mode === "edit" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => resetForm(true)}
-                  disabled={saving}
-                >
-                  Cancelar edición
-                </Button>
-              ) : null}
-            </div>
-          </form>
-        ) : null}
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-200">Eventos registrados</p>
-            <Badge variant="outline" className="border-slate-700/70 text-white">
-              {sortedEvents.length}
-            </Badge>
+            ) : null}
           </div>
-          {sortedEvents.length === 0 ? (
-            <p className="text-sm text-slate-400">
-              Aún no hay eventos guardados en este partido.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {sortedEvents.map((event) => {
-                const label = EVENT_LABELS[event.type] ?? event.type;
-                const scope = resolveTeamScope(event);
-                const playerName =
-                  event.playerId != null
-                    ? playerMap.get(event.playerId)?.nombre
-                    : null;
-                const isDeleting = deletingId === event.id;
-                return (
-                  <li
-                    key={event.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-900/60 p-3"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-white">
-                        <span>{label}</span>
-                        <Badge
-                          variant="outline"
-                          className="border-slate-700/70 text-xs uppercase tracking-wide"
-                        >
-                          {scope === "ours" ? "Nuestro" : "Rival"}
-                        </Badge>
-                        <Badge variant="outline" className="border-slate-700/70 text-xs">
-                          {event.minute}&apos;
-                        </Badge>
-                      </div>
-                      {playerName ? (
-                        <p className="text-xs text-slate-300">{playerName}</p>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => beginEdit(event)}
-                        disabled={saving || isDeleting}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(event.id)}
-                        disabled={saving || isDeleting}
-                      >
-                        {isDeleting ? "Eliminando..." : "Eliminar"}
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+        </form>
+      ) : null}
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-900">Eventos registrados</p>
+          <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+            {sortedEvents.length}
+          </Badge>
         </div>
-      </CardContent>
-    </Card>
+        {sortedEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aún no hay eventos guardados en este partido.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {sortedEvents.map((event) => {
+              const label = EVENT_LABELS[event.type] ?? event.type;
+              const scope = resolveTeamScope(event);
+              const playerName =
+                event.playerId != null
+                  ? playerMap.get(event.playerId)?.nombre
+                  : null;
+              const isDeleting = deletingId === event.id;
+              return (
+                <li
+                  key={event.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                      <span>{label}</span>
+                      <Badge
+                        className={cn(
+                          "text-xs uppercase tracking-wide",
+                          scope === "ours"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
+                        )}
+                      >
+                        {scope === "ours" ? "Nuestro" : "Rival"}
+                      </Badge>
+                      <Badge className="border-slate-200 bg-slate-50 text-xs text-slate-700">
+                        {event.minute}&apos;
+                      </Badge>
+                    </div>
+                    {playerName ? (
+                      <p className="text-xs text-muted-foreground">{playerName}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => beginEdit(event)}
+                      disabled={saving || isDeleting}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(event.id)}
+                      disabled={saving || isDeleting}
+                    >
+                      {isDeleting ? "Eliminando..." : "Eliminar"}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }

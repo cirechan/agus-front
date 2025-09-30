@@ -30,6 +30,21 @@ function toNullableNumber(value: any): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function toBoolean(value: any): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return false;
+    return ['true', '1', 'si', 'sí', 'yes', 'y', 'on'].includes(normalized);
+  }
+  return false;
+}
+
 function getSql(): SqlClient | null {
   const connectionString =
     process.env['DATABASE_URL'] ||
@@ -52,7 +67,12 @@ function sanitizeLineup(input: any): PlayerSlot[] {
     const role =
       raw?.role === 'bench' || raw?.role === 'unavailable' ? raw.role : 'field';
     const number = toNullableNumber(raw?.number ?? raw?.dorsal) ?? undefined;
-    const minutes = Math.max(0, toNumber(raw?.minutes, 0));
+    const minutes = Math.max(0, toNumber(raw?.minutes ?? raw?.minutos, 0));
+    const cleanSheet = toBoolean(raw?.cleanSheet ?? raw?.clean_sheet);
+    const goalsConceded = Math.max(
+      0,
+      toNumber(raw?.goalsConceded ?? raw?.goals_conceded, 0)
+    );
     const position =
       typeof raw?.position === 'string' && raw.position.length
         ? raw.position
@@ -63,6 +83,8 @@ function sanitizeLineup(input: any): PlayerSlot[] {
       role,
       position,
       minutes,
+      cleanSheet,
+      goalsConceded,
     });
   });
   return lineup;
