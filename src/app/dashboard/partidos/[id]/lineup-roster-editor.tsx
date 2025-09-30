@@ -210,7 +210,7 @@ export default function LineupRosterEditor({
             </Label>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Select
-                value={selectedPlayerId}
+                value={selectedPlayerId === "" ? undefined : selectedPlayerId}
                 onValueChange={setSelectedPlayerId}
               >
                 <SelectTrigger id="add-player" className="sm:w-64">
@@ -218,7 +218,7 @@ export default function LineupRosterEditor({
                 </SelectTrigger>
                 <SelectContent>
                   {availablePlayers.length === 0 ? (
-                    <SelectItem value="" disabled>
+                    <SelectItem value="all-assigned" disabled>
                       Todos los jugadores ya están en la lista
                     </SelectItem>
                   ) : (

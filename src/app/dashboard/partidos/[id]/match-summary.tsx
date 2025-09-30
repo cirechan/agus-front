@@ -21,7 +21,7 @@ import MatchAdminPanel from "./match-admin-panel";
 import LineupRosterEditor from "./lineup-roster-editor";
 import MinutesEditor from "./minutes-editor";
 import type { LucideIcon } from "lucide-react";
-import { Clock3, Goal, Octagon, Sparkles, Square } from "lucide-react";
+import { Clock3, Flag, Goal, Octagon, Sparkles, Square, Timer, Trophy } from "lucide-react";
 
 interface Player {
   id: number;
@@ -54,7 +54,15 @@ interface EventDescriptor {
   icon: LucideIcon;
   dotClass: string;
   pillClass: string;
+  iconWrapperClass: string;
+  description?: string;
 }
+
+type TimelineMarkerId = "kickoff" | "halftime" | "fulltime";
+
+type TimelineItem =
+  | { kind: "marker"; id: TimelineMarkerId; minute: number }
+  | { kind: "event"; id: number; minute: number; event: MatchEvent };
 
 const EVENT_CONFIG: Record<string, EventDescriptor> = {
   gol: {
@@ -62,24 +70,52 @@ const EVENT_CONFIG: Record<string, EventDescriptor> = {
     icon: Goal,
     dotClass: "bg-emerald-500 border-emerald-200",
     pillClass: "bg-emerald-500/10 text-emerald-600",
+    iconWrapperClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
   amarilla: {
     label: "Tarjeta amarilla",
     icon: Square,
     dotClass: "bg-amber-400 border-amber-200",
     pillClass: "bg-amber-500/10 text-amber-600",
+    iconWrapperClass: "border-amber-200 bg-amber-50 text-amber-700",
   },
   roja: {
     label: "Tarjeta roja",
     icon: Octagon,
     dotClass: "bg-red-500 border-red-200",
     pillClass: "bg-red-500/10 text-red-600",
+    iconWrapperClass: "border-rose-200 bg-rose-50 text-rose-700",
   },
   asistencia: {
     label: "Asistencia",
     icon: Sparkles,
     dotClass: "bg-sky-500 border-sky-200",
     pillClass: "bg-sky-500/10 text-sky-600",
+    iconWrapperClass: "border-sky-200 bg-sky-50 text-sky-700",
+  },
+  kickoff: {
+    label: "Inicio del partido",
+    icon: Flag,
+    dotClass: "bg-sky-500 border-sky-200",
+    pillClass: "bg-sky-500/10 text-sky-600",
+    iconWrapperClass: "border-sky-200 bg-sky-50 text-sky-700",
+    description: "Arranca el encuentro tras el silbato inicial.",
+  },
+  halftime: {
+    label: "Descanso",
+    icon: Timer,
+    dotClass: "bg-slate-400 border-slate-300",
+    pillClass: "bg-slate-200 text-slate-700",
+    iconWrapperClass: "border-slate-200 bg-slate-100 text-slate-700",
+    description: "Final de la primera mitad.",
+  },
+  fulltime: {
+    label: "Final del partido",
+    icon: Trophy,
+    dotClass: "bg-emerald-500 border-emerald-200",
+    pillClass: "bg-emerald-500/10 text-emerald-600",
+    iconWrapperClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    description: "El colegiado señala el final del encuentro.",
   },
 };
 
@@ -88,6 +124,7 @@ const DEFAULT_EVENT: EventDescriptor = {
   icon: Clock3,
   dotClass: "bg-muted border-border",
   pillClass: "bg-muted text-muted-foreground",
+  iconWrapperClass: "border-slate-200 bg-white text-slate-600",
 };
 
 const COMPETITION_LABELS: Record<string, string> = {
@@ -167,6 +204,32 @@ export default function MatchSummary({
   );
 
   const timelineEvents = [...match.events].sort((a, b) => a.minute - b.minute);
+  const highestMinute = timelineEvents.length
+    ? Math.max(...timelineEvents.map((event) => event.minute))
+    : 0;
+  const finalMinute = Math.max(90, highestMinute);
+
+  const markers: TimelineItem[] = [
+    { kind: "marker", id: "kickoff", minute: 0 },
+  ];
+  if (finalMinute >= 45) {
+    markers.push({ kind: "marker", id: "halftime", minute: 45 });
+  }
+  markers.push({ kind: "marker", id: "fulltime", minute: finalMinute });
+
+  const timelineItems: TimelineItem[] = [
+    ...markers,
+    ...timelineEvents.map((event) => ({
+      kind: "event" as const,
+      id: event.id,
+      minute: event.minute,
+      event,
+    })),
+  ].sort((a, b) => {
+    if (a.minute !== b.minute) return a.minute - b.minute;
+    if (a.kind === b.kind) return 0;
+    return a.kind === "event" ? -1 : 1;
+  });
 
   const eventBreakdown = match.events.reduce(
     (acc, event) => {
@@ -257,7 +320,7 @@ export default function MatchSummary({
   }
 
   return (
-    <div className="min-h-screen w-full bg-white text-slate-900">
+    <div className="min-h-screen w-full bg-slate-50 text-slate-900">
       <section className="px-4 pb-6 pt-8 sm:px-6 lg:px-10">
         <div className="mx-auto w-full max-w-5xl">
           <Card className="border border-slate-200 shadow-xl">
@@ -393,17 +456,17 @@ export default function MatchSummary({
             </CardDescription>
           </CardHeader>
           <CardContent className="relative">
-            {timelineEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                Aún no se registraron eventos para este partido.
-              </p>
-            ) : (
-              <div className="relative space-y-6 pb-6 pl-5">
-                <div className="absolute left-2 top-0 h-full w-px bg-slate-200" aria-hidden />
-                <ul className="space-y-6">
-                  {timelineEvents.map((event) => {
-                    const descriptor = EVENT_CONFIG[event.type] ?? DEFAULT_EVENT;
-                    const hasCustomLabel = Boolean(EVENT_CONFIG[event.type]);
+            <div className="relative pl-2">
+              <div
+                className="absolute left-[32px] top-0 bottom-0 w-px bg-slate-200"
+                aria-hidden
+              />
+              <ul className="space-y-6 pt-2">
+                {timelineItems.map((item) => {
+                  if (item.kind === "event") {
+                    const event = item.event;
+                    const descriptor =
+                      EVENT_CONFIG[event.type] ?? DEFAULT_EVENT;
                     const Icon = descriptor.icon;
                     const isOurEvent =
                       event.teamId === match.teamId ||
@@ -414,60 +477,110 @@ export default function MatchSummary({
                       event.playerId != null
                         ? playerMap.get(event.playerId)?.nombre
                         : undefined;
+                    const hasCustomLabel = Boolean(EVENT_CONFIG[event.type]);
 
                     return (
-                      <li key={event.id} className="relative pl-6">
-                        <span
-                          className={cn(
-                            "absolute left-[-10px] top-2 h-3 w-3 rounded-full border",
-                            descriptor.dotClass,
-                            isOurEvent
-                              ? "ring-2 ring-emerald-300/70"
-                              : isRivalEvent
-                              ? "ring-2 ring-rose-300/70"
-                              : "ring-2 ring-slate-300/70"
-                          )}
-                          aria-hidden
-                        />
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                              <span
-                                className={cn(
-                                  "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
-                                  descriptor.pillClass
-                                )}
-                              >
-                                <Icon className="h-3.5 w-3.5" />
-                                {descriptor.label}
-                              </span>
-                              {playerName ? <span>{playerName}</span> : null}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              {isOurEvent ? (
-                                <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
-                                  Nuestro equipo
-                                </Badge>
-                              ) : isRivalEvent ? (
-                                <Badge className="border border-rose-200 bg-rose-50 text-rose-700">
-                                  Rival
-                                </Badge>
-                              ) : null}
-                              {!hasCustomLabel ? (
-                                <span className="capitalize">{event.type}</span>
-                              ) : null}
-                            </div>
+                      <li
+                        key={`event-${event.id}`}
+                        className="relative grid grid-cols-[64px_1fr_auto] items-start gap-4"
+                      >
+                        <div className="flex justify-center">
+                          <span
+                            className={cn(
+                              "relative z-10 flex h-11 w-11 items-center justify-center rounded-full border text-sm font-semibold shadow-sm",
+                              descriptor.iconWrapperClass
+                            )}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
+                                descriptor.pillClass
+                              )}
+                            >
+                              {descriptor.label}
+                            </span>
+                            {playerName ? <span>{playerName}</span> : null}
                           </div>
-                          <Badge className="border border-slate-200 bg-slate-50 text-xs font-semibold text-slate-700">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            {isOurEvent ? (
+                              <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
+                                Nuestro equipo
+                              </Badge>
+                            ) : isRivalEvent ? (
+                              <Badge className="border border-rose-200 bg-rose-50 text-rose-700">
+                                Rival
+                              </Badge>
+                            ) : null}
+                            {!hasCustomLabel ? (
+                              <span className="capitalize">{event.type}</span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="pt-1">
+                          <Badge className="border border-slate-200 bg-white text-xs font-semibold text-slate-700">
                             {event.minute}&apos;
                           </Badge>
                         </div>
                       </li>
                     );
-                  })}
-                </ul>
-              </div>
-            )}
+                  }
+
+                  const descriptor =
+                    EVENT_CONFIG[item.id] ?? DEFAULT_EVENT;
+                  const Icon = descriptor.icon;
+
+                  return (
+                    <li
+                      key={`marker-${item.id}`}
+                      className="relative grid grid-cols-[64px_1fr_auto] items-start gap-4"
+                    >
+                      <div className="flex justify-center">
+                        <span
+                          className={cn(
+                            "relative z-10 flex h-11 w-11 items-center justify-center rounded-full border text-sm font-semibold shadow-sm",
+                            descriptor.iconWrapperClass
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium",
+                              descriptor.pillClass
+                            )}
+                          >
+                            {descriptor.label}
+                          </span>
+                        </div>
+                        {descriptor.description ? (
+                          <p className="text-xs text-muted-foreground">
+                            {descriptor.description}
+                          </p>
+                        ) : null}
+                      </div>
+                      <div className="pt-1">
+                        <Badge className="border border-slate-200 bg-white text-xs font-semibold text-slate-700">
+                          {item.minute}&apos;
+                        </Badge>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+            {timelineEvents.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                No se registraron incidencias en el acta.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
         <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
