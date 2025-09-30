@@ -4,12 +4,15 @@ import {
   removeEvent,
   updateEvent as persistEventUpdate,
   updateLineup,
+  updateMatchDetails,
+  deleteMatch,
 } from "@/lib/api/matches";
 import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 import MatchSummary from "./match-summary";
-import type { PlayerSlot } from "@/types/match";
+import type { Match, PlayerSlot } from "@/types/match";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +35,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
     : allPlayers;
   const ourTeam = await equiposService.getById(match.teamId);
   const rivalTeam = await rivalesService.getById(match.rivalId);
+  const teams = await equiposService.getAll();
+  const rivals = await rivalesService.getAll();
   const homeTeamName = match.isHome ? ourTeam?.nombre : rivalTeam?.nombre;
   const awayTeamName = match.isHome ? rivalTeam?.nombre : ourTeam?.nombre;
   const homeTeamColor = match.isHome ? ourTeam?.color : rivalTeam?.color;
@@ -107,6 +112,74 @@ export default async function MatchPage({ params }: MatchPageProps) {
     return updated;
   }
 
+  async function updateMatch(formData: FormData) {
+    "use server";
+    const updates: Parameters<typeof updateMatchDetails>[1] = {};
+
+    const teamIdRaw = formData.get("teamId");
+    if (teamIdRaw) {
+      const parsed = Number(teamIdRaw);
+      if (Number.isFinite(parsed)) {
+        updates.teamId = parsed;
+      }
+    }
+
+    const rivalIdRaw = formData.get("rivalId");
+    if (rivalIdRaw) {
+      const parsed = Number(rivalIdRaw);
+      if (Number.isFinite(parsed)) {
+        updates.rivalId = parsed;
+      }
+    }
+
+    const competitionRaw = formData.get("competition");
+    if (competitionRaw) {
+      const value = String(competitionRaw) as Match["competition"];
+      updates.competition = value;
+    }
+
+    const kickoffRaw = formData.get("kickoff");
+    if (kickoffRaw) {
+      const kickoffValue = new Date(String(kickoffRaw));
+      if (!Number.isNaN(kickoffValue.getTime())) {
+        updates.kickoff = kickoffValue.toISOString();
+      }
+    }
+
+    const matchdayRaw = formData.get("matchday");
+    if (matchdayRaw !== null) {
+      const text = String(matchdayRaw);
+      if (text.trim() === "") {
+        updates.matchday = null;
+      } else {
+        const parsed = Number(text);
+        updates.matchday = Number.isFinite(parsed) ? parsed : null;
+      }
+    }
+
+    const isHomeRaw = formData.get("isHome");
+    if (isHomeRaw !== null) {
+      updates.isHome = String(isHomeRaw) === "true";
+    }
+
+    const notesRaw = formData.get("opponentNotes");
+    if (notesRaw !== null) {
+      const value = String(notesRaw);
+      updates.opponentNotes = value.length ? value : null;
+    }
+
+    await updateMatchDetails(id, updates);
+    revalidatePath(`/dashboard/partidos/${id}`);
+    revalidatePath("/dashboard/partidos");
+  }
+
+  async function deleteMatchAction() {
+    "use server";
+    await deleteMatch(id);
+    revalidatePath("/dashboard/partidos");
+    redirect("/dashboard/partidos");
+  }
+
   async function saveLineupServer(lineup: PlayerSlot[], finished = false) {
     "use server";
     await updateLineup(id, lineup, opponentNotes, finished);
@@ -125,6 +198,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
       addEvent={addEvent}
       updateEvent={updateEvent}
       deleteEvent={deleteEventById}
+      teams={teams}
+      rivals={rivals}
+      updateMatch={updateMatch}
+      deleteMatch={deleteMatchAction}
     />
   ) : (
     <MatchDetail

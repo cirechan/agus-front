@@ -58,3 +58,10 @@ export type NewMatchEvent = Omit<MatchEvent, 'id'>;
 export type UpdateMatchEvent = Partial<
   Pick<MatchEvent, 'minute' | 'type' | 'playerId' | 'teamId' | 'rivalId' | 'data'>
 >;
+
+export type UpdateMatchInput = Partial<
+  Pick<
+    Match,
+    'teamId' | 'rivalId' | 'isHome' | 'kickoff' | 'competition' | 'matchday' | 'opponentNotes' | 'finished'
+  >
+>;
