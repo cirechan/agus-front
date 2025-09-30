@@ -8,6 +8,7 @@ import type {
   NewMatch,
   NewMatchEvent,
   UpdateMatchEvent,
+  UpdateMatchInput,
 } from '@/types/match';
 
 type SqlClient = ReturnType<typeof neon>;
@@ -27,6 +28,21 @@ function toNullableNumber(value: any): number | null {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toBoolean(value: any): boolean {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return false;
+    return ['true', '1', 'si', 'sí', 'yes', 'y', 'on'].includes(normalized);
+  }
+  return false;
 }
 
 function getSql(): SqlClient | null {
@@ -51,7 +67,12 @@ function sanitizeLineup(input: any): PlayerSlot[] {
     const role =
       raw?.role === 'bench' || raw?.role === 'unavailable' ? raw.role : 'field';
     const number = toNullableNumber(raw?.number ?? raw?.dorsal) ?? undefined;
-    const minutes = Math.max(0, toNumber(raw?.minutes, 0));
+    const minutes = Math.max(0, toNumber(raw?.minutes ?? raw?.minutos, 0));
+    const cleanSheet = toBoolean(raw?.cleanSheet ?? raw?.clean_sheet);
+    const goalsConceded = Math.max(
+      0,
+      toNumber(raw?.goalsConceded ?? raw?.goals_conceded, 0)
+    );
     const position =
       typeof raw?.position === 'string' && raw.position.length
         ? raw.position
@@ -62,6 +83,8 @@ function sanitizeLineup(input: any): PlayerSlot[] {
       role,
       position,
       minutes,
+      cleanSheet,
+      goalsConceded,
     });
   });
   return lineup;
@@ -609,4 +632,135 @@ export async function updateLineup(
   matches[index] = updatedMatch;
   await writeMatchesStore(matches);
   return cloneMatch(updatedMatch);
+}
+
+export async function updateMatchDetails(
+  matchId: number,
+  updates: UpdateMatchInput
+): Promise<Match> {
+  const sql = getSql();
+  if (sql) {
+    const existingRows = (await sql`
+      SELECT p.id,
+             p.equipo_id AS "teamId",
+             p.rival_id AS "rivalId",
+             p.condicion AS condition,
+             p.inicio AS kickoff,
+             p.competicion AS competition,
+             p.jornada AS "matchday",
+             p.alineacion AS lineup,
+             p.notas_rival AS "opponentNotes",
+             p.finalizado AS finished
+      FROM partidos p
+      WHERE p.id = ${matchId}
+    `) as MatchRow[];
+
+    const existing = existingRows[0];
+    if (!existing) {
+      throw new Error(`Match ${matchId} not found`);
+    }
+
+    const nextTeamId = updates.teamId ?? existing.teamId;
+    const nextRivalId = updates.rivalId ?? existing.rivalId;
+    const nextCondition =
+      updates.isHome !== undefined
+        ? updates.isHome
+          ? 'local'
+          : 'visitante'
+        : existing.condition;
+    const nextKickoff = updates.kickoff ?? existing.kickoff;
+    const nextCompetition = updates.competition ?? existing.competition;
+    const nextMatchday =
+      updates.matchday !== undefined ? updates.matchday : existing.matchday;
+    const nextNotes =
+      updates.opponentNotes !== undefined
+        ? updates.opponentNotes
+        : existing.opponentNotes ?? null;
+    const nextFinished =
+      updates.finished !== undefined ? updates.finished : existing.finished;
+
+    const [row] = (await sql`
+      UPDATE partidos
+      SET equipo_id = ${nextTeamId},
+          rival_id = ${nextRivalId},
+          condicion = ${nextCondition},
+          inicio = ${nextKickoff},
+          competicion = ${nextCompetition},
+          jornada = ${nextMatchday},
+          notas_rival = ${nextNotes},
+          finalizado = ${nextFinished}
+      WHERE id = ${matchId}
+      RETURNING id,
+                equipo_id AS "teamId",
+                rival_id AS "rivalId",
+                condicion AS condition,
+                inicio AS kickoff,
+                competicion AS competition,
+                jornada AS "matchday",
+                alineacion AS lineup,
+                notas_rival AS "opponentNotes",
+                finalizado AS finished
+    `) as MatchRow[];
+
+    const events = (await sql`
+      SELECT id,
+             partido_id AS "matchId",
+             minuto AS "minute",
+             tipo AS "type",
+             jugador_id AS "playerId",
+             equipo_id AS "teamId",
+             rival_id AS "rivalId",
+             datos AS data
+      FROM eventos_partido
+      WHERE partido_id = ${matchId}
+      ORDER BY minuto
+    `) as EventRow[];
+
+    return mapMatch(
+      { ...row, lineup: row.lineup ? row.lineup : [] },
+      events.map((event) => mapEvent(event))
+    );
+  }
+
+  const matches = await readMatchesStore();
+  const index = matches.findIndex((match) => match.id === matchId);
+  if (index === -1) {
+    throw new Error(`Match ${matchId} not found`);
+  }
+
+  const existing = matches[index];
+  const updatedMatch = sanitizeMatch({
+    ...existing,
+    teamId: updates.teamId ?? existing.teamId,
+    rivalId: updates.rivalId ?? existing.rivalId,
+    isHome: updates.isHome ?? existing.isHome,
+    kickoff: updates.kickoff ?? existing.kickoff,
+    competition: updates.competition ?? existing.competition,
+    matchday:
+      updates.matchday === undefined ? existing.matchday : updates.matchday,
+    opponentNotes:
+      updates.opponentNotes === undefined
+        ? existing.opponentNotes ?? null
+        : updates.opponentNotes,
+    finished: updates.finished ?? existing.finished,
+    events: existing.events,
+    lineup: existing.lineup,
+  });
+
+  matches[index] = updatedMatch;
+  await writeMatchesStore(matches);
+  return cloneMatch(updatedMatch);
+}
+
+export async function deleteMatch(matchId: number): Promise<void> {
+  const sql = getSql();
+  if (sql) {
+    await sql`DELETE FROM eventos_partido WHERE partido_id = ${matchId}`;
+    await sql`DELETE FROM partidos WHERE id = ${matchId}`;
+    return;
+  }
+
+  const matches = await readMatchesStore();
+  const remaining = matches.filter((match) => match.id !== matchId);
+  await writeMatchesStore(remaining);
 }

@@ -14,7 +14,7 @@ export default function DashboardLayout({
   const isMatch = pathname?.startsWith("/dashboard/partidos/");
 
   if (isMatch) {
-    return <div className="h-screen w-screen overflow-hidden">{children}</div>;
+    return <>{children}</>;
   }
 
   return (

@@ -12,6 +12,10 @@ export interface PlayerSlot {
   position?: string;
   /** Minutes played by the player in this match. */
   minutes: number;
+  /** Indicates whether the player mantained a clean sheet. */
+  cleanSheet?: boolean;
+  /** Number of goals conceded while this player was on the pitch (goalkeepers). */
+  goalsConceded?: number;
   /**
    * Second of match when the player entered the field. Used only on the
    * client to compute minutes played automatically and omitted when
@@ -57,4 +61,11 @@ export type NewMatch = Omit<Match, 'id' | 'finished'>;
 export type NewMatchEvent = Omit<MatchEvent, 'id'>;
 export type UpdateMatchEvent = Partial<
   Pick<MatchEvent, 'minute' | 'type' | 'playerId' | 'teamId' | 'rivalId' | 'data'>
+>;
+
+export type UpdateMatchInput = Partial<
+  Pick<
+    Match,
+    'teamId' | 'rivalId' | 'isHome' | 'kickoff' | 'competition' | 'matchday' | 'opponentNotes' | 'finished'
+  >
 >;

@@ -4,12 +4,21 @@ import {
   removeEvent,
   updateEvent as persistEventUpdate,
   updateLineup,
+  updateMatchDetails,
+  deleteMatch,
 } from "@/lib/api/matches";
 import { jugadoresService, equiposService, rivalesService } from "@/lib/api/services";
 import MatchDetail from "./match-detail";
 import MatchSummary from "./match-summary";
-import type { PlayerSlot } from "@/types/match";
+import type { Match, PlayerSlot } from "@/types/match";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import {
+  buildEventMetadata,
+  clampRelativeMinute,
+  coerceEventPeriod,
+  toAbsoluteMinute,
+} from "@/lib/match-events";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +41,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
     : allPlayers;
   const ourTeam = await equiposService.getById(match.teamId);
   const rivalTeam = await rivalesService.getById(match.rivalId);
+  const teams = await equiposService.getAll();
+  const rivals = await rivalesService.getAll();
   const homeTeamName = match.isHome ? ourTeam?.nombre : rivalTeam?.nombre;
   const awayTeamName = match.isHome ? rivalTeam?.nombre : ourTeam?.nombre;
   const homeTeamColor = match.isHome ? ourTeam?.color : rivalTeam?.color;
@@ -40,7 +51,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
   async function addEvent(formData: FormData) {
     "use server";
-    const minute = Number(formData.get("minute"));
+    const minuteRaw = Number(formData.get("minute"));
     const type = formData.get("type") as string;
     const playerIdRaw = formData.get("playerId");
     const playerId = playerIdRaw ? Number(playerIdRaw) : null;
@@ -48,6 +59,16 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const teamId = teamIdRaw ? Number(teamIdRaw) : null;
     const rivalIdRaw = formData.get("rivalId");
     const rivalId = rivalIdRaw ? Number(rivalIdRaw) : null;
+    const period = coerceEventPeriod(formData.get("period"));
+    const relativeMinuteRaw = formData.get("relativeMinute");
+    const relativeMinute = clampRelativeMinute(
+      relativeMinuteRaw != null
+        ? Number(relativeMinuteRaw)
+        : Number.isFinite(minuteRaw)
+        ? minuteRaw
+        : 0
+    );
+    const minute = toAbsoluteMinute(period, relativeMinute);
     const created = await recordEvent({
       matchId: id,
       minute,
@@ -55,7 +76,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       playerId,
       teamId,
       rivalId,
-      data: null,
+      data: buildEventMetadata(period, relativeMinute),
     });
     revalidatePath(`/dashboard/partidos/${id}`);
     revalidatePath("/dashboard/partidos");
@@ -77,6 +98,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const playerIdRaw = formData.get("playerId");
     const teamIdRaw = formData.get("teamId");
     const rivalIdRaw = formData.get("rivalId");
+    const period = coerceEventPeriod(formData.get("period"));
+    const relativeMinuteRaw = formData.get("relativeMinute");
 
     const eventId = idRaw ? Number(idRaw) : NaN;
     if (!Number.isFinite(eventId)) {
@@ -84,7 +107,12 @@ export default async function MatchPage({ params }: MatchPageProps) {
     }
 
     const minuteValue = minuteRaw ? Number(minuteRaw) : 0;
-    const minute = Number.isFinite(minuteValue) ? minuteValue : 0;
+    const relativeMinute = clampRelativeMinute(
+      relativeMinuteRaw != null
+        ? Number(relativeMinuteRaw)
+        : minuteValue
+    );
+    const minute = toAbsoluteMinute(period, relativeMinute);
     const playerValue = playerIdRaw ? Number(playerIdRaw) : null;
     const playerId =
       playerValue != null && Number.isFinite(playerValue) ? playerValue : null;
@@ -100,11 +128,79 @@ export default async function MatchPage({ params }: MatchPageProps) {
       playerId,
       teamId,
       rivalId,
-      data: null,
+      data: buildEventMetadata(period, relativeMinute),
     });
     revalidatePath(`/dashboard/partidos/${id}`);
     revalidatePath("/dashboard/partidos");
     return updated;
+  }
+
+  async function updateMatch(formData: FormData) {
+    "use server";
+    const updates: Parameters<typeof updateMatchDetails>[1] = {};
+
+    const teamIdRaw = formData.get("teamId");
+    if (teamIdRaw) {
+      const parsed = Number(teamIdRaw);
+      if (Number.isFinite(parsed)) {
+        updates.teamId = parsed;
+      }
+    }
+
+    const rivalIdRaw = formData.get("rivalId");
+    if (rivalIdRaw) {
+      const parsed = Number(rivalIdRaw);
+      if (Number.isFinite(parsed)) {
+        updates.rivalId = parsed;
+      }
+    }
+
+    const competitionRaw = formData.get("competition");
+    if (competitionRaw) {
+      const value = String(competitionRaw) as Match["competition"];
+      updates.competition = value;
+    }
+
+    const kickoffRaw = formData.get("kickoff");
+    if (kickoffRaw) {
+      const kickoffValue = new Date(String(kickoffRaw));
+      if (!Number.isNaN(kickoffValue.getTime())) {
+        updates.kickoff = kickoffValue.toISOString();
+      }
+    }
+
+    const matchdayRaw = formData.get("matchday");
+    if (matchdayRaw !== null) {
+      const text = String(matchdayRaw);
+      if (text.trim() === "") {
+        updates.matchday = null;
+      } else {
+        const parsed = Number(text);
+        updates.matchday = Number.isFinite(parsed) ? parsed : null;
+      }
+    }
+
+    const isHomeRaw = formData.get("isHome");
+    if (isHomeRaw !== null) {
+      updates.isHome = String(isHomeRaw) === "true";
+    }
+
+    const notesRaw = formData.get("opponentNotes");
+    if (notesRaw !== null) {
+      const value = String(notesRaw);
+      updates.opponentNotes = value.length ? value : null;
+    }
+
+    await updateMatchDetails(id, updates);
+    revalidatePath(`/dashboard/partidos/${id}`);
+    revalidatePath("/dashboard/partidos");
+  }
+
+  async function deleteMatchAction() {
+    "use server";
+    await deleteMatch(id);
+    revalidatePath("/dashboard/partidos");
+    redirect("/dashboard/partidos");
   }
 
   async function saveLineupServer(lineup: PlayerSlot[], finished = false) {
@@ -125,6 +221,10 @@ export default async function MatchPage({ params }: MatchPageProps) {
       addEvent={addEvent}
       updateEvent={updateEvent}
       deleteEvent={deleteEventById}
+      teams={teams}
+      rivals={rivals}
+      updateMatch={updateMatch}
+      deleteMatch={deleteMatchAction}
     />
   ) : (
     <MatchDetail

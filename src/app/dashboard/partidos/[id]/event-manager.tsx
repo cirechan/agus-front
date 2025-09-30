@@ -6,13 +6,6 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,6 +16,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { MatchEvent } from "@/types/match";
+import { cn } from "@/lib/utils";
+import {
+  DEFAULT_EVENT_PERIOD,
+  clampRelativeMinute,
+  coerceEventPeriod,
+  formatEventMinute,
+  formatPeriodLabel,
+  getEventAbsoluteMinute,
+  getEventPeriod,
+  getEventRelativeMinute,
+  type EventPeriod,
+  toAbsoluteMinute,
+} from "@/lib/match-events";
 
 interface PlayerOption {
   id: number;
@@ -68,18 +74,23 @@ export default function EventManager({
   const [type, setType] = useState<string>("gol");
   const [teamScope, setTeamScope] = useState<TeamScope>("ours");
   const [playerId, setPlayerId] = useState<string>("none");
+  const [period, setPeriod] = useState<EventPeriod>(DEFAULT_EVENT_PERIOD);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const playerMap = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
   const sortedEvents = useMemo(
-    () => [...events].sort((a, b) => a.minute - b.minute),
+    () =>
+      [...events].sort(
+        (a, b) => getEventAbsoluteMinute(a) - getEventAbsoluteMinute(b)
+      ),
     [events]
   );
 
-  function resetForm() {
+  function resetForm(closeForm = false) {
     setMode("create");
     setEditingId(null);
     setMinute("0");
@@ -87,6 +98,10 @@ export default function EventManager({
     setTeamScope("ours");
     setPlayerId("none");
     setError(null);
+    setPeriod(DEFAULT_EVENT_PERIOD);
+    if (closeForm) {
+      setFormOpen(false);
+    }
   }
 
   function resolveTeamScope(event: MatchEvent): TeamScope {
@@ -96,9 +111,12 @@ export default function EventManager({
   }
 
   function beginEdit(event: MatchEvent) {
+    setFormOpen(true);
     setMode("edit");
     setEditingId(event.id);
-    setMinute(String(event.minute));
+    const eventPeriod = getEventPeriod(event);
+    setPeriod(eventPeriod);
+    setMinute(String(getEventRelativeMinute(event)));
     setType(event.type);
     const scope =
       event.type === "asistencia" ? "ours" : resolveTeamScope(event);
@@ -112,9 +130,8 @@ export default function EventManager({
     setError(null);
 
     const parsedMinute = Number(minute);
-    const minuteNumber = Number.isFinite(parsedMinute)
-      ? Math.max(0, Math.min(130, Math.round(parsedMinute)))
-      : 0;
+    const relativeMinute = clampRelativeMinute(parsedMinute);
+    const absoluteMinute = toAbsoluteMinute(period, relativeMinute);
 
     const effectiveTeam = type === "asistencia" ? "ours" : teamScope;
     const requiresPlayer = type === "asistencia" || effectiveTeam === "ours";
@@ -133,7 +150,9 @@ export default function EventManager({
     }
 
     const formData = new FormData();
-    formData.set("minute", String(minuteNumber));
+    formData.set("minute", String(absoluteMinute));
+    formData.set("relativeMinute", String(relativeMinute));
+    formData.set("period", period);
     formData.set("type", type);
 
     if (effectiveTeam === "ours") {
@@ -158,18 +177,22 @@ export default function EventManager({
           const next = prev.map((evt) =>
             evt.id === updatedEvent.id ? updatedEvent : evt
           );
-          return next.sort((a, b) => a.minute - b.minute);
+          return next.sort(
+            (a, b) => getEventAbsoluteMinute(a) - getEventAbsoluteMinute(b)
+          );
         });
         toast("Evento actualizado correctamente");
       } else {
         const created = await addEvent(formData);
         updatedEvent = created;
         setEvents((prev) =>
-          [...prev, created].sort((a, b) => a.minute - b.minute)
+          [...prev, created].sort(
+            (a, b) => getEventAbsoluteMinute(a) - getEventAbsoluteMinute(b)
+          )
         );
         toast("Evento añadido correctamente");
       }
-      resetForm();
+      resetForm(true);
       router.refresh();
     } catch (err) {
       console.error("No se pudo guardar el evento", err);
@@ -187,7 +210,7 @@ export default function EventManager({
       await deleteEvent(id);
       setEvents((prev) => prev.filter((evt) => evt.id !== id));
       if (editingId === id) {
-        resetForm();
+        resetForm(true);
       }
       router.refresh();
       toast("Evento eliminado");
@@ -199,16 +222,47 @@ export default function EventManager({
     }
   }
 
+  const isEditing = mode === "edit";
+  const toggleLabel = formOpen
+    ? isEditing
+      ? "Cancelar edición"
+      : "Ocultar formulario"
+    : "Añadir evento";
+
   return (
-    <Card className="border-slate-800 bg-slate-900/60 text-slate-100">
-      <CardHeader className="space-y-2 border-b border-slate-800/60 pb-4">
-        <CardTitle>Gestionar eventos</CardTitle>
-        <CardDescription className="text-slate-400">
-          Ajusta el acta del partido añadiendo, editando o eliminando incidencias.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <form className="grid gap-4" onSubmit={handleSubmit}>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-1">
+          <p className="text-sm font-semibold text-slate-900">
+            {isEditing ? "Editando evento" : "Acta del partido"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {isEditing
+              ? "Guarda los cambios o cancela para volver al listado."
+              : "Despliega el formulario solo cuando vayas a registrar un evento."}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant={formOpen ? "secondary" : "outline"}
+          onClick={() => {
+            if (formOpen) {
+              resetForm(true);
+            } else {
+              resetForm();
+              setFormOpen(true);
+            }
+          }}
+          disabled={saving}
+        >
+          {toggleLabel}
+        </Button>
+      </div>
+      {formOpen ? (
+        <form
+          className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 shadow-sm"
+          onSubmit={handleSubmit}
+        >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="grid gap-1">
               <Label htmlFor="event-minute">Minuto</Label>
@@ -220,6 +274,25 @@ export default function EventManager({
                 value={minute}
                 onChange={(e) => setMinute(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Introduce el minuto dentro de la parte seleccionada (0-40).
+              </p>
+            </div>
+            <div className="grid gap-1">
+              <Label>Parte</Label>
+              <Select
+                value={period}
+                onValueChange={(value) => setPeriod(coerceEventPeriod(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona parte" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="first">1ª parte</SelectItem>
+                  <SelectItem value="second">2ª parte</SelectItem>
+                  <SelectItem value="extra">Prórroga</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1">
               <Label>Tipo</Label>
@@ -305,7 +378,7 @@ export default function EventManager({
               <Button
                 type="button"
                 variant="ghost"
-                onClick={resetForm}
+                onClick={() => resetForm(true)}
                 disabled={saving}
               >
                 Cancelar edición
@@ -313,77 +386,90 @@ export default function EventManager({
             ) : null}
           </div>
         </form>
+      ) : null}
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-slate-200">Eventos registrados</p>
-            <Badge variant="outline" className="border-slate-700/70 text-white">
-              {sortedEvents.length}
-            </Badge>
-          </div>
-          {sortedEvents.length === 0 ? (
-            <p className="text-sm text-slate-400">
-              Aún no hay eventos guardados en este partido.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {sortedEvents.map((event) => {
-                const label = EVENT_LABELS[event.type] ?? event.type;
-                const scope = resolveTeamScope(event);
-                const playerName =
-                  event.playerId != null
-                    ? playerMap.get(event.playerId)?.nombre
-                    : null;
-                const isDeleting = deletingId === event.id;
-                return (
-                  <li
-                    key={event.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-800 bg-slate-900/60 p-3"
-                  >
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-white">
-                        <span>{label}</span>
-                        <Badge
-                          variant="outline"
-                          className="border-slate-700/70 text-xs uppercase tracking-wide"
-                        >
-                          {scope === "ours" ? "Nuestro" : "Rival"}
-                        </Badge>
-                        <Badge variant="outline" className="border-slate-700/70 text-xs">
-                          {event.minute}&apos;
-                        </Badge>
-                      </div>
-                      {playerName ? (
-                        <p className="text-xs text-slate-300">{playerName}</p>
-                      ) : null}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => beginEdit(event)}
-                        disabled={saving || isDeleting}
-                      >
-                        Editar
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(event.id)}
-                        disabled={saving || isDeleting}
-                      >
-                        {isDeleting ? "Eliminando..." : "Eliminar"}
-                      </Button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-medium text-slate-900">Eventos registrados</p>
+          <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+            {sortedEvents.length}
+          </Badge>
         </div>
-      </CardContent>
-    </Card>
+        {sortedEvents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Aún no hay eventos guardados en este partido.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {sortedEvents.map((event) => {
+              const label = EVENT_LABELS[event.type] ?? event.type;
+              const scope = resolveTeamScope(event);
+              const eventPeriod = getEventPeriod(event);
+              const relativeMinute = getEventRelativeMinute(event);
+              const displayMinute = formatEventMinute(
+                eventPeriod,
+                relativeMinute
+              );
+              const playerName =
+                event.playerId != null
+                  ? playerMap.get(event.playerId)?.nombre
+                  : null;
+              const isDeleting = deletingId === event.id;
+              return (
+                <li
+                  key={event.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-900">
+                      <span>{label}</span>
+                      <Badge
+                        className={cn(
+                          "text-xs uppercase tracking-wide",
+                          scope === "ours"
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                            : "border-rose-200 bg-rose-50 text-rose-700"
+                        )}
+                      >
+                        {scope === "ours" ? "Nuestro" : "Rival"}
+                      </Badge>
+                      <Badge className="border-slate-200 bg-slate-50 text-xs text-slate-700">
+                        {displayMinute}
+                      </Badge>
+                    </div>
+                    {playerName ? (
+                      <p className="text-xs text-muted-foreground">{playerName}</p>
+                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {formatPeriodLabel(eventPeriod)} · {relativeMinute}&apos;
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => beginEdit(event)}
+                      disabled={saving || isDeleting}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(event.id)}
+                      disabled={saving || isDeleting}
+                    >
+                      {isDeleting ? "Eliminando..." : "Eliminar"}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
