@@ -17,6 +17,18 @@ import {
 } from "@/components/ui/select";
 import type { MatchEvent } from "@/types/match";
 import { cn } from "@/lib/utils";
+import {
+  DEFAULT_EVENT_PERIOD,
+  clampRelativeMinute,
+  coerceEventPeriod,
+  formatEventMinute,
+  formatPeriodLabel,
+  getEventAbsoluteMinute,
+  getEventPeriod,
+  getEventRelativeMinute,
+  type EventPeriod,
+  toAbsoluteMinute,
+} from "@/lib/match-events";
 
 interface PlayerOption {
   id: number;
@@ -62,6 +74,7 @@ export default function EventManager({
   const [type, setType] = useState<string>("gol");
   const [teamScope, setTeamScope] = useState<TeamScope>("ours");
   const [playerId, setPlayerId] = useState<string>("none");
+  const [period, setPeriod] = useState<EventPeriod>(DEFAULT_EVENT_PERIOD);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +83,10 @@ export default function EventManager({
   const playerMap = useMemo(() => new Map(players.map((p) => [p.id, p])), [players]);
 
   const sortedEvents = useMemo(
-    () => [...events].sort((a, b) => a.minute - b.minute),
+    () =>
+      [...events].sort(
+        (a, b) => getEventAbsoluteMinute(a) - getEventAbsoluteMinute(b)
+      ),
     [events]
   );
 
@@ -82,6 +98,7 @@ export default function EventManager({
     setTeamScope("ours");
     setPlayerId("none");
     setError(null);
+    setPeriod(DEFAULT_EVENT_PERIOD);
     if (closeForm) {
       setFormOpen(false);
     }
@@ -97,7 +114,9 @@ export default function EventManager({
     setFormOpen(true);
     setMode("edit");
     setEditingId(event.id);
-    setMinute(String(event.minute));
+    const eventPeriod = getEventPeriod(event);
+    setPeriod(eventPeriod);
+    setMinute(String(getEventRelativeMinute(event)));
     setType(event.type);
     const scope =
       event.type === "asistencia" ? "ours" : resolveTeamScope(event);
@@ -111,9 +130,8 @@ export default function EventManager({
     setError(null);
 
     const parsedMinute = Number(minute);
-    const minuteNumber = Number.isFinite(parsedMinute)
-      ? Math.max(0, Math.min(130, Math.round(parsedMinute)))
-      : 0;
+    const relativeMinute = clampRelativeMinute(parsedMinute);
+    const absoluteMinute = toAbsoluteMinute(period, relativeMinute);
 
     const effectiveTeam = type === "asistencia" ? "ours" : teamScope;
     const requiresPlayer = type === "asistencia" || effectiveTeam === "ours";
@@ -132,7 +150,9 @@ export default function EventManager({
     }
 
     const formData = new FormData();
-    formData.set("minute", String(minuteNumber));
+    formData.set("minute", String(absoluteMinute));
+    formData.set("relativeMinute", String(relativeMinute));
+    formData.set("period", period);
     formData.set("type", type);
 
     if (effectiveTeam === "ours") {
@@ -157,14 +177,18 @@ export default function EventManager({
           const next = prev.map((evt) =>
             evt.id === updatedEvent.id ? updatedEvent : evt
           );
-          return next.sort((a, b) => a.minute - b.minute);
+          return next.sort(
+            (a, b) => getEventAbsoluteMinute(a) - getEventAbsoluteMinute(b)
+          );
         });
         toast("Evento actualizado correctamente");
       } else {
         const created = await addEvent(formData);
         updatedEvent = created;
         setEvents((prev) =>
-          [...prev, created].sort((a, b) => a.minute - b.minute)
+          [...prev, created].sort(
+            (a, b) => getEventAbsoluteMinute(a) - getEventAbsoluteMinute(b)
+          )
         );
         toast("Evento añadido correctamente");
       }
@@ -250,6 +274,25 @@ export default function EventManager({
                 value={minute}
                 onChange={(e) => setMinute(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Introduce el minuto dentro de la parte seleccionada (0-40).
+              </p>
+            </div>
+            <div className="grid gap-1">
+              <Label>Parte</Label>
+              <Select
+                value={period}
+                onValueChange={(value) => setPeriod(coerceEventPeriod(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona parte" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="first">1ª parte</SelectItem>
+                  <SelectItem value="second">2ª parte</SelectItem>
+                  <SelectItem value="extra">Prórroga</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1">
               <Label>Tipo</Label>
@@ -361,6 +404,12 @@ export default function EventManager({
             {sortedEvents.map((event) => {
               const label = EVENT_LABELS[event.type] ?? event.type;
               const scope = resolveTeamScope(event);
+              const eventPeriod = getEventPeriod(event);
+              const relativeMinute = getEventRelativeMinute(event);
+              const displayMinute = formatEventMinute(
+                eventPeriod,
+                relativeMinute
+              );
               const playerName =
                 event.playerId != null
                   ? playerMap.get(event.playerId)?.nombre
@@ -385,12 +434,15 @@ export default function EventManager({
                         {scope === "ours" ? "Nuestro" : "Rival"}
                       </Badge>
                       <Badge className="border-slate-200 bg-slate-50 text-xs text-slate-700">
-                        {event.minute}&apos;
+                        {displayMinute}
                       </Badge>
                     </div>
                     {playerName ? (
                       <p className="text-xs text-muted-foreground">{playerName}</p>
                     ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {formatPeriodLabel(eventPeriod)} · {relativeMinute}&apos;
+                    </p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button

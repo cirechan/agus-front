@@ -22,6 +22,15 @@ import LineupRosterEditor from "./lineup-roster-editor";
 import MinutesEditor from "./minutes-editor";
 import type { LucideIcon } from "lucide-react";
 import { Clock3, Flag, Goal, Octagon, Sparkles, Square, Timer, Trophy } from "lucide-react";
+import {
+  HALF_DURATION_MINUTES,
+  formatEventMinute,
+  formatPeriodLabel,
+  getEventAbsoluteMinute,
+  getEventPeriod,
+  getEventRelativeMinute,
+  type EventPeriod,
+} from "@/lib/match-events";
 
 interface Player {
   id: number;
@@ -58,11 +67,18 @@ interface EventDescriptor {
   description?: string;
 }
 
-type TimelineMarkerId = "kickoff" | "halftime" | "fulltime";
+type TimelineMarkerId = "kickoff" | "halftime" | "extratime" | "fulltime";
 
 type TimelineItem =
   | { kind: "marker"; id: TimelineMarkerId; minute: number }
-  | { kind: "event"; id: number; minute: number; event: MatchEvent };
+  | {
+      kind: "event";
+      id: number;
+      minute: number;
+      event: MatchEvent;
+      period: EventPeriod;
+      relativeMinute: number;
+    };
 
 const EVENT_CONFIG: Record<string, EventDescriptor> = {
   gol: {
@@ -108,6 +124,14 @@ const EVENT_CONFIG: Record<string, EventDescriptor> = {
     pillClass: "bg-slate-200 text-slate-700",
     iconWrapperClass: "border-slate-200 bg-slate-100 text-slate-700",
     description: "Final de la primera mitad.",
+  },
+  extratime: {
+    label: "Prórroga",
+    icon: Timer,
+    dotClass: "bg-indigo-400 border-indigo-200",
+    pillClass: "bg-indigo-100 text-indigo-700",
+    iconWrapperClass: "border-indigo-200 bg-indigo-50 text-indigo-700",
+    description: "Inicio del tiempo extra.",
   },
   fulltime: {
     label: "Final del partido",
@@ -203,27 +227,43 @@ export default function MatchSummary({
     0
   );
 
-  const timelineEvents = [...match.events].sort((a, b) => a.minute - b.minute);
+  const timelineEvents = match.events
+    .map((event) => {
+      const period = getEventPeriod(event);
+      const relativeMinute = getEventRelativeMinute(event);
+      return {
+        event,
+        period,
+        relativeMinute,
+        absoluteMinute: getEventAbsoluteMinute(event),
+      };
+    })
+    .sort((a, b) => a.absoluteMinute - b.absoluteMinute);
+
   const highestMinute = timelineEvents.length
-    ? Math.max(...timelineEvents.map((event) => event.minute))
+    ? Math.max(...timelineEvents.map((item) => item.absoluteMinute))
     : 0;
-  const finalMinute = Math.max(90, highestMinute);
+  const regulationDuration = HALF_DURATION_MINUTES * 2;
+  const finalMinute = Math.max(regulationDuration, highestMinute);
 
   const markers: TimelineItem[] = [
     { kind: "marker", id: "kickoff", minute: 0 },
+    { kind: "marker", id: "halftime", minute: HALF_DURATION_MINUTES },
   ];
-  if (finalMinute >= 45) {
-    markers.push({ kind: "marker", id: "halftime", minute: 45 });
+  if (finalMinute > regulationDuration) {
+    markers.push({ kind: "marker", id: "extratime", minute: regulationDuration });
   }
   markers.push({ kind: "marker", id: "fulltime", minute: finalMinute });
 
   const timelineItems: TimelineItem[] = [
     ...markers,
-    ...timelineEvents.map((event) => ({
+    ...timelineEvents.map((item) => ({
       kind: "event" as const,
-      id: event.id,
-      minute: event.minute,
-      event,
+      id: item.event.id,
+      minute: item.absoluteMinute,
+      event: item.event,
+      period: item.period,
+      relativeMinute: item.relativeMinute,
     })),
   ].sort((a, b) => {
     if (a.minute !== b.minute) return a.minute - b.minute;
@@ -465,6 +505,8 @@ export default function MatchSummary({
                 {timelineItems.map((item) => {
                   if (item.kind === "event") {
                     const event = item.event;
+                    const period = item.period;
+                    const relativeMinute = item.relativeMinute;
                     const descriptor =
                       EVENT_CONFIG[event.type] ?? DEFAULT_EVENT;
                     const Icon = descriptor.icon;
@@ -502,12 +544,12 @@ export default function MatchSummary({
                                 descriptor.pillClass
                               )}
                             >
-                              {descriptor.label}
-                            </span>
-                            {playerName ? <span>{playerName}</span> : null}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                            {isOurEvent ? (
+                        {descriptor.label}
+                      </span>
+                      {playerName ? <span>{playerName}</span> : null}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {isOurEvent ? (
                               <Badge className="border border-emerald-200 bg-emerald-50 text-emerald-700">
                                 Nuestro equipo
                               </Badge>
@@ -515,20 +557,21 @@ export default function MatchSummary({
                               <Badge className="border border-rose-200 bg-rose-50 text-rose-700">
                                 Rival
                               </Badge>
-                            ) : null}
-                            {!hasCustomLabel ? (
-                              <span className="capitalize">{event.type}</span>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="pt-1">
-                          <Badge className="border border-slate-200 bg-white text-xs font-semibold text-slate-700">
-                            {event.minute}&apos;
-                          </Badge>
-                        </div>
-                      </li>
-                    );
-                  }
+                      ) : null}
+                      <span>{formatPeriodLabel(period)}</span>
+                      {!hasCustomLabel ? (
+                        <span className="capitalize">{event.type}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="pt-1">
+                    <Badge className="border border-slate-200 bg-white text-xs font-semibold text-slate-700">
+                      {formatEventMinute(period, relativeMinute)}
+                    </Badge>
+                  </div>
+                </li>
+              );
+            }
 
                   const descriptor =
                     EVENT_CONFIG[item.id] ?? DEFAULT_EVENT;

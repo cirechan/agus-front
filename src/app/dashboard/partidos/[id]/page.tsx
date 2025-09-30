@@ -13,6 +13,12 @@ import MatchSummary from "./match-summary";
 import type { Match, PlayerSlot } from "@/types/match";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import {
+  buildEventMetadata,
+  clampRelativeMinute,
+  coerceEventPeriod,
+  toAbsoluteMinute,
+} from "@/lib/match-events";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +51,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
 
   async function addEvent(formData: FormData) {
     "use server";
-    const minute = Number(formData.get("minute"));
+    const minuteRaw = Number(formData.get("minute"));
     const type = formData.get("type") as string;
     const playerIdRaw = formData.get("playerId");
     const playerId = playerIdRaw ? Number(playerIdRaw) : null;
@@ -53,6 +59,16 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const teamId = teamIdRaw ? Number(teamIdRaw) : null;
     const rivalIdRaw = formData.get("rivalId");
     const rivalId = rivalIdRaw ? Number(rivalIdRaw) : null;
+    const period = coerceEventPeriod(formData.get("period"));
+    const relativeMinuteRaw = formData.get("relativeMinute");
+    const relativeMinute = clampRelativeMinute(
+      relativeMinuteRaw != null
+        ? Number(relativeMinuteRaw)
+        : Number.isFinite(minuteRaw)
+        ? minuteRaw
+        : 0
+    );
+    const minute = toAbsoluteMinute(period, relativeMinute);
     const created = await recordEvent({
       matchId: id,
       minute,
@@ -60,7 +76,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       playerId,
       teamId,
       rivalId,
-      data: null,
+      data: buildEventMetadata(period, relativeMinute),
     });
     revalidatePath(`/dashboard/partidos/${id}`);
     revalidatePath("/dashboard/partidos");
@@ -82,6 +98,8 @@ export default async function MatchPage({ params }: MatchPageProps) {
     const playerIdRaw = formData.get("playerId");
     const teamIdRaw = formData.get("teamId");
     const rivalIdRaw = formData.get("rivalId");
+    const period = coerceEventPeriod(formData.get("period"));
+    const relativeMinuteRaw = formData.get("relativeMinute");
 
     const eventId = idRaw ? Number(idRaw) : NaN;
     if (!Number.isFinite(eventId)) {
@@ -89,7 +107,12 @@ export default async function MatchPage({ params }: MatchPageProps) {
     }
 
     const minuteValue = minuteRaw ? Number(minuteRaw) : 0;
-    const minute = Number.isFinite(minuteValue) ? minuteValue : 0;
+    const relativeMinute = clampRelativeMinute(
+      relativeMinuteRaw != null
+        ? Number(relativeMinuteRaw)
+        : minuteValue
+    );
+    const minute = toAbsoluteMinute(period, relativeMinute);
     const playerValue = playerIdRaw ? Number(playerIdRaw) : null;
     const playerId =
       playerValue != null && Number.isFinite(playerValue) ? playerValue : null;
@@ -105,7 +128,7 @@ export default async function MatchPage({ params }: MatchPageProps) {
       playerId,
       teamId,
       rivalId,
-      data: null,
+      data: buildEventMetadata(period, relativeMinute),
     });
     revalidatePath(`/dashboard/partidos/${id}`);
     revalidatePath("/dashboard/partidos");
