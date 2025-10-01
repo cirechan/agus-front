@@ -275,7 +275,7 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
     }
   }
 
-  for (const stats of result.values()) {
+  result.forEach((stats) => {
     stats.goalInvolvements = stats.goals + stats.assists
     stats.participationRate = totalMatches
       ? Number((stats.played / totalMatches).toFixed(4))
@@ -286,7 +286,7 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
     stats.goalInvolvementsPer90 = stats.minutes > 0
       ? Number(((stats.goalInvolvements / stats.minutes) * 90).toFixed(4))
       : 0
-  }
+  })
 
   return result
 }

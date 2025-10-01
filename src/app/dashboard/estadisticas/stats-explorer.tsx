@@ -13,6 +13,7 @@ import {
   summarizeTeamMatches,
   type OpponentBreakdown,
   type PlayerMatchStats,
+  type PlayerMatchResult,
 } from "@/lib/stats"
 import type { Match } from "@/types/match"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -227,7 +228,7 @@ export default function StatsExplorer({
   const matchItems = useMemo(() => {
     return filteredMatches.map((match) => {
       const score = getMatchScore(match)
-      const result = score.goalsFor > score.goalsAgainst
+      const result: PlayerMatchResult = score.goalsFor > score.goalsAgainst
         ? "win"
         : score.goalsFor < score.goalsAgainst
         ? "loss"
