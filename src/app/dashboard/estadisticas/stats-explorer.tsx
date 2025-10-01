@@ -299,14 +299,14 @@ export default function StatsExplorer({
 
   const opponentRows = useMemo(() => {
     const rows: (OpponentBreakdown & { opponentName: string })[] = []
-    for (const breakdown of opponentBreakdown.values()) {
+    Array.from(opponentBreakdown.values()).forEach((breakdown) => {
       rows.push({
         ...breakdown,
         opponentName:
           opponents[breakdown.opponentId] ??
           `Rival ${breakdown.opponentId}`,
       })
-    }
+    })
     return rows.sort((a, b) => b.matches - a.matches)
   }, [opponentBreakdown, opponents])
 
