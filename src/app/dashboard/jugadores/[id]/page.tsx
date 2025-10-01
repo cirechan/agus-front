@@ -453,12 +453,12 @@ export default async function JugadorPage({ params }: { params: { id: string } }
                                 : "Fecha por confirmar"
                             const scoreLabel = `${match.goalsFor}-${match.goalsAgainst}`
                             const resultLabel = resolveMatchResultLabel(match.result)
-                            const badgeClassName =
+                            const resultTone =
                               match.result === "win"
-                                ? "bg-emerald-100 text-emerald-700"
+                                ? "text-emerald-600"
                                 : match.result === "loss"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-amber-100 text-amber-700"
+                                ? "text-red-600"
+                                : "text-amber-600"
                             const opponentLabel = `${match.isHome ? "vs" : "@"} ${match.opponentName}`
                             const roleLabel = match.played
                               ? match.started
@@ -488,7 +488,9 @@ export default async function JugadorPage({ params }: { params: { id: string } }
                                 <TableCell>
                                   <div className="flex flex-col gap-1">
                                     <span className="font-semibold">{scoreLabel}</span>
-                                    <Badge className={badgeClassName}>{resultLabel}</Badge>
+                                    <span className={`text-xs font-medium ${resultTone}`}>
+                                      {resultLabel}
+                                    </span>
                                   </div>
                                 </TableCell>
                                 <TableCell className="text-right">
