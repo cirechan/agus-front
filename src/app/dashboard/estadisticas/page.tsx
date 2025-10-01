@@ -1,0 +1,76 @@
+import StatsExplorer from "./stats-explorer"
+import { listMatches } from "@/lib/api/matches"
+import {
+  equiposService,
+  jugadoresService,
+  rivalesService,
+} from "@/lib/api/services"
+
+export default async function EstadisticasPage() {
+  const equipos = await equiposService.getAll()
+  const equipo = equipos[0]
+
+  if (!equipo) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-2xl font-semibold">Estadísticas</h1>
+        <p className="text-muted-foreground">
+          Todavía no hay equipos configurados para generar estadísticas.
+        </p>
+      </div>
+    )
+  }
+
+  const [jugadores, matches, rivales] = await Promise.all([
+    jugadoresService.getByEquipo(equipo.id),
+    listMatches(),
+    rivalesService.getAll(),
+  ])
+
+  const teamMatches = matches
+    .filter((match) => match.teamId === equipo.id)
+    .filter((match) => match.finished)
+
+  const opponents: Record<number, string> = {}
+  for (const rival of rivales as { id: number; nombre: string }[]) {
+    opponents[rival.id] = rival.nombre
+  }
+
+  const playersPayload = (jugadores as {
+    id: number
+    nombre: string
+    posicion?: string
+    dorsal?: number | null
+  }[]).map((player) => ({
+    id: player.id,
+    nombre: player.nombre,
+    posicion: player.posicion,
+    dorsal: player.dorsal ?? null,
+  }))
+
+  const matchesPayload = teamMatches.map((match) => ({
+    ...match,
+    lineup: match.lineup.map((slot) => ({ ...slot })),
+    events: match.events.map((event) => ({ ...event })),
+  }))
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Panel de estadísticas</h1>
+        <p className="text-muted-foreground">
+          Analiza el rendimiento del equipo y cruza información de partidos y
+          jugadores.
+        </p>
+      </div>
+
+      <StatsExplorer
+        players={playersPayload}
+        matches={matchesPayload}
+        opponents={opponents}
+        teamName={equipo.nombre}
+      />
+    </div>
+  )
+}
+
