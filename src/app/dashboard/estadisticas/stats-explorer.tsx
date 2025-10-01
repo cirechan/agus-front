@@ -265,10 +265,29 @@ export default function StatsExplorer({
         }
         return "Equipo"
       })
-      const playersUsed = match.lineup.filter(
-        (slot) => Number(slot.minutes ?? 0) > 0
-      ).length
-      const callUps = match.lineup.filter((slot) => slot.role !== "unavailable").length
+      const playersOnPitch = new Set<number>()
+      const callUpsSet = new Set<number>()
+
+      for (const slot of match.lineup) {
+        if (!slot.playerId) continue
+        if (slot.role !== "unavailable") {
+          callUpsSet.add(slot.playerId)
+        }
+        const minutes = Number(slot.minutes ?? 0)
+        if (minutes > 0 || slot.role === "field") {
+          playersOnPitch.add(slot.playerId)
+        }
+      }
+
+      for (const event of match.events) {
+        if (event.teamId !== match.teamId) continue
+        if (!event.playerId) continue
+        callUpsSet.add(event.playerId)
+        playersOnPitch.add(event.playerId)
+      }
+
+      const playersUsed = playersOnPitch.size
+      const callUps = callUpsSet.size
 
       return {
         match,

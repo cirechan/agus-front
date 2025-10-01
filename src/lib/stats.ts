@@ -183,13 +183,30 @@ function createEmptyStats(totalMatches: number): MutablePlayerStats {
   }
 }
 
-function ensureStats(map: Map<number, MutablePlayerStats>, id: number, totalMatches: number) {
+function ensureStats(
+  map: Map<number, MutablePlayerStats>,
+  id: number,
+  totalMatches: number
+) {
   let entry = map.get(id)
   if (!entry) {
     entry = createEmptyStats(totalMatches)
     map.set(id, entry)
   }
   return entry
+}
+
+function creditMatchOutcome(
+  stats: MutablePlayerStats,
+  result: PlayerMatchResult
+) {
+  if (result === "win") {
+    stats.wins += 1
+  } else if (result === "draw") {
+    stats.draws += 1
+  } else {
+    stats.losses += 1
+  }
 }
 
 export function getMatchScore(match: Match) {
@@ -226,35 +243,41 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
   for (const match of matches) {
     const { goalsFor, goalsAgainst } = getMatchScore(match)
     const matchResult = resolveResult(goalsFor, goalsAgainst)
+    const callUpsRecorded = new Set<number>()
+    const playedRecorded = new Set<number>()
+    const eventParticipants = new Set<number>()
 
     for (const slot of match.lineup) {
       if (!slot.playerId) continue
       const stats = ensureStats(result, slot.playerId, totalMatches)
+      const playerId = slot.playerId
 
-      if (isPlayerAvailable(slot)) {
+      if (isPlayerAvailable(slot) && !callUpsRecorded.has(playerId)) {
         stats.callUps += 1
+        callUpsRecorded.add(playerId)
       }
 
-      const minutes = Number(slot.minutes ?? 0)
-      const played = minutes > 0
-      if (played) {
-        stats.played += 1
+      const minutes = Math.max(0, Number(slot.minutes ?? 0))
+      const consideredStarter = slot.role === "field"
+      const played = minutes > 0 || consideredStarter
+
+      if (minutes > 0) {
         stats.minutes += minutes
-        if (slot.role === "field") {
+      }
+
+      if (played && !playedRecorded.has(playerId)) {
+        stats.played += 1
+        if (consideredStarter) {
           stats.starts += 1
         }
-
-        if (matchResult === "win") stats.wins += 1
-        else if (matchResult === "draw") stats.draws += 1
-        else stats.losses += 1
-      }
-
-      if (played && slot.cleanSheet) {
-        stats.cleanSheets += 1
-      }
-
-      if (played && Number.isFinite(Number(slot.goalsConceded))) {
-        stats.goalsConceded += Number(slot.goalsConceded ?? 0)
+        if (slot.cleanSheet) {
+          stats.cleanSheets += 1
+        }
+        if (Number.isFinite(Number(slot.goalsConceded))) {
+          stats.goalsConceded += Number(slot.goalsConceded ?? 0)
+        }
+        creditMatchOutcome(stats, matchResult)
+        playedRecorded.add(playerId)
       }
     }
 
@@ -262,6 +285,7 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
       if (event.teamId !== match.teamId) continue
       if (!event.playerId) continue
       const stats = ensureStats(result, event.playerId, totalMatches)
+      eventParticipants.add(event.playerId)
 
       if (event.type === "gol") {
         stats.goals += 1
@@ -271,6 +295,21 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
         stats.yellowCards += 1
       } else if (event.type === "roja") {
         stats.redCards += 1
+      }
+    }
+
+    for (const playerId of eventParticipants) {
+      const stats = ensureStats(result, playerId, totalMatches)
+
+      if (!callUpsRecorded.has(playerId)) {
+        stats.callUps += 1
+        callUpsRecorded.add(playerId)
+      }
+
+      if (!playedRecorded.has(playerId)) {
+        stats.played += 1
+        creditMatchOutcome(stats, matchResult)
+        playedRecorded.add(playerId)
       }
     }
   }
@@ -285,6 +324,8 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
       : 0
     stats.goalInvolvementsPer90 = stats.minutes > 0
       ? Number(((stats.goalInvolvements / stats.minutes) * 90).toFixed(4))
+      : stats.played > 0
+      ? Number((stats.goalInvolvements / stats.played).toFixed(4))
       : 0
   })
 
@@ -742,20 +783,23 @@ export function buildPlayerMatchSummaries(
 
   for (const match of sorted) {
     const slot = match.lineup.find((entry) => entry.playerId === playerId)
-    if (!slot) continue
-
     const { goalsFor, goalsAgainst } = getMatchScore(match)
     const eventsForPlayer = match.events.filter(
       (event) => event.playerId === playerId && event.teamId === match.teamId
     )
+
+    if (!slot && eventsForPlayer.length === 0) {
+      continue
+    }
 
     const goals = eventsForPlayer.filter((event) => event.type === "gol").length
     const assists = eventsForPlayer.filter((event) => event.type === "asistencia").length
     const yellowCards = eventsForPlayer.filter((event) => event.type === "amarilla").length
     const redCards = eventsForPlayer.filter((event) => event.type === "roja").length
 
-    const minutes = Number(slot.minutes ?? 0)
-    const played = minutes > 0
+    const minutes = Number(slot?.minutes ?? 0)
+    const consideredStarter = slot?.role === "field"
+    const played = slot ? minutes > 0 || consideredStarter : eventsForPlayer.length > 0
 
     summaries.push({
       matchId: match.id,
@@ -771,7 +815,7 @@ export function buildPlayerMatchSummaries(
       result: resolveResult(goalsFor, goalsAgainst),
       goalsFor,
       goalsAgainst,
-      started: played && slot.role === "field",
+      started: Boolean(slot && consideredStarter),
       played,
     })
   }
