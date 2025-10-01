@@ -298,7 +298,7 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
       }
     }
 
-    for (const playerId of eventParticipants) {
+    eventParticipants.forEach((playerId) => {
       const stats = ensureStats(result, playerId, totalMatches)
 
       if (!callUpsRecorded.has(playerId)) {
@@ -311,7 +311,7 @@ export function aggregatePlayersStats(matches: Match[]): Map<number, PlayerMatch
         creditMatchOutcome(stats, matchResult)
         playedRecorded.add(playerId)
       }
-    }
+    })
   }
 
   result.forEach((stats) => {
