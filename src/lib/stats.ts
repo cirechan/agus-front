@@ -797,9 +797,10 @@ export function buildPlayerMatchSummaries(
     const yellowCards = eventsForPlayer.filter((event) => event.type === "amarilla").length
     const redCards = eventsForPlayer.filter((event) => event.type === "roja").length
 
-    const minutes = Number(slot?.minutes ?? 0)
+    const minutes = Math.max(0, Number(slot?.minutes ?? 0))
     const consideredStarter = slot?.role === "field"
-    const played = slot ? minutes > 0 || consideredStarter : eventsForPlayer.length > 0
+    const recordedAction = eventsForPlayer.length > 0
+    const played = minutes > 0 || consideredStarter || recordedAction
 
     summaries.push({
       matchId: match.id,
