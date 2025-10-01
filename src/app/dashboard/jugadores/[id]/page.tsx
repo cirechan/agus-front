@@ -20,7 +20,9 @@ import { revalidatePath } from "next/cache"
 import { listMatches } from "@/lib/api/matches"
 import {
   aggregatePlayerStats,
+  analyzePlayerStreaks,
   buildPlayerMatchSummaries,
+  buildPlayerOpponentBreakdown,
   resolveMatchResultLabel,
 } from "@/lib/stats"
 import { Badge } from "@/components/ui/badge"
@@ -99,6 +101,8 @@ export default async function JugadorPage({ params }: { params: { id: string } }
   )
   const playerStats = aggregatePlayerStats(teamMatches, jugadorId)
   const matchSummaries = buildPlayerMatchSummaries(teamMatches, jugadorId)
+  const streaks = analyzePlayerStreaks(matchSummaries)
+  const playerOpponentBreakdown = buildPlayerOpponentBreakdown(matchSummaries)
   const recentMatches = matchSummaries
     .map((summary) => ({
       ...summary,
@@ -112,12 +116,26 @@ export default async function JugadorPage({ params }: { params: { id: string } }
     ? Math.round(playerStats.minutes / playerStats.played)
     : 0
   const isGoalkeeper = jugador.posicion?.toLowerCase() === "portero"
+  const lastContributionLabel =
+    streaks.matchesSinceLastGoalInvolvement === null
+      ? "Sin registros de goles o asistencias"
+      : streaks.matchesSinceLastGoalInvolvement === 0
+      ? "Participó en el último partido"
+      : `Hace ${streaks.matchesSinceLastGoalInvolvement} partidos`
+  const winRatePercent = Math.round(streaks.winRateWhenPlayed * 100)
+  const playerOpponentRows = Array.from(playerOpponentBreakdown.values())
+    .map((row) => ({
+      ...row,
+      opponentName: rivalMap.get(row.opponentId) ?? `Rival ${row.opponentId}`,
+      winRate: row.matches ? row.wins / row.matches : 0,
+    }))
+    .sort((a, b) => b.matches - a.matches)
   const summaryBlocks: { label: string; value: string | number }[] = [
     { label: "Partidos del equipo", value: teamMatches.length },
     { label: "Convocatorias", value: playerStats.callUps },
     { label: "Partidos jugados", value: playerStats.played },
     { label: "Titularidades", value: playerStats.starts },
-    { label: "Minutos totales", value: `${playerStats.minutes}'` },
+    { label: "Minutos totales", value: `${playerStats.minutes}′` },
     {
       label: "Promedio minutos",
       value: playerStats.played ? `${averageMinutes}'` : "—",
@@ -322,6 +340,91 @@ export default async function JugadorPage({ params }: { params: { id: string } }
                       <p className="text-lg font-semibold">{block.value}</p>
                     </div>
                   ))}
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      Rachas personales
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <StreakItem
+                        label="Partidos seguidos jugando"
+                        value={streaks.currentPlayingStreak}
+                        helper={`Mejor marca: ${streaks.longestPlayingStreak}`}
+                      />
+                      <StreakItem
+                        label="Titularidades consecutivas"
+                        value={streaks.currentStartingStreak}
+                        helper={`Mejor marca: ${streaks.longestStartingStreak}`}
+                      />
+                      <StreakItem
+                        label="Racha de aportes"
+                        value={streaks.currentGoalInvolvementStreak}
+                        helper={`Máximo: ${streaks.longestGoalInvolvementStreak}`}
+                      />
+                      <StreakItem
+                        label="Victorias con minutos"
+                        value={`${winRatePercent}%`}
+                        helper={`${streaks.playedMatches} partidos disputados`}
+                      />
+                      <StreakItem
+                        label="Última contribución"
+                        value={lastContributionLabel}
+                      />
+                      <StreakItem
+                        label="Últimos 5 partidos"
+                        value={`${streaks.lastFive.goals} G · ${streaks.lastFive.assists} A`}
+                        helper={`${streaks.lastFive.minutes}′ en ${streaks.lastFive.matches} encuentros`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      Rendimiento por rival
+                    </p>
+                    {playerOpponentRows.length > 0 ? (
+                      <div className="max-h-[240px] overflow-auto rounded-md border bg-background/60">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Rival</TableHead>
+                              <TableHead className="text-right">PJ</TableHead>
+                              <TableHead className="text-right">Min.</TableHead>
+                              <TableHead className="text-right">G+A</TableHead>
+                              <TableHead className="text-right">Balance</TableHead>
+                              <TableHead className="text-right">Victorias</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {playerOpponentRows.map((row) => (
+                              <TableRow key={row.opponentId}>
+                                <TableCell className="font-medium">
+                                  {row.opponentName}
+                                </TableCell>
+                                <TableCell className="text-right">{row.matches}</TableCell>
+                                <TableCell className="text-right">{row.minutes}′</TableCell>
+                                <TableCell className="text-right">
+                                  {row.goalInvolvements}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {row.wins}-{row.draws}-{row.losses}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {Math.round(row.winRate * 100)}%
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Aún no hay minutos registrados frente a rivales concretos.
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -544,6 +647,26 @@ export default async function JugadorPage({ params }: { params: { id: string } }
           </CardContent>
         </Card>
       )}
+    </div>
+  )
+}
+
+function StreakItem({
+  label,
+  value,
+  helper,
+}: {
+  label: string
+  value: string | number
+  helper?: string
+}) {
+  return (
+    <div className="rounded-md border bg-background/50 p-3 text-sm">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">
+        {label}
+      </p>
+      <p className="text-lg font-semibold">{value}</p>
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
     </div>
   )
 }

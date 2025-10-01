@@ -87,6 +87,71 @@ export interface TeamStats {
   competitions: Record<string, TeamStatsBreakdown>
 }
 
+export interface OpponentBreakdown {
+  opponentId: number
+  matches: number
+  wins: number
+  draws: number
+  losses: number
+  goalsFor: number
+  goalsAgainst: number
+  goalDifference: number
+  points: number
+  pointsPerMatch: number
+  cleanSheets: number
+}
+
+export interface TeamFormSummary {
+  matches: number
+  currentWinStreak: number
+  currentUnbeatenStreak: number
+  currentScoringStreak: number
+  longestWinStreak: number
+  longestUnbeatenStreak: number
+  longestScoringStreak: number
+  lastFive: {
+    matches: number
+    points: number
+    goalsFor: number
+    goalsAgainst: number
+    cleanSheets: number
+  }
+}
+
+export interface PlayerStreakSummary {
+  totalMatches: number
+  playedMatches: number
+  currentPlayingStreak: number
+  currentStartingStreak: number
+  longestPlayingStreak: number
+  longestStartingStreak: number
+  currentGoalInvolvementStreak: number
+  longestGoalInvolvementStreak: number
+  matchesSinceLastGoalInvolvement: number | null
+  lastGoalInvolvementMatchId: number | null
+  lastGoalInvolvementKickoff: string | null
+  winRateWhenPlayed: number
+  lastFive: {
+    matches: number
+    goals: number
+    assists: number
+    minutes: number
+  }
+}
+
+export interface PlayerOpponentBreakdown {
+  opponentId: number
+  matches: number
+  starts: number
+  wins: number
+  draws: number
+  losses: number
+  goals: number
+  assists: number
+  goalInvolvements: number
+  minutes: number
+}
+
 interface MutablePlayerStats extends PlayerMatchStats {}
 
 export function createBaselinePlayerStats(
@@ -317,6 +382,350 @@ export function summarizeTeamMatches(matches: Match[]): TeamStats {
     away,
     competitions: Object.fromEntries(competitions.entries()),
   }
+}
+
+export function buildOpponentBreakdown(matches: Match[]): Map<number, OpponentBreakdown> {
+  const map = new Map<number, OpponentBreakdown>()
+
+  for (const match of matches) {
+    const score = getMatchScore(match)
+    const result = resolveResult(score.goalsFor, score.goalsAgainst)
+    const existing = map.get(match.rivalId) ?? {
+      opponentId: match.rivalId,
+      matches: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      goalDifference: 0,
+      points: 0,
+      pointsPerMatch: 0,
+      cleanSheets: 0,
+    }
+
+    existing.matches += 1
+    existing.goalsFor += score.goalsFor
+    existing.goalsAgainst += score.goalsAgainst
+    if (score.goalsAgainst === 0) {
+      existing.cleanSheets += 1
+    }
+
+    if (result === "win") {
+      existing.wins += 1
+      existing.points += 3
+    } else if (result === "draw") {
+      existing.draws += 1
+      existing.points += 1
+    } else {
+      existing.losses += 1
+    }
+
+    existing.goalDifference = existing.goalsFor - existing.goalsAgainst
+    existing.pointsPerMatch = Number(
+      (existing.points / existing.matches).toFixed(2)
+    )
+
+    map.set(match.rivalId, existing)
+  }
+
+  return map
+}
+
+export function analyzeTeamForm(matches: Match[]): TeamFormSummary {
+  const sorted = [...matches].sort((a, b) => {
+    const aTime = a.kickoff ? new Date(a.kickoff).getTime() : 0
+    const bTime = b.kickoff ? new Date(b.kickoff).getTime() : 0
+    return aTime - bTime
+  })
+
+  let longestWinStreak = 0
+  let longestUnbeatenStreak = 0
+  let longestScoringStreak = 0
+  let runningWinStreak = 0
+  let runningUnbeatenStreak = 0
+  let runningScoringStreak = 0
+
+  for (const match of sorted) {
+    const score = getMatchScore(match)
+    const result = resolveResult(score.goalsFor, score.goalsAgainst)
+
+    if (result === "win") {
+      runningWinStreak += 1
+      runningUnbeatenStreak += 1
+    } else if (result === "draw") {
+      longestWinStreak = Math.max(longestWinStreak, runningWinStreak)
+      runningWinStreak = 0
+      runningUnbeatenStreak += 1
+    } else {
+      longestWinStreak = Math.max(longestWinStreak, runningWinStreak)
+      runningWinStreak = 0
+      longestUnbeatenStreak = Math.max(longestUnbeatenStreak, runningUnbeatenStreak)
+      runningUnbeatenStreak = 0
+    }
+
+    if (score.goalsFor > 0) {
+      runningScoringStreak += 1
+    } else {
+      longestScoringStreak = Math.max(longestScoringStreak, runningScoringStreak)
+      runningScoringStreak = 0
+    }
+  }
+
+  longestWinStreak = Math.max(longestWinStreak, runningWinStreak)
+  longestUnbeatenStreak = Math.max(longestUnbeatenStreak, runningUnbeatenStreak)
+  longestScoringStreak = Math.max(longestScoringStreak, runningScoringStreak)
+
+  const sortedDesc = [...sorted].reverse()
+
+  let currentWinStreak = 0
+  for (const match of sortedDesc) {
+    const score = getMatchScore(match)
+    const result = resolveResult(score.goalsFor, score.goalsAgainst)
+    if (result === "win") {
+      currentWinStreak += 1
+    } else {
+      break
+    }
+  }
+
+  let currentUnbeatenStreak = 0
+  for (const match of sortedDesc) {
+    const score = getMatchScore(match)
+    const result = resolveResult(score.goalsFor, score.goalsAgainst)
+    if (result === "loss") {
+      break
+    }
+    currentUnbeatenStreak += 1
+  }
+
+  let currentScoringStreak = 0
+  for (const match of sortedDesc) {
+    const score = getMatchScore(match)
+    if (score.goalsFor > 0) {
+      currentScoringStreak += 1
+    } else {
+      break
+    }
+  }
+
+  const lastFive = sortedDesc.slice(0, 5)
+  const lastFiveSummary = lastFive.reduce(
+    (acc, match) => {
+      const score = getMatchScore(match)
+      const result = resolveResult(score.goalsFor, score.goalsAgainst)
+      acc.matches += 1
+      acc.goalsFor += score.goalsFor
+      acc.goalsAgainst += score.goalsAgainst
+      if (score.goalsAgainst === 0) acc.cleanSheets += 1
+      if (result === "win") acc.points += 3
+      else if (result === "draw") acc.points += 1
+      return acc
+    },
+    { matches: 0, points: 0, goalsFor: 0, goalsAgainst: 0, cleanSheets: 0 }
+  )
+
+  return {
+    matches: matches.length,
+    currentWinStreak,
+    currentUnbeatenStreak,
+    currentScoringStreak,
+    longestWinStreak,
+    longestUnbeatenStreak,
+    longestScoringStreak,
+    lastFive: lastFiveSummary,
+  }
+}
+
+export function collectPlayerRecentForm(
+  matches: Match[],
+  limit: number
+): Map<number, PlayerMatchStats> {
+  if (limit <= 0) {
+    return new Map()
+  }
+
+  const sorted = [...matches].sort((a, b) => {
+    const aTime = a.kickoff ? new Date(a.kickoff).getTime() : 0
+    const bTime = b.kickoff ? new Date(b.kickoff).getTime() : 0
+    return bTime - aTime
+  })
+
+  const selected = sorted.slice(0, limit)
+  return aggregatePlayersStats(selected)
+}
+
+export function analyzePlayerStreaks(
+  summaries: PlayerMatchSummary[]
+): PlayerStreakSummary {
+  if (summaries.length === 0) {
+    return {
+      totalMatches: 0,
+      playedMatches: 0,
+      currentPlayingStreak: 0,
+      currentStartingStreak: 0,
+      longestPlayingStreak: 0,
+      longestStartingStreak: 0,
+      currentGoalInvolvementStreak: 0,
+      longestGoalInvolvementStreak: 0,
+      matchesSinceLastGoalInvolvement: null,
+      lastGoalInvolvementMatchId: null,
+      lastGoalInvolvementKickoff: null,
+      winRateWhenPlayed: 0,
+      lastFive: { matches: 0, goals: 0, assists: 0, minutes: 0 },
+    }
+  }
+
+  const chronological = [...summaries].reverse()
+
+  let longestPlayingStreak = 0
+  let longestStartingStreak = 0
+  let longestGoalContributionStreak = 0
+  let runningPlaying = 0
+  let runningStarting = 0
+  let runningGoalContribution = 0
+
+  for (const summary of chronological) {
+    if (summary.played) {
+      runningPlaying += 1
+      longestPlayingStreak = Math.max(longestPlayingStreak, runningPlaying)
+    } else {
+      runningPlaying = 0
+    }
+
+    if (summary.started) {
+      runningStarting += 1
+      longestStartingStreak = Math.max(longestStartingStreak, runningStarting)
+    } else {
+      runningStarting = 0
+    }
+
+    if (summary.goals + summary.assists > 0) {
+      runningGoalContribution += 1
+      longestGoalContributionStreak = Math.max(
+        longestGoalContributionStreak,
+        runningGoalContribution
+      )
+    } else {
+      runningGoalContribution = 0
+    }
+  }
+
+  let currentPlayingStreak = 0
+  let currentStartingStreak = 0
+  let currentGoalContributionStreak = 0
+  let matchesSinceLastContribution: number | null = null
+  let lastContributionMatchId: number | null = null
+  let lastContributionKickoff: string | null = null
+
+  for (const summary of summaries) {
+    if (summary.played) {
+      currentPlayingStreak += 1
+    } else {
+      break
+    }
+  }
+
+  for (const summary of summaries) {
+    if (summary.started) {
+      currentStartingStreak += 1
+    } else {
+      break
+    }
+  }
+
+  for (let index = 0; index < summaries.length; index += 1) {
+    const summary = summaries[index]
+    if (summary.goals + summary.assists > 0) {
+      currentGoalContributionStreak += 1
+    } else {
+      break
+    }
+  }
+
+  for (let index = 0; index < summaries.length; index += 1) {
+    const summary = summaries[index]
+    if (summary.goals + summary.assists > 0) {
+      matchesSinceLastContribution = index
+      lastContributionMatchId = summary.matchId
+      lastContributionKickoff = summary.kickoff
+      break
+    }
+  }
+
+  const playedSummaries = summaries.filter((summary) => summary.played)
+  const winsWhenPlayed = playedSummaries.filter(
+    (summary) => summary.result === "win"
+  ).length
+  const winRateWhenPlayed = playedSummaries.length
+    ? Number((winsWhenPlayed / playedSummaries.length).toFixed(4))
+    : 0
+
+  const lastFive = summaries.slice(0, 5)
+  const lastFiveSummary = lastFive.reduce(
+    (acc, summary) => {
+      acc.matches += 1
+      acc.goals += summary.goals
+      acc.assists += summary.assists
+      acc.minutes += summary.minutes
+      return acc
+    },
+    { matches: 0, goals: 0, assists: 0, minutes: 0 }
+  )
+
+  return {
+    totalMatches: summaries.length,
+    playedMatches: playedSummaries.length,
+    currentPlayingStreak,
+    currentStartingStreak,
+    longestPlayingStreak,
+    longestStartingStreak,
+    currentGoalInvolvementStreak: currentGoalContributionStreak,
+    longestGoalInvolvementStreak: longestGoalContributionStreak,
+    matchesSinceLastGoalInvolvement: matchesSinceLastContribution,
+    lastGoalInvolvementMatchId: lastContributionMatchId,
+    lastGoalInvolvementKickoff: lastContributionKickoff,
+    winRateWhenPlayed,
+    lastFive: lastFiveSummary,
+  }
+}
+
+export function buildPlayerOpponentBreakdown(
+  summaries: PlayerMatchSummary[]
+): Map<number, PlayerOpponentBreakdown> {
+  const map = new Map<number, PlayerOpponentBreakdown>()
+
+  for (const summary of summaries) {
+    if (!summary.played) continue
+
+    const existing = map.get(summary.opponentId) ?? {
+      opponentId: summary.opponentId,
+      matches: 0,
+      starts: 0,
+      wins: 0,
+      draws: 0,
+      losses: 0,
+      goals: 0,
+      assists: 0,
+      goalInvolvements: 0,
+      minutes: 0,
+    }
+
+    existing.matches += 1
+    existing.starts += summary.started ? 1 : 0
+    existing.minutes += summary.minutes
+    existing.goals += summary.goals
+    existing.assists += summary.assists
+    existing.goalInvolvements = existing.goals + existing.assists
+
+    if (summary.result === "win") existing.wins += 1
+    else if (summary.result === "draw") existing.draws += 1
+    else existing.losses += 1
+
+    map.set(summary.opponentId, existing)
+  }
+
+  return map
 }
 
 export function buildPlayerMatchSummaries(
