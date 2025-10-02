@@ -285,9 +285,23 @@ export async function listMatches(): Promise<Match[]> {
            p.notas_rival AS "opponentNotes",
            p.finalizado AS finished,
            COALESCE(
-             (SELECT json_agg(e ORDER BY e.minuto)
-                FROM eventos_partido e
-                WHERE e.partido_id = p.id),
+             (
+               SELECT json_agg(
+                        json_build_object(
+                          'id', e.id,
+                          'matchId', e.partido_id,
+                          'minute', e.minuto,
+                          'type', e.tipo,
+                          'playerId', e.jugador_id,
+                          'teamId', e.equipo_id,
+                          'rivalId', e.rival_id,
+                          'data', e.datos
+                        )
+                        ORDER BY e.minuto
+                      )
+                 FROM eventos_partido e
+                WHERE e.partido_id = p.id
+             ),
              '[]'
            ) AS events
     FROM partidos p

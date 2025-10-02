@@ -31,9 +31,120 @@ const COMPETITION_LABELS: Record<string, string> = {
 export default function PartidosList({ matches, teamMap }: PartidosListProps) {
   const [competition, setCompetition] = React.useState<string>("all");
 
-  const filtered = matches.filter(
-    (m) => competition === "all" || m.competition === competition
+  const dateFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("es-ES", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }),
+    []
   );
+
+  const filtered = React.useMemo(
+    () =>
+      matches.filter(
+        (m) => competition === "all" || m.competition === competition
+      ),
+    [competition, matches]
+  );
+
+  const { upcomingMatches, playedMatches } = React.useMemo(() => {
+    const upcoming = filtered
+      .filter((match) => !match.finished)
+      .sort(
+        (a, b) =>
+          new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime()
+      );
+
+    const played = filtered
+      .filter((match) => match.finished)
+      .sort((a, b) => {
+        const aMatchday = a.matchday ?? Number.MAX_SAFE_INTEGER;
+        const bMatchday = b.matchday ?? Number.MAX_SAFE_INTEGER;
+        if (aMatchday !== bMatchday) {
+          return aMatchday - bMatchday;
+        }
+        return new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
+      });
+
+    return { upcomingMatches: upcoming, playedMatches: played };
+  }, [filtered]);
+
+  function getScore(match: Match) {
+    const goalsFor = match.events.filter(
+      (event) => event.type === "gol" && event.teamId === match.teamId
+    ).length;
+    const goalsAgainst = match.events.filter(
+      (event) => event.type === "gol" && event.rivalId === match.rivalId
+    ).length;
+    const homeGoals = match.isHome ? goalsFor : goalsAgainst;
+    const awayGoals = match.isHome ? goalsAgainst : goalsFor;
+    return { goalsFor, goalsAgainst, homeGoals, awayGoals };
+  }
+
+  function renderMatchRow(match: Match, showResult = true) {
+    const rival = teamMap[match.rivalId] || String(match.rivalId);
+    const score = getScore(match);
+    const ourGoals = score.goalsFor;
+    const theirGoals = score.goalsAgainst;
+    const hasResult = match.finished;
+    let resultColor = "";
+    if (showResult && hasResult) {
+      if (ourGoals > theirGoals) resultColor = "text-green-600";
+      else if (ourGoals === theirGoals) resultColor = "text-yellow-500";
+      else resultColor = "text-red-600";
+    }
+
+    const cellValue = showResult
+      ? hasResult
+        ? `${score.homeGoals}-${score.awayGoals}`
+        : "—"
+      : match.finished
+      ? `${score.homeGoals}-${score.awayGoals}`
+      : "Pendiente";
+
+    const kickoffDate = new Date(match.kickoff);
+    const kickoffLabel = Number.isNaN(kickoffDate.getTime())
+      ? "Sin programar"
+      : dateFormatter.format(kickoffDate);
+
+    return (
+      <TableRow key={match.id}>
+        <TableCell className="capitalize">
+          {COMPETITION_LABELS[match.competition] || match.competition}
+        </TableCell>
+        <TableCell>{match.matchday ?? "-"}</TableCell>
+        <TableCell>{kickoffLabel}</TableCell>
+        <TableCell>{rival}</TableCell>
+        <TableCell className={resultColor}>{cellValue}</TableCell>
+        <TableCell className="text-right">
+          <div className="flex items-center justify-end gap-2">
+            {match.finished ? (
+              <Button variant="ghost" size="sm" asChild>
+                <Link href={`/dashboard/partidos/${match.id}`}>
+                  Resumen
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href={`/dashboard/partidos/${match.id}/editar`}>
+                    Editar
+                  </Link>
+                </Button>
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href={`/dashboard/partidos/${match.id}`}>
+                    {match.events.length > 0 ? "Continuar" : "Iniciar"}
+                  </Link>
+                </Button>
+              </>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  }
 
   return (
     <>
@@ -64,90 +175,72 @@ export default function PartidosList({ matches, teamMap }: PartidosListProps) {
         </select>
       </div>
 
-      <div className="px-4 lg:px-6">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Competición</TableHead>
-              <TableHead>Jornada</TableHead>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Rival</TableHead>
-              <TableHead>Resultado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((match) => {
-              const rival = teamMap[match.rivalId] || String(match.rivalId);
-              const isHome = match.isHome;
-              const teamGoals = match.events.filter(
-                (e) => e.type === "gol" && e.teamId === match.teamId
-              ).length;
-              const rivalGoals = match.events.filter(
-                (e) => e.type === "gol" && e.rivalId === match.rivalId
-              ).length;
-              const ourGoals = teamGoals;
-              const theirGoals = rivalGoals;
-              const homeGoals = isHome ? teamGoals : rivalGoals;
-              const awayGoals = isHome ? rivalGoals : teamGoals;
-              let result = "-";
-              let resultColor = "";
-              if (homeGoals || awayGoals) {
-                result = `${homeGoals}-${awayGoals}`;
-                if (ourGoals > theirGoals) resultColor = "text-green-600";
-                else if (ourGoals === theirGoals) resultColor = "text-yellow-500";
-                else resultColor = "text-red-600";
-              }
-              return (
-                <TableRow key={match.id}>
-                  <TableCell className="capitalize">
-                    {COMPETITION_LABELS[match.competition] || match.competition}
-                  </TableCell>
-                  <TableCell>{match.matchday ?? "-"}</TableCell>
-                  <TableCell>
-                    {new Date(match.kickoff).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>{rival}</TableCell>
-                  <TableCell className={resultColor}>{result}</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {match.finished ? (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={`/dashboard/partidos/${match.id}`}>
-                            Resumen
-                          </Link>
-                        </Button>
-                      ) : (
-                        <>
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/dashboard/partidos/${match.id}/editar`}>
-                              Editar
-                            </Link>
-                          </Button>
-                          <Button variant="secondary" size="sm" asChild>
-                            <Link href={`/dashboard/partidos/${match.id}`}>
-                              {match.events.length > 0 ? "Continuar" : "Iniciar"}
-                            </Link>
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
+      <div className="space-y-8 px-4 pb-10 lg:px-6">
+        <section>
+          <h2 className="px-1 pb-3 text-sm font-semibold uppercase text-muted-foreground">
+            Próximos partidos
+          </h2>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Competición</TableHead>
+                  <TableHead>Jornada</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Rival</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
-              );
-            })}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="h-24 text-center text-sm text-muted-foreground"
-                >
-                  No hay partidos
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {upcomingMatches.map((match) => renderMatchRow(match, false))}
+                {upcomingMatches.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-20 text-center text-sm text-muted-foreground"
+                    >
+                      No hay partidos pendientes en esta competición.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="px-1 pb-3 text-sm font-semibold uppercase text-muted-foreground">
+            Partidos jugados
+          </h2>
+          <div className="overflow-x-auto rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Competición</TableHead>
+                  <TableHead>Jornada</TableHead>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Rival</TableHead>
+                  <TableHead>Resultado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {playedMatches.map((match) => renderMatchRow(match))}
+                {playedMatches.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="h-20 text-center text-sm text-muted-foreground"
+                    >
+                      Todavía no hay partidos finalizados en esta competición.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
       </div>
     </>
   );

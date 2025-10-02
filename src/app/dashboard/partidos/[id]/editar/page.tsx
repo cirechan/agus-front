@@ -96,14 +96,14 @@ export default async function EditarPartidoPage({ params }: PageProps) {
   }
 
   const textColor = getContrastColor(teamColor);
-  const minutesMap = new Map<number, number>(
+  const minutesLookup = Object.fromEntries(
     match.lineup
       .filter((slot) => slot.playerId != null)
-      .map((slot) => [slot.playerId as number, slot.minutes ?? 0])
-  );
-  const dorsalMap = new Map<number, number | null>(
-    players.map((player) => [player.id, player.dorsal ?? null])
-  );
+      .map((slot) => [String(slot.playerId), slot.minutes ?? 0])
+  ) as Record<string, number>;
+  const dorsalLookup = Object.fromEntries(
+    players.map((player) => [String(player.id), player.dorsal ?? null])
+  ) as Record<string, number | null>;
 
   async function guardarConvocatoria(formData: FormData) {
     "use server";
@@ -151,12 +151,13 @@ export default async function EditarPartidoPage({ params }: PageProps) {
       if (playerId == null) return;
       usedStarters.add(playerId);
       actualStarters.push(playerId);
+      const jerseyNumber = dorsalLookup[String(playerId)];
       lineup.push({
         playerId,
-        number: dorsalMap.get(playerId) ?? undefined,
+        number: jerseyNumber == null ? undefined : jerseyNumber,
         role: "field",
         position,
-        minutes: minutesMap.get(playerId) ?? 0,
+        minutes: minutesLookup[String(playerId)] ?? 0,
       });
     });
 
@@ -165,21 +166,23 @@ export default async function EditarPartidoPage({ params }: PageProps) {
     uniqueBench
       .filter((id) => id && !startersSet.has(id))
       .forEach((id) => {
+        const jerseyNumber = dorsalLookup[String(id)];
         lineup.push({
           playerId: id,
-          number: dorsalMap.get(id) ?? undefined,
+          number: jerseyNumber == null ? undefined : jerseyNumber,
           role: "bench",
           position: undefined,
-          minutes: minutesMap.get(id) ?? 0,
+          minutes: minutesLookup[String(id)] ?? 0,
         });
       });
 
     uniqueUnavailable
       .filter((id) => id && !startersSet.has(id) && !uniqueBench.includes(id))
       .forEach((id) => {
+        const jerseyNumber = dorsalLookup[String(id)];
         lineup.push({
           playerId: id,
-          number: dorsalMap.get(id) ?? undefined,
+          number: jerseyNumber == null ? undefined : jerseyNumber,
           role: "unavailable",
           position: undefined,
           minutes: 0,

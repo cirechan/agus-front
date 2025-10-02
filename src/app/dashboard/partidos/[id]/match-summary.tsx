@@ -271,26 +271,6 @@ export default function MatchSummary({
     return a.kind === "event" ? -1 : 1;
   });
 
-  const eventBreakdown = match.events.reduce(
-    (acc, event) => {
-      if (event.teamId === match.teamId) {
-        if (event.type === "gol") acc.ours.goals += 1;
-        if (event.type === "amarilla") acc.ours.yellow += 1;
-        if (event.type === "roja") acc.ours.red += 1;
-      }
-      if (event.rivalId === match.rivalId) {
-        if (event.type === "gol") acc.rival.goals += 1;
-        if (event.type === "amarilla") acc.rival.yellow += 1;
-        if (event.type === "roja") acc.rival.red += 1;
-      }
-      return acc;
-    },
-    {
-      ours: { goals: 0, yellow: 0, red: 0 },
-      rival: { goals: 0, yellow: 0, red: 0 },
-    }
-  );
-
   function renderPlayerList(items: Player[], emptyMessage: string) {
     if (!items.length) {
       return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
@@ -330,15 +310,6 @@ export default function MatchSummary({
     timeStyle: "short",
   }).format(kickoff);
   const conditionLabel = match.isHome ? "Local" : "Visitante";
-  const locationSummary = match.isHome ? "en casa" : "a domicilio";
-
-  const summaryHeadline =
-    ourGoals === rivalGoals
-      ? `${ourTeamName} empató ${ourGoals}-${rivalGoals} ${locationSummary} frente a ${rivalTeamName}.`
-      : ourGoals > rivalGoals
-      ? `${ourTeamName} ganó ${ourGoals}-${rivalGoals} ${locationSummary} frente a ${rivalTeamName}.`
-      : `${ourTeamName} perdió ${ourGoals}-${rivalGoals} ${locationSummary} frente a ${rivalTeamName}.`;
-
   let resultLabel = "Empate";
   let resultClass = "border-slate-200 bg-slate-100 text-slate-600";
   if (ourGoals > rivalGoals) {
@@ -364,8 +335,8 @@ export default function MatchSummary({
       <section className="px-4 pb-6 pt-8 sm:px-6 lg:px-10">
         <div className="mx-auto w-full max-w-5xl">
           <Card className="border border-slate-200 shadow-xl">
-            <CardHeader className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-6">
+            <CardHeader className="space-y-4 pb-4">
+              <div className="flex flex-wrap items-center justify-between gap-4 sm:gap-6">
                 <div className="flex flex-1 flex-wrap items-center gap-6">
                   <div className="flex items-center gap-3">
                     <div
@@ -412,77 +383,32 @@ export default function MatchSummary({
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <div className="space-y-4">
-                  <p className="text-base font-medium text-slate-900">{summaryHeadline}</p>
-                  <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
-                      {competitionLabel}
-                    </Badge>
-                    {match.matchday ? (
-                      <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
-                        Jornada {match.matchday}
-                      </Badge>
-                    ) : null}
-                    <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
-                      {conditionLabel}
-                    </Badge>
-                    <span className="inline-flex items-center gap-1">
-                      <Clock3 className="h-4 w-4" />
-                      {formattedKickoff}
-                    </span>
-                  </div>
-                  {match.opponentNotes ? (
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Notas del partido
-                      </p>
-                      <p className="mt-1 text-sm text-slate-700">{match.opponentNotes}</p>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="grid gap-3 text-sm text-slate-700">
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {ourTeamName}
-                    </h4>
-                    <dl className="mt-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <dt>Goles</dt>
-                        <dd className="font-semibold text-slate-900">{eventBreakdown.ours.goals}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas amarillas</dt>
-                        <dd className="font-semibold text-amber-600">{eventBreakdown.ours.yellow}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas rojas</dt>
-                        <dd className="font-semibold text-rose-600">{eventBreakdown.ours.red}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <h4 className="text-xs uppercase tracking-wide text-muted-foreground">
-                      {rivalTeamName}
-                    </h4>
-                    <dl className="mt-2 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <dt>Goles</dt>
-                        <dd className="font-semibold text-slate-900">{eventBreakdown.rival.goals}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas amarillas</dt>
-                        <dd className="font-semibold text-amber-600">{eventBreakdown.rival.yellow}</dd>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <dt>Tarjetas rojas</dt>
-                        <dd className="font-semibold text-rose-600">{eventBreakdown.rival.red}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
+            <CardContent className="space-y-4 pt-0">
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:text-sm">
+                <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                  {competitionLabel}
+                </Badge>
+                {match.matchday ? (
+                  <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                    Jornada {match.matchday}
+                  </Badge>
+                ) : null}
+                <Badge className="border border-slate-200 bg-slate-100 text-slate-700">
+                  {conditionLabel}
+                </Badge>
+                <span className="inline-flex items-center gap-1">
+                  <Clock3 className="h-4 w-4" />
+                  {formattedKickoff}
+                </span>
               </div>
+              {match.opponentNotes ? (
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Notas del partido
+                  </p>
+                  <p className="mt-1">{match.opponentNotes}</p>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </div>
