@@ -9,8 +9,9 @@ import {
 export default async function EstadisticasPage() {
   const equipos = await equiposService.getAll()
   const equipo = equipos[0]
+  const equipoId = equipo ? Number(equipo.id) : null
 
-  if (!equipo) {
+  if (!equipo || !Number.isFinite(equipoId)) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold">Estadísticas</h1>
@@ -22,18 +23,21 @@ export default async function EstadisticasPage() {
   }
 
   const [jugadores, matches, rivales] = await Promise.all([
-    jugadoresService.getByEquipo(equipo.id),
+    jugadoresService.getByEquipo(equipoId),
     listMatches(),
     rivalesService.getAll(),
   ])
 
   const teamMatches = matches
-    .filter((match) => match.teamId === equipo.id)
+    .filter((match) => match.teamId === equipoId)
     .filter((match) => match.finished)
 
   const opponents: Record<number, string> = {}
   for (const rival of rivales as { id: number; nombre: string }[]) {
-    opponents[rival.id] = rival.nombre
+    const rivalId = Number(rival.id)
+    if (Number.isFinite(rivalId)) {
+      opponents[rivalId] = rival.nombre
+    }
   }
 
   const playersPayload = (jugadores as {
@@ -41,12 +45,25 @@ export default async function EstadisticasPage() {
     nombre: string
     posicion?: string
     dorsal?: number | null
-  }[]).map((player) => ({
-    id: player.id,
-    nombre: player.nombre,
-    posicion: player.posicion,
-    dorsal: player.dorsal ?? null,
-  }))
+  }[])
+    .map((player) => {
+      const playerId = Number(player.id)
+      if (!Number.isFinite(playerId)) {
+        return null
+      }
+      return {
+        id: playerId,
+        nombre: player.nombre,
+        posicion: player.posicion,
+        dorsal: player.dorsal ?? null,
+      }
+    })
+    .filter((player): player is {
+      id: number
+      nombre: string
+      posicion?: string
+      dorsal?: number | null
+    } => Boolean(player))
 
   const matchesPayload = teamMatches.map((match) => ({
     ...match,
