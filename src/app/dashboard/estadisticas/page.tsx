@@ -40,13 +40,22 @@ export default async function EstadisticasPage() {
     }
   }
 
-  const playersPayload = (jugadores as {
+  type RawPlayer = {
     id: number
     nombre: string
     posicion?: string
     dorsal?: number | null
-  }[])
-    .map((player) => {
+  }
+
+  type NormalizedPlayer = {
+    id: number
+    nombre: string
+    posicion?: string
+    dorsal: number | null
+  }
+
+  const playersPayload = (jugadores as RawPlayer[])
+    .map<NormalizedPlayer | null>((player) => {
       const playerId = Number(player.id)
       if (!Number.isFinite(playerId)) {
         return null
@@ -58,12 +67,7 @@ export default async function EstadisticasPage() {
         dorsal: player.dorsal ?? null,
       }
     })
-    .filter((player): player is {
-      id: number
-      nombre: string
-      posicion?: string
-      dorsal?: number | null
-    } => Boolean(player))
+    .filter((player): player is NormalizedPlayer => player !== null)
 
   const matchesPayload = teamMatches.map((match) => ({
     ...match,
