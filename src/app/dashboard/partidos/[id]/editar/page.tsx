@@ -1,11 +1,12 @@
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
-import { getMatch, updateLineup } from "@/lib/api/matches";
+import { getMatch, updateLineup, updateMatchDetails } from "@/lib/api/matches";
 import { jugadoresService, equiposService } from "@/lib/api/services";
 import PlayerSelector from "@/app/dashboard/partidos/new/player-selector";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import type { PlayerSlot } from "@/types/match";
 import {
   DEFAULT_FORMATION_KEY,
@@ -46,6 +47,21 @@ function inferFormationKey(lineup: PlayerSlot[]): FormationKey {
   return DEFAULT_FORMATION_KEY;
 }
 
+function formatKickoffForInput(kickoff: string): string {
+  const date = new Date(kickoff);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export default async function EditarPartidoPage({ params }: PageProps) {
   const matchId = Number(params.id);
   const match = await getMatch(matchId);
@@ -59,6 +75,7 @@ export default async function EditarPartidoPage({ params }: PageProps) {
   }
 
   const opponentNotes = match.opponentNotes ?? null;
+  const existingKickoff = match.kickoff;
 
   const equipo = await equiposService.getById(match.teamId);
   const jugadores = await jugadoresService.getByEquipo(match.teamId);
@@ -85,6 +102,7 @@ export default async function EditarPartidoPage({ params }: PageProps) {
   const initialFormation = inferFormationKey(match.lineup);
   const teamColor = equipo?.color ?? "#dc2626";
   const goalkeeperColor = "#16a34a";
+  const initialKickoffValue = formatKickoffForInput(match.kickoff);
 
   function getContrastColor(hex: string) {
     const c = hex.replace("#", "");
@@ -108,6 +126,11 @@ export default async function EditarPartidoPage({ params }: PageProps) {
   async function guardarConvocatoria(formData: FormData) {
     "use server";
 
+    const kickoffRaw = formData.get("kickoff");
+    const kickoff =
+      typeof kickoffRaw === "string" && kickoffRaw.trim().length > 0
+        ? kickoffRaw
+        : existingKickoff;
     const starters = formData.getAll("starters").map((v) => Number(v));
     const bench = formData.getAll("bench").map((v) => Number(v));
     const unavailable = formData.getAll("unavailable").map((v) => Number(v));
@@ -189,7 +212,10 @@ export default async function EditarPartidoPage({ params }: PageProps) {
         });
       });
 
-    await updateLineup(matchId, lineup, opponentNotes, false);
+    await Promise.all([
+      updateMatchDetails(matchId, { kickoff }),
+      updateLineup(matchId, lineup, opponentNotes, false),
+    ]);
     revalidatePath(`/dashboard/partidos/${matchId}`);
     revalidatePath("/dashboard/partidos");
     redirect("/dashboard/partidos");
@@ -225,6 +251,18 @@ export default async function EditarPartidoPage({ params }: PageProps) {
               <p className="text-sm text-muted-foreground">
                 Ajusta la lista de titulares, suplentes y desconvocados antes de iniciar el partido.
               </p>
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="kickoff">
+                  Fecha y hora del partido
+                </label>
+                <Input
+                  id="kickoff"
+                  name="kickoff"
+                  type="datetime-local"
+                  required
+                  defaultValue={initialKickoffValue}
+                />
+              </div>
               <Button type="submit" className="w-full">
                 Guardar cambios
               </Button>
