@@ -173,7 +173,7 @@ export default function MinutesEditor({
           Editar minutos
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Actualizar minutos y porterías a cero</DialogTitle>
           <DialogDescription>
@@ -183,7 +183,7 @@ export default function MinutesEditor({
           </DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
-          <ScrollArea className="max-h-[60vh] pr-2">
+          <ScrollArea className="h-[50vh] sm:h-[60vh] pr-2">
             <Table>
               <TableHeader>
                 <TableRow>
