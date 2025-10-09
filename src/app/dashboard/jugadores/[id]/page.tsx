@@ -69,10 +69,6 @@ export default async function JugadorPage({ params }: { params: { id: string } }
   ])
 
   // resumen de asistencias
-  const totalSesiones = asistencias.length
-  const presentes = asistencias.filter((a: any) => a.asistio).length
-  const porcentajeAsistencia = totalSesiones ? ((presentes / totalSesiones) * 100).toFixed(1) : "0"
-
   // medias de valoraciones
   const promedios = valoraciones.length
     ? {
@@ -99,6 +95,14 @@ export default async function JugadorPage({ params }: { params: { id: string } }
   const teamMatches = (matches as Match[]).filter(
     (match) => match.teamId === jugador.equipoId && match.finished
   )
+  const matchDateIndex = new Map<string, Match>()
+  for (const match of teamMatches) {
+    if (!match.kickoff) continue
+    const kickoffDate = match.kickoff.split("T")[0]
+    if (kickoffDate) {
+      matchDateIndex.set(kickoffDate, match)
+    }
+  }
   const playerStats = aggregatePlayerStats(teamMatches, jugadorId)
   const matchSummaries = buildPlayerMatchSummaries(teamMatches, jugadorId)
   const streaks = analyzePlayerStreaks(matchSummaries)
@@ -130,6 +134,79 @@ export default async function JugadorPage({ params }: { params: { id: string } }
       winRate: row.matches ? row.wins / row.matches : 0,
     }))
     .sort((a, b) => b.matches - a.matches)
+  const attendanceStats: Record<
+    "overall" | "training" | "match" | "other",
+    { label: string; present: number; total: number }
+  > = {
+    overall: { label: "Sesiones registradas", present: 0, total: 0 },
+    training: { label: "Entrenamientos", present: 0, total: 0 },
+    match: { label: "Partidos", present: 0, total: 0 },
+    other: { label: "Otros eventos", present: 0, total: 0 },
+  }
+  const attendanceEntries = (asistencias as any[])
+    .map((record) => {
+      const match = matchDateIndex.get(record.fecha)
+      const type: "training" | "match" | "other" = record.entrenamientoId
+        ? "training"
+        : match
+        ? "match"
+        : "other"
+      attendanceStats.overall.total += 1
+      attendanceStats[type].total += 1
+      if (record.asistio) {
+        attendanceStats.overall.present += 1
+        attendanceStats[type].present += 1
+      }
+      const parsedDate = record.fecha ? new Date(record.fecha) : null
+      const hasValidDate = parsedDate && !Number.isNaN(parsedDate.getTime())
+      const dateLabel = hasValidDate ? matchDateFormatter.format(parsedDate) : record.fecha
+      const typeLabel =
+        type === "training" ? "Entrenamiento" : type === "match" ? "Partido" : "Evento"
+      const contextLabel =
+        type === "match" && match
+          ? `${match.isHome ? "vs" : "@"} ${
+              rivalMap.get(match.rivalId) ?? `Rival ${match.rivalId}`
+            } · ${formatCompetition(match.competition)}`
+          : type === "training"
+          ? "Sesión de entrenamiento programada"
+          : "Registro manual del cuerpo técnico"
+      return {
+        ...record,
+        match,
+        type,
+        typeLabel,
+        contextLabel,
+        dateLabel,
+        sortKey: hasValidDate ? parsedDate.getTime() : 0,
+      }
+    })
+    .sort((a, b) => b.sortKey - a.sortKey)
+  attendanceStats.match.label = "Convocatorias"
+  attendanceStats.match.present = playerStats.callUps
+  attendanceStats.match.total = teamMatches.length
+
+  attendanceStats.overall.present =
+    attendanceStats.training.present +
+    attendanceStats.other.present +
+    attendanceStats.match.present
+  attendanceStats.overall.total =
+    attendanceStats.training.total +
+    attendanceStats.other.total +
+    attendanceStats.match.total
+
+  const overallAttendancePercent = attendanceStats.overall.total
+    ? Math.round((attendanceStats.overall.present / attendanceStats.overall.total) * 100)
+    : 0
+  const latestAttendance = attendanceEntries[0] ?? null
+  const recentAbsences = attendanceEntries.filter((entry) => !entry.asistio)
+  const latestAbsence = recentAbsences[0] ?? null
+  const absenceHighlights = recentAbsences.slice(0, 3)
+  const attendanceSummaryOrder: ("overall" | "training" | "match" | "other")[] = [
+    "overall",
+    "training",
+    "match",
+    "other",
+  ]
   const summaryBlocks: { label: string; value: string | number }[] = [
     { label: "Partidos del equipo", value: teamMatches.length },
     { label: "Convocatorias", value: playerStats.callUps },
@@ -250,7 +327,7 @@ export default async function JugadorPage({ params }: { params: { id: string } }
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Información personal</CardTitle>
@@ -301,24 +378,103 @@ export default async function JugadorPage({ params }: { params: { id: string } }
             <div>
               <span className="font-medium">Dorsal:</span> {jugador.dorsal ?? "Sin asignar"}
             </div>
-            <div><span className="font-medium">Asistencias:</span> {presentes}/{totalSesiones} ({porcentajeAsistencia}%)</div>
           </CardContent>
         </Card>
-
-        <Card>
+        <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Aptitudes del jugador</CardTitle>
+            <CardTitle>Disponibilidad y asistencia</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Resumen de presencia en sesiones registradas y eventos competitivos.
+            </p>
           </CardHeader>
-          <CardContent>
-            {promedios ? (
-              <PlayerRadarChart data={promedios} />
-            ) : (
-              <p className="text-sm text-muted-foreground">Sin valoraciones</p>
-            )}
+          <CardContent className="space-y-4 text-sm">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {attendanceSummaryOrder.map((key) => {
+                const stat = attendanceStats[key]
+                if (key === "other" && stat.total === 0) return null
+                const percent = stat.total ? Math.round((stat.present / stat.total) * 100) : 0
+                return (
+                  <div
+                    key={key}
+                    className="rounded-lg border bg-muted/40 p-3"
+                  >
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">
+                      {stat.label}
+                    </p>
+                    <p className="text-lg font-semibold">
+                      {stat.present}/{stat.total}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {stat.total ? `${percent}% de asistencia` : "Sin registros"}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-lg border bg-background/60 p-3">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Último registro
+                </p>
+                {latestAttendance ? (
+                  <>
+                    <p className="text-lg font-semibold">
+                      {latestAttendance.dateLabel} · {latestAttendance.asistio ? "Presente" : "Ausente"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{latestAttendance.contextLabel}</p>
+                  </>
+                ) : (
+                  <p className="text-lg font-semibold">Sin registros</p>
+                )}
+              </div>
+              <div className="rounded-lg border bg-background/60 p-3">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Última ausencia
+                </p>
+                {latestAbsence ? (
+                  <>
+                    <p className="text-lg font-semibold">{latestAbsence.dateLabel}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {latestAbsence.contextLabel}
+                      {latestAbsence.motivo ? ` · Motivo: ${latestAbsence.motivo}` : ""}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-lg font-semibold">Sin ausencias registradas</p>
+                )}
+              </div>
+            </div>
+
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs font-semibold uppercase text-muted-foreground">
+                Disponibilidad global
+              </p>
+              <div className="mt-2 flex flex-col gap-1 text-sm">
+                <span className="font-semibold">{overallAttendancePercent}%</span>
+                <span className="text-xs text-muted-foreground">
+                  {attendanceStats.overall.present} sesiones completadas de {attendanceStats.overall.total} registradas.
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
+      </div>
 
-        <Card className="md:col-span-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Aptitudes del jugador</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {promedios ? (
+            <PlayerRadarChart data={promedios} />
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin valoraciones</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
           <CardHeader>
             <CardTitle>Estadísticas de partidos</CardTitle>
             <p className="text-sm text-muted-foreground">
@@ -521,7 +677,6 @@ export default async function JugadorPage({ params }: { params: { id: string } }
             )}
           </CardContent>
         </Card>
-      </div>
 
       <Tabs defaultValue="valoraciones" className="w-full">
         <TabsList>
@@ -589,48 +744,137 @@ export default async function JugadorPage({ params }: { params: { id: string } }
           </FormDialog>
         </TabsContent>
 
-        <TabsContent value="asistencias" className="space-y-4">
-          {asistencias.map((a: any) => (
-            <Card key={a.id}>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm">{a.fecha}</CardTitle>
-                <div className="flex gap-2">
-                  <FormDialog
-                    title="Editar asistencia"
-                    trigger={<Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>}
-                    action={actualizarAsistencia}
-                  >
-                    <input type="hidden" name="id" value={a.id} />
-                    <Input type="date" name="fecha" defaultValue={a.fecha} />
-                    <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked={a.asistio} /> Presente</label>
-                    <Input name="motivo" defaultValue={a.motivo} placeholder="Motivo" />
-                    <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
-                  </FormDialog>
-                  <form action={eliminarAsistencia}>
-                    <input type="hidden" name="id" value={a.id} />
-                    <Button variant="ghost" size="icon"><Trash className="h-4 w-4"/></Button>
-                  </form>
+        <TabsContent value="asistencias" className="space-y-6">
+          {attendanceEntries.length > 0 ? (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(["training", "match", "other"] as const).map((key) => {
+                  const stat = attendanceStats[key]
+                  if (!stat || (key === "other" && stat.total === 0)) return null
+                  const percent = stat.total ? Math.round((stat.present / stat.total) * 100) : 0
+                  return (
+                    <div key={key} className="rounded-lg border bg-muted/30 p-3 text-sm">
+                      <p className="text-xs font-semibold uppercase text-muted-foreground">{stat.label}</p>
+                      <p className="text-lg font-semibold">{stat.present}/{stat.total}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {stat.total ? `${percent}% de asistencia` : "Sin registros"}
+                      </p>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {absenceHighlights.length > 0 && (
+                <div className="rounded-lg border bg-muted/20 p-4">
+                  <p className="text-xs font-semibold uppercase text-muted-foreground">
+                    Últimas ausencias registradas
+                  </p>
+                  <div className="mt-2 space-y-2 text-sm">
+                    {absenceHighlights.map((item) => (
+                      <div key={item.id} className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="border-transparent bg-red-100 text-red-700 hover:bg-red-100">
+                            {item.typeLabel}
+                          </Badge>
+                          <span className="font-medium">{item.dateLabel}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {item.contextLabel}
+                          {item.motivo ? ` · Motivo: ${item.motivo}` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </CardHeader>
-              <CardContent className="text-sm">
-                {a.asistio ? "Presente" : `Ausente (${a.motivo})`}
-              </CardContent>
-            </Card>
-          ))}
-          {asistencias.length === 0 && (
-            <p className="text-sm text-muted-foreground">No hay registros</p>
+              )}
+
+              <div className="overflow-x-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Fecha</TableHead>
+                      <TableHead>Actividad</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attendanceEntries.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="whitespace-nowrap">{entry.dateLabel}</TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{entry.typeLabel}</Badge>
+                              {entry.match && (
+                                <Badge variant="outline" className="border-transparent bg-muted text-xs">
+                                  {formatCompetition(entry.match.competition)}
+                                </Badge>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground">{entry.contextLabel}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col gap-1">
+                            <Badge
+                              variant="outline"
+                              className={
+                                entry.asistio
+                                  ? "border-transparent bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                                  : "border-transparent bg-red-100 text-red-700 hover:bg-red-100"
+                              }
+                            >
+                              {entry.asistio ? "Presente" : "Ausente"}
+                            </Badge>
+                            {!entry.asistio && entry.motivo && (
+                              <span className="text-xs text-muted-foreground">Motivo: {entry.motivo}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <FormDialog
+                              title="Editar asistencia"
+                              trigger={<Button variant="ghost" size="icon"><Edit className="h-4 w-4"/></Button>}
+                              action={actualizarAsistencia}
+                            >
+                              <input type="hidden" name="id" value={entry.id} />
+                              <Input type="date" name="fecha" defaultValue={entry.fecha} />
+                              <label className="flex items-center gap-2">
+                                <input type="checkbox" name="asistio" defaultChecked={entry.asistio} /> Presente
+                              </label>
+                              <Input name="motivo" defaultValue={entry.motivo} placeholder="Motivo" />
+                              <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+                            </FormDialog>
+                            <form action={eliminarAsistencia}>
+                              <input type="hidden" name="id" value={entry.id} />
+                              <Button variant="ghost" size="icon"><Trash className="h-4 w-4"/></Button>
+                            </form>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">Todavía no hay registros de asistencia para este jugador.</p>
           )}
 
-          <FormDialog
-            title="Nueva asistencia"
-            trigger={<Button>Nueva asistencia</Button>}
-            action={crearAsistencia}
-          >
-            <Input type="date" name="fecha" />
-            <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked /> Presente</label>
-            <Input name="motivo" placeholder="Motivo (si falta)" />
-            <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
-          </FormDialog>
+          <div className="flex justify-end">
+            <FormDialog
+              title="Nueva asistencia"
+              trigger={<Button>Nueva asistencia</Button>}
+              action={crearAsistencia}
+            >
+              <Input type="date" name="fecha" />
+              <label className="flex items-center gap-2"><input type="checkbox" name="asistio" defaultChecked /> Presente</label>
+              <Input name="motivo" placeholder="Motivo (si falta)" />
+              <DialogFooter><Button type="submit">Guardar</Button></DialogFooter>
+            </FormDialog>
+          </div>
         </TabsContent>
       </Tabs>
 
