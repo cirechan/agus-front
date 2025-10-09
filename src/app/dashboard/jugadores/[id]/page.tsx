@@ -181,6 +181,19 @@ export default async function JugadorPage({ params }: { params: { id: string } }
       }
     })
     .sort((a, b) => b.sortKey - a.sortKey)
+  attendanceStats.match.label = "Convocatorias"
+  attendanceStats.match.present = playerStats.callUps
+  attendanceStats.match.total = teamMatches.length
+
+  attendanceStats.overall.present =
+    attendanceStats.training.present +
+    attendanceStats.other.present +
+    attendanceStats.match.present
+  attendanceStats.overall.total =
+    attendanceStats.training.total +
+    attendanceStats.other.total +
+    attendanceStats.match.total
+
   const overallAttendancePercent = attendanceStats.overall.total
     ? Math.round((attendanceStats.overall.present / attendanceStats.overall.total) * 100)
     : 0
