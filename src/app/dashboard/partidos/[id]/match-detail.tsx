@@ -55,6 +55,7 @@ import {
   List,
   LayoutGrid,
 } from "lucide-react";
+import { HALF_DURATION_MINUTES } from "@/lib/match-events";
 
 const POSITION_COORDS: Record<string, { x: number; y: number }> = {
   GK: { x: 10, y: 50 },
@@ -359,7 +360,8 @@ export default function MatchDetail({
   }, [running]);
 
   const currentMinute = useMemo(
-    () => Math.floor(seconds / 60) + (half - 1) * 40,
+    () =>
+      Math.floor(seconds / 60) + (half - 1) * HALF_DURATION_MINUTES,
     [seconds, half]
   );
 
@@ -512,7 +514,12 @@ export default function MatchDetail({
       fd.append("type", type);
       if (teamId) fd.append("teamId", String(teamId));
       if (rivalId) fd.append("rivalId", String(rivalId));
-      fd.append("minute", String(Math.floor(seconds / 60) + (half - 1) * 40));
+      fd.append(
+        "minute",
+        String(
+          Math.floor(seconds / 60) + (half - 1) * HALF_DURATION_MINUTES
+        )
+      );
       const created = await addEvent(fd);
       setEvents((prev) => [...prev, created]);
       toast(`Evento ${type} añadido`);
@@ -791,7 +798,8 @@ export default function MatchDetail({
     }
     setSubsMade((c) => c + 1);
     setSelectedBenchId(null);
-    const minute = Math.floor(liveSeconds / 60) + (half - 1) * 40;
+    const minute =
+      Math.floor(liveSeconds / 60) + (half - 1) * HALF_DURATION_MINUTES;
     if (minute >= 70 && !lateWindowUsed) {
       setLateWindowUsed(true);
       toast("Has consumido la ventana de cambios permitida tras el 70'.");
@@ -860,7 +868,10 @@ export default function MatchDetail({
               {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             </Button>
             <span className="tabular-nums text-sm sm:text-xl">
-              {String(Math.floor(seconds / 60) + (half - 1) * 40).padStart(2, "0")}:
+              {String(
+                Math.floor(seconds / 60) +
+                  (half - 1) * HALF_DURATION_MINUTES
+              ).padStart(2, "0")}:
               {String(seconds % 60).padStart(2, "0")}
             </span>
             {half === 1 && !running && (

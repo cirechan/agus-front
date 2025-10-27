@@ -30,7 +30,14 @@ export default async function EstadisticasPage() {
 
   const teamMatches = matches
     .filter((match) => match.teamId === equipoId)
-    .filter((match) => match.finished)
+    .filter((match) => {
+      if (match.finished) {
+        return true
+      }
+      const hasMinutes = match.lineup.some((slot) => (slot.minutes ?? 0) > 0)
+      const hasEvents = match.events.length > 0
+      return hasMinutes || hasEvents
+    })
 
   const opponents: Record<number, string> = {}
   for (const rival of rivales as { id: number; nombre: string }[]) {
