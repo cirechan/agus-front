@@ -7,7 +7,6 @@ import { PlusCircle, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { SectionCards } from "@/components/section-cards"
 
 // Datos de ejemplo - en producción vendrían de la API
 const teams = [

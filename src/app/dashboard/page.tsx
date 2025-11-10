@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { SectionCards } from "@/components/section-cards"
+import { SectionCards, type SectionCardsStats } from "@/components/section-cards"
 import JugadoresTable from "@/app/dashboard/jugadores/jugadores-table"
 import {
   equiposService,
@@ -8,6 +8,10 @@ import {
   entrenamientosService,
   rivalesService,
   sancionesService,
+  asistenciasService,
+  valoracionesService,
+  objetivosService,
+  temporadasService,
 } from "@/lib/api/services"
 import { listMatches } from "@/lib/api/matches"
 import type { Match, MatchEvent } from "@/types/match"
@@ -16,6 +20,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { AlertCircle, CalendarClock, Clock, Flag, ShieldAlert } from "lucide-react"
 import { setSanctionStatus } from "./sanctions-actions"
+
+export const dynamic = "force-dynamic"
 
 type JugadorConStats = Awaited<ReturnType<typeof jugadoresService.getByEquipo>> extends (infer T)[]
   ? T
@@ -170,8 +176,12 @@ async function safeListMatches(): Promise<Match[]> {
 }
 
 export default async function DashboardPage() {
-  const equipos = await equiposService.getAll()
-  const equipo = equipos[0]
+  const [equipos, temporada] = await Promise.all([
+    equiposService.getAll(),
+    temporadasService.getActual(),
+  ])
+
+  const equipo = equipos[0] ?? null
 
   const [jugadores, horarios, entrenamientos, rivales, storedSanctions, matches] = await Promise.all([
     equipo ? jugadoresService.getByEquipo(equipo.id) : Promise.resolve([]),
@@ -183,6 +193,94 @@ export default async function DashboardPage() {
   ])
 
   const storedSanctionsTyped = (storedSanctions ?? []) as StoredSanction[]
+
+  let temporadaEquipos = temporada
+    ? await equiposService.getByTemporada(temporada.id)
+    : equipos
+
+  if (temporadaEquipos.length === 0) {
+    temporadaEquipos = equipos
+  }
+
+  const seasonTeams = temporadaEquipos
+
+  const seasonPlayersByTeam = await Promise.all(
+    seasonTeams.map((team) => {
+      if (equipo && Number(team.id) === Number(equipo.id)) {
+        return Promise.resolve(jugadores as JugadorConStats[])
+      }
+      return jugadoresService.getByEquipo(team.id)
+    })
+  )
+
+  const seasonPlayers = seasonPlayersByTeam.flat() as JugadorConStats[]
+
+  const asistencias = (
+    await Promise.all(seasonTeams.map((team) => asistenciasService.getByEquipo(team.id)))
+  ).flat()
+
+  const objetivos = (
+    await Promise.all(seasonTeams.map((team) => objetivosService.getByEquipo(team.id)))
+  ).flat()
+
+  const valoraciones = (
+    await Promise.all(seasonPlayers.map((player) => valoracionesService.getByJugador(player.id)))
+  ).flat()
+
+  const attendanceAverage =
+    asistencias.length > 0
+      ? `${(
+          (asistencias.filter((registro) => {
+            if (typeof registro.asistio === "number") {
+              return registro.asistio > 0
+            }
+            return Boolean(registro.asistio)
+          }).length /
+            asistencias.length) *
+          100
+        ).toFixed(0)}%`
+      : "0%"
+
+  const ratingValues = valoraciones
+    .map((valoracion) => {
+      const entries = Object.values(valoracion.aptitudes ?? {})
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value))
+      if (entries.length === 0 || entries.every((value) => value === 0)) {
+        return null
+      }
+      return entries.reduce((sum, value) => sum + value, 0) / entries.length
+    })
+    .filter((value): value is number => value !== null)
+
+  const ratingAverage =
+    ratingValues.length > 0
+      ? (
+          ratingValues.reduce((sum, value) => sum + value, 0) /
+          ratingValues.length
+        ).toFixed(1)
+      : "0"
+
+  const objectivesCompletion =
+    objetivos.length > 0
+      ? `${(
+          (objetivos.filter((objetivo) => Number(objetivo.progreso ?? 0) >= 100).length /
+            objetivos.length) *
+          100
+        ).toFixed(0)}%`
+      : "0%"
+
+  const sectionCardsStats: SectionCardsStats = {
+    temporadaLabel: temporada?.nombre ?? temporada?.id ?? "N/A",
+    totalTeams: seasonTeams.length,
+    totalPlayers: seasonPlayers.length,
+    attendanceAverage,
+    attendanceRecords: asistencias.length,
+    ratingAverage,
+    ratingRecords: valoraciones.length,
+    objectivesCompletion,
+    objectivesCount: objetivos.length,
+  }
 
   const teamMap = new Map<number, string>()
   if (equipo) {
@@ -514,7 +612,7 @@ export default async function DashboardPage() {
         <p className="text-muted-foreground">Resumen global del rendimiento colectivo.</p>
       </div>
 
-      <SectionCards />
+      <SectionCards stats={sectionCardsStats} />
 
       <div className="mt-8 grid gap-4 px-4 lg:px-6 lg:grid-cols-2">
         <Card>
