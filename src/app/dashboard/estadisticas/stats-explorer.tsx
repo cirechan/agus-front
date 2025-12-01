@@ -41,6 +41,7 @@ interface StatsExplorerProps {
   matches: Match[]
   opponents: Record<number, string>
   teamName: string
+  dataSource: "database" | "local"
 }
 
 const competitionLabels: Record<string, string> = {
@@ -137,6 +138,7 @@ export default function StatsExplorer({
   matches,
   opponents,
   teamName,
+  dataSource,
 }: StatsExplorerProps) {
   const [selectedCompetition, setSelectedCompetition] = useState<string>("all")
   const [condition, setCondition] = useState<ConditionValue>("all")
@@ -155,6 +157,13 @@ export default function StatsExplorer({
       return bTime - aTime
     })
   }, [matches])
+
+  const lastMatchKickoff = useMemo(() => {
+    const kickoff = sortedMatches[0]?.kickoff
+    if (!kickoff) return null
+    const parsed = new Date(kickoff)
+    return Number.isFinite(parsed.getTime()) ? parsed : null
+  }, [sortedMatches])
 
   const filteredMatches = useMemo(() => {
     let result = sortedMatches
@@ -190,6 +199,17 @@ export default function StatsExplorer({
   )
 
   const matchesCount = filteredMatches.length
+  const pointsPerMatch = matchesCount
+    ? (teamStats.points / matchesCount).toFixed(2)
+    : "0.00"
+  const cleanSheetRate = matchesCount
+    ? Math.round((teamStats.cleanSheets / matchesCount) * 100)
+    : 0
+  const dataSourceLabel =
+    dataSource === "database" ? "Base de datos" : "Archivo temporal"
+  const lastUpdatedLabel = lastMatchKickoff
+    ? fullDateFormatter.format(lastMatchKickoff)
+    : "Sin partidos"
 
   const playersWithStats = useMemo(
     () =>
@@ -548,6 +568,50 @@ export default function StatsExplorer({
                 <p>{insight}</p>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle>Sincronización y pulso inmediato</CardTitle>
+          <CardDescription>
+            Datos leídos directamente {dataSource === "database" ? "de la base de datos" : "del almacén local"} con el rango
+            seleccionado.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">{dataSourceLabel}</Badge>
+            <Badge variant="outline">Última actualización: {lastUpdatedLabel}</Badge>
+            <Badge variant="outline">Partidos analizados: {matchesCount}</Badge>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <QuickMetric
+              label="Puntos por partido"
+              value={pointsPerMatch}
+              helper="Promedio con los filtros actuales"
+              progress={(Number(pointsPerMatch) / 3) * 100}
+            />
+            <QuickMetric
+              label="Goles a favor"
+              value={teamStats.goalsFor}
+              helper={`${teamStats.averageGoalsFor.toFixed(2)} por partido`}
+              progress={Math.min(100, teamStats.averageGoalsFor * 25)}
+            />
+            <QuickMetric
+              label="Porterías a cero"
+              value={`${cleanSheetRate}%`}
+              helper={`${teamStats.cleanSheets} partidos sin encajar`}
+              progress={cleanSheetRate}
+            />
+            <QuickMetric
+              label="Diferencia de goles"
+              value={teamStats.goalDifference}
+              helper={`${teamStats.goalsFor}-${teamStats.goalsAgainst} global`}
+              progress={Math.min(100, Math.max(0, (teamStats.goalDifference + 10) * 5))}
+            />
           </div>
         </CardContent>
       </Card>
@@ -1034,6 +1098,36 @@ export default function StatsExplorer({
           )}
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+function QuickMetric({
+  label,
+  value,
+  helper,
+  progress,
+}: {
+  label: string
+  value: string | number
+  helper?: string
+  progress?: number
+}) {
+  const normalizedProgress =
+    progress === undefined
+      ? undefined
+      : Math.min(100, Math.max(0, Math.round(progress)))
+
+  return (
+    <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+      <p className="text-xs font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="text-xl font-semibold">{value}</p>
+      {helper && <p className="text-xs text-muted-foreground">{helper}</p>}
+      {normalizedProgress !== undefined && (
+        <div className="mt-2">
+          <Progress value={normalizedProgress} />
+        </div>
+      )}
     </div>
   )
 }
