@@ -5,11 +5,16 @@ import {
   jugadoresService,
   rivalesService,
 } from "@/lib/api/services"
+import { hasDatabaseConnection } from "@/lib/db"
+
+export const dynamic = "force-dynamic"
+export const revalidate = 0
 
 export default async function EstadisticasPage() {
   const equipos = await equiposService.getAll()
   const equipo = equipos[0]
   const equipoId = equipo ? Number(equipo.id) : null
+  const usingDatabase = hasDatabaseConnection()
 
   if (!equipo || !Number.isFinite(equipoId)) {
     return (
@@ -97,6 +102,7 @@ export default async function EstadisticasPage() {
         matches={matchesPayload}
         opponents={opponents}
         teamName={equipo.nombre}
+        dataSource={usingDatabase ? "database" : "local"}
       />
     </div>
   )
