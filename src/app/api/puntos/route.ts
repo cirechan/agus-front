@@ -6,13 +6,12 @@ export const dynamic = 'force-dynamic';
 
 const DATA_ID = 'default';
 const corsOrigin = process.env.CORS_ORIGIN || '';
-const corsHeaders = corsOrigin
-  ? {
-      'Access-Control-Allow-Origin': corsOrigin,
-      'Access-Control-Allow-Methods': 'GET,PUT,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    }
-  : {};
+const corsHeaders = new Headers();
+if (corsOrigin) {
+  corsHeaders.set('Access-Control-Allow-Origin', corsOrigin);
+  corsHeaders.set('Access-Control-Allow-Methods', 'GET,PUT,OPTIONS');
+  corsHeaders.set('Access-Control-Allow-Headers', 'Content-Type');
+}
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: corsHeaders });
