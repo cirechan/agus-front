@@ -889,6 +889,26 @@ export default function PuntosApp() {
       }
     };
 
+    const handleDeleteSession = (sessionId: string) => {
+      const session = data.sessions.find(s => s.id === sessionId);
+      const label = session
+        ? new Date(session.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+        : 'esta sesión';
+
+      if (!confirm(`¿Eliminar ${label}? Se borrarán los puntos de esa sesión.`)) return;
+
+      setData(prev => ({
+        ...prev,
+        sessions: prev.sessions.filter(s => s.id !== sessionId),
+        logs: prev.logs.filter(l => l.sessionId !== sessionId),
+      }));
+
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(null);
+        setCurrentView(ViewState.DASHBOARD);
+      }
+    };
+
     // Create the matrix
     const sortedSessions = [...data.sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -941,8 +961,19 @@ export default function PuntosApp() {
                 <th className="p-3 text-left font-bold text-slate-700 border-b border-slate-200 sticky left-0 bg-slate-50 z-30 min-w-[120px]">Jugador</th>
                 {sortedSessions.map(s => (
                   <th key={s.id} className="p-2 font-medium text-slate-500 border-b border-slate-200 text-center whitespace-nowrap min-w-[80px]">
-                    <div className="text-[10px] uppercase tracking-wider">{new Date(s.date).toLocaleDateString('es-ES', { weekday: 'short' })}</div>
-                    <div className="text-xs font-bold text-slate-800">{new Date(s.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</div>
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="text-[10px] uppercase tracking-wider">{new Date(s.date).toLocaleDateString('es-ES', { weekday: 'short' })}</div>
+                      <div className="text-xs font-bold text-slate-800">{new Date(s.date).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })}</div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleDeleteSession(s.id)}
+                          className="rounded-full border border-slate-200 bg-white p-1 text-slate-400 hover:text-rose-500 hover:border-rose-200"
+                          title="Eliminar sesión"
+                        >
+                          <Icons.Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
                   </th>
                 ))}
                 <th className="p-3 font-bold text-slate-800 border-b border-slate-200 text-center sticky right-0 bg-slate-100 z-30 shadow-l">Total</th>
