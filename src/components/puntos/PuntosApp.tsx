@@ -913,6 +913,13 @@ export default function PuntosApp() {
            </div>
            <div className="flex flex-col items-end gap-1">
              <button
+               onClick={() => setIsAdminOpen(true)}
+               className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 shadow-sm hover:bg-slate-50"
+             >
+               <Icons.Settings size={14} />
+               Admin
+             </button>
+             <button
                onClick={handleShareTable}
                disabled={shareStatus === 'loading'}
                className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
@@ -1128,16 +1135,6 @@ export default function PuntosApp() {
 
   return (
     <div className="min-h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
-      <div className="fixed right-4 top-4 z-50">
-        <button
-          onClick={() => setIsAdminOpen(true)}
-          className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-md border border-slate-200 hover:bg-slate-50"
-        >
-          <Icons.Settings size={14} />
-          Admin
-        </button>
-      </div>
-
       {currentView === ViewState.DASHBOARD && <DashboardView />}
       {currentView === ViewState.ROSTER && <RosterView />}
       {currentView === ViewState.SESSION_SETUP && <SessionSetupView />}
