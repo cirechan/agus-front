@@ -18,7 +18,7 @@ import type { Match, MatchEvent } from "@/types/match"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, CalendarClock, Clock, Flag, ShieldAlert } from "lucide-react"
+import { AlertCircle, CalendarClock, Clock, Flag, ShieldAlert, Trophy } from "lucide-react"
 import { setSanctionStatus } from "./sanctions-actions"
 
 export const dynamic = "force-dynamic"
@@ -603,6 +603,26 @@ export default async function DashboardPage() {
                 <Link href="/dashboard/partidos/new">Nuevo partido</Link>
               </Button>
             </div>
+          </CardFooter>
+        </Card>
+
+        <Card className="border-primary/20">
+          <CardHeader className="space-y-1">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Trophy className="h-5 w-5 text-primary" /> Puntos de entrenamiento
+            </CardTitle>
+            <CardDescription>Registra puntos, MVPs y seguimiento por sesión.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            Lleva el control de puntos y asistencia en un flujo rápido desde el móvil.
+          </CardContent>
+          <CardFooter className="flex flex-wrap gap-2">
+            <Button asChild>
+              <Link href="/dashboard/puntos">Abrir puntos</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/entrenamientos">Ver entrenos</Link>
+            </Button>
           </CardFooter>
         </Card>
       </div>

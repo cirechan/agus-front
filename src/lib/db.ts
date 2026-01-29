@@ -245,6 +245,11 @@ export const ready = (async () => {
       completed_at TIMESTAMPTZ,
       UNIQUE(player_id, reference)
     )`);
+    await db.query(`CREATE TABLE IF NOT EXISTS puntos_data (
+      id TEXT PRIMARY KEY,
+      payload JSONB NOT NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
 
     const eqRes = await db.query('SELECT COUNT(*)::int AS count FROM equipos');
     if (eqRes.rows[0].count === 0) {

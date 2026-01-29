@@ -12,6 +12,7 @@ import {
   UserIcon,
   CalendarIcon,
   BarChart3,
+  Trophy,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -88,6 +89,13 @@ export function AppSidebar({
               href="/dashboard/entrenamientos"
               icon={CalendarClock}
               label="Entrenamientos"
+              pathname={pathname}
+              expanded={expanded}
+            />
+            <NavLink
+              href="/dashboard/puntos"
+              icon={Trophy}
+              label="Puntos"
               pathname={pathname}
               expanded={expanded}
             />
