@@ -269,8 +269,8 @@ export default function PuntosApp() {
   };
 
   const SessionSummaryView = () => {
-    if (!activeSession) return null;
     const [copied, setCopied] = useState(false);
+    if (!activeSession) return null;
 
     // Calculate points for this session only
     const sessionLogs = data.logs.filter(l => l.sessionId === activeSession.id);
@@ -642,22 +642,19 @@ export default function PuntosApp() {
   };
 
   const DashboardView = () => {
-    // Calculate Stats
-    const stats = useMemo(() => {
-      const result: { [key: string]: number } = {};
-      data.players.forEach(p => result[p.id] = 0);
-      data.logs.forEach(log => {
-        if (result[log.playerId] !== undefined) {
-          result[log.playerId] += log.points;
-        }
-      });
-      return Object.entries(result)
-        .map(([id, points]) => ({
-          ...data.players.find(p => p.id === id)!,
-          points
-        }))
-        .sort((a, b) => b.points - a.points);
-    }, [data]);
+    const result: { [key: string]: number } = {};
+    data.players.forEach(p => result[p.id] = 0);
+    data.logs.forEach(log => {
+      if (result[log.playerId] !== undefined) {
+        result[log.playerId] += log.points;
+      }
+    });
+    const stats = Object.entries(result)
+      .map(([id, points]) => ({
+        ...data.players.find(p => p.id === id)!,
+        points
+      }))
+      .sort((a, b) => b.points - a.points);
 
     return (
       <div className="p-4 pb-24">
