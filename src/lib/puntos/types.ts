@@ -22,10 +22,26 @@ export interface TrainingSession {
   teams?: Record<string, string>;
 }
 
+export interface PointsMeta {
+  currentQuarter: number;
+  currentYear: number;
+  adminSessionId?: string;
+}
+
+export interface ArchiveEntry {
+  id: string;
+  label: string;
+  endedAt: number;
+  sessions: TrainingSession[];
+  logs: PointLog[];
+}
+
 export interface AppData {
   players: Player[];
   sessions: TrainingSession[];
   logs: PointLog[];
+  meta?: PointsMeta;
+  archives?: ArchiveEntry[];
 }
 
 export enum ViewState {

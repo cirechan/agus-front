@@ -6,6 +6,7 @@ import { loadData, saveData, generateId } from '@/lib/puntos/storage';
 import { Tabs } from '@/components/puntos/Tabs';
 import { Icons } from '@/components/puntos/Icon';
 import { POINT_PRESETS } from '@/lib/puntos/constants';
+import type { PointsMeta } from '@/lib/puntos/types';
 
 const TEAM_COLORS: Record<string, { label: string, bg: string, text: string, border: string, ring: string }> = {
   red: { label: 'Rojo', bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-600', ring: 'ring-rose-500' },
@@ -15,6 +16,9 @@ const TEAM_COLORS: Record<string, { label: string, bg: string, text: string, bor
   white: { label: 'Blanco', bg: 'bg-white', text: 'text-slate-800', border: 'border-slate-300', ring: 'ring-slate-300' },
   green: { label: 'Verde', bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-600', ring: 'ring-emerald-500' },
 };
+
+const ADMIN_STORAGE_KEY = 'puntos_admin';
+const ADMIN_CODE = process.env.NEXT_PUBLIC_PUNTOS_ADMIN_CODE || '';
 
 export default function PuntosApp() {
   const [data, setData] = useState<AppData>({ players: [], sessions: [], logs: [] });
@@ -31,6 +35,11 @@ export default function PuntosApp() {
   // Team Management State
   const [isEditingTeams, setIsEditingTeams] = useState(false);
   const [activeColorEdit, setActiveColorEdit] = useState<string>('red');
+
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminCode, setAdminCode] = useState('');
+  const [adminError, setAdminError] = useState('');
 
   // Load data on mount
   useEffect(() => {
@@ -53,6 +62,13 @@ export default function PuntosApp() {
     };
   }, []);
 
+  useEffect(() => {
+    const stored = localStorage.getItem(ADMIN_STORAGE_KEY);
+    if (stored === '1') {
+      setIsAdmin(true);
+    }
+  }, []);
+
   // Persist data whenever it changes
   useEffect(() => {
     if (!isLoaded) return;
@@ -62,6 +78,140 @@ export default function PuntosApp() {
   const activeSession = useMemo(() => 
     data.sessions.find(s => s.id === activeSessionId), 
   [data.sessions, activeSessionId]);
+
+  const getMeta = (meta?: PointsMeta): PointsMeta => {
+    if (meta && meta.currentQuarter && meta.currentYear) return meta;
+    const now = new Date();
+    return {
+      currentQuarter: Math.floor(now.getMonth() / 3) + 1,
+      currentYear: now.getFullYear(),
+    };
+  };
+
+  const formatQuarterLabel = (meta?: PointsMeta) => {
+    const safe = getMeta(meta);
+    return `T${safe.currentQuarter} ${safe.currentYear}`;
+  };
+
+  const getPlayerTotal = (playerId: string, logs: PointLog[] = data.logs) => {
+    return logs.reduce((sum, log) => (log.playerId === playerId ? sum + log.points : sum), 0);
+  };
+
+  const handleAdminLogin = () => {
+    if (!ADMIN_CODE) {
+      setAdminError('Define NEXT_PUBLIC_PUNTOS_ADMIN_CODE en Vercel.');
+      return;
+    }
+    if (adminCode.trim() !== ADMIN_CODE) {
+      setAdminError('Código incorrecto.');
+      return;
+    }
+    setIsAdmin(true);
+    setIsAdminOpen(false);
+    setAdminCode('');
+    setAdminError('');
+    localStorage.setItem(ADMIN_STORAGE_KEY, '1');
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdmin(false);
+    localStorage.removeItem(ADMIN_STORAGE_KEY);
+  };
+
+  const applyAdminAdjustment = (playerId: string, desiredTotal: number, reason: string) => {
+    if (!playerId) {
+      return { ok: false, message: 'Selecciona un jugador.' };
+    }
+    if (!Number.isFinite(desiredTotal)) {
+      return { ok: false, message: 'Introduce un número válido.' };
+    }
+
+    const currentTotal = getPlayerTotal(playerId);
+    const delta = desiredTotal - currentTotal;
+    if (delta === 0) {
+      return { ok: false, message: 'El total ya coincide.' };
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    setData(prev => {
+      const meta = getMeta(prev.meta);
+      let sessionId = meta.adminSessionId;
+      let sessions = prev.sessions;
+      if (!sessionId || !sessions.find(s => s.id === sessionId)) {
+        sessionId = generateId();
+        const adminSession: TrainingSession = {
+          id: sessionId,
+          date: today,
+          attendees: prev.players.map(p => p.id),
+          absences: [],
+          completed: true,
+          teams: {}
+        };
+        sessions = [adminSession, ...sessions];
+      }
+
+      const newLog: PointLog = {
+        id: generateId(),
+        sessionId,
+        playerId,
+        points: delta,
+        reason: reason || 'Ajuste administrador',
+        timestamp: Date.now()
+      };
+
+      return {
+        ...prev,
+        sessions,
+        logs: [...prev.logs, newLog],
+        meta: { ...meta, adminSessionId: sessionId }
+      };
+    });
+
+    return { ok: true, delta };
+  };
+
+  const handleQuarterTransition = (advance: boolean) => {
+    const currentLabel = formatQuarterLabel(data.meta);
+    const confirmMessage = advance
+      ? `¿Archivar ${currentLabel} y pasar al siguiente trimestre?`
+      : `¿Restablecer los puntos del ${currentLabel}?`;
+
+    if (!confirm(confirmMessage)) return;
+
+    setData(prev => {
+      const meta = getMeta(prev.meta);
+      const archives = Array.isArray(prev.archives) ? prev.archives : [];
+      const archiveEntry = {
+        id: generateId(),
+        label: formatQuarterLabel(meta),
+        endedAt: Date.now(),
+        sessions: prev.sessions,
+        logs: prev.logs
+      };
+
+      let nextMeta: PointsMeta = { ...meta, adminSessionId: undefined };
+      if (advance) {
+        const nextQuarter = meta.currentQuarter >= 4 ? 1 : meta.currentQuarter + 1;
+        const nextYear = meta.currentQuarter >= 4 ? meta.currentYear + 1 : meta.currentYear;
+        nextMeta = { ...nextMeta, currentQuarter: nextQuarter, currentYear: nextYear };
+      }
+
+      return {
+        ...prev,
+        sessions: [],
+        logs: [],
+        meta: nextMeta,
+        archives: [...archives, archiveEntry]
+      };
+    });
+
+    setActiveSessionId(null);
+    setSelectedPlayerIds(new Set());
+    setSessionNote('');
+    setIsEditingTeams(false);
+    setCurrentView(ViewState.DASHBOARD);
+  };
 
   const handleStartSession = (attendees: string[], absences: string[]) => {
     const newSession: TrainingSession = {
@@ -777,8 +927,157 @@ export default function PuntosApp() {
     );
   };
 
+  const AdminPanel = () => {
+    const [selectedPlayerId, setSelectedPlayerId] = useState<string>(data.players[0]?.id ?? '');
+    const [desiredTotal, setDesiredTotal] = useState('');
+    const [adjustReason, setAdjustReason] = useState('Ajuste administrador');
+    const [feedback, setFeedback] = useState('');
+
+    useEffect(() => {
+      if (!selectedPlayerId && data.players.length > 0) {
+        setSelectedPlayerId(data.players[0].id);
+      }
+    }, [data.players, selectedPlayerId]);
+
+    const currentTotal = selectedPlayerId ? getPlayerTotal(selectedPlayerId) : 0;
+
+    const handleApplyAdjustment = () => {
+      const desired = Number(desiredTotal);
+      const result = applyAdminAdjustment(selectedPlayerId, desired, adjustReason);
+      if (!result.ok) {
+        setFeedback(result.message ?? 'No se pudo aplicar el ajuste.');
+        return;
+      }
+      const deltaLabel = result.delta > 0 ? `+${result.delta}` : `${result.delta}`;
+      setFeedback(`Ajuste aplicado: ${deltaLabel} puntos.`);
+      setDesiredTotal('');
+    };
+
+    if (!isAdminOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+        <div className="w-full max-w-xl rounded-2xl bg-white shadow-xl border border-slate-200">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-800">Modo administrador</h2>
+              <p className="text-xs text-slate-500">Trimestre actual: {formatQuarterLabel(data.meta)}</p>
+            </div>
+            <button
+              onClick={() => setIsAdminOpen(false)}
+              className="rounded-full p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            >
+              <Icons.X size={16} />
+            </button>
+          </div>
+
+          <div className="px-5 py-4 space-y-6">
+            {!isAdmin ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">Introduce el código de administrador.</p>
+                <input
+                  type="password"
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500"
+                  placeholder="Código de administrador"
+                />
+                {adminError && <div className="text-sm text-rose-600">{adminError}</div>}
+                <button
+                  onClick={handleAdminLogin}
+                  className="w-full rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Acceder
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Editar puntos</h3>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="text-sm text-slate-600">
+                      Jugador
+                      <select
+                        value={selectedPlayerId}
+                        onChange={(e) => setSelectedPlayerId(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                      >
+                        {data.players.map((player) => (
+                          <option key={player.id} value={player.id}>{player.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-sm text-slate-600">
+                      Total deseado
+                      <input
+                        type="number"
+                        value={desiredTotal}
+                        onChange={(e) => setDesiredTotal(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                        placeholder="Ej: 12"
+                      />
+                    </label>
+                  </div>
+                  <div className="text-xs text-slate-500">Total actual: {currentTotal}</div>
+                  <label className="text-sm text-slate-600">
+                    Motivo
+                    <input
+                      type="text"
+                      value={adjustReason}
+                      onChange={(e) => setAdjustReason(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+                    />
+                  </label>
+                  {feedback && <div className="text-sm text-emerald-600">{feedback}</div>}
+                  <button
+                    onClick={handleApplyAdjustment}
+                    className="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    Aplicar ajuste
+                  </button>
+                </div>
+
+                <div className="space-y-3 border-t border-slate-100 pt-4">
+                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Trimestres</h3>
+                  <button
+                    onClick={() => handleQuarterTransition(false)}
+                    className="w-full rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                  >
+                    Restablecer trimestre actual
+                  </button>
+                  <button
+                    onClick={() => handleQuarterTransition(true)}
+                    className="w-full rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+                  >
+                    Pasar al siguiente trimestre
+                  </button>
+                  <button
+                    onClick={handleAdminLogout}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                  >
+                    Cerrar sesión de administrador
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
+      <div className="fixed right-4 top-4 z-50">
+        <button
+          onClick={() => setIsAdminOpen(true)}
+          className="flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-md border border-slate-200 hover:bg-slate-50"
+        >
+          <Icons.Settings size={14} />
+          Admin
+        </button>
+      </div>
+
       {currentView === ViewState.DASHBOARD && <DashboardView />}
       {currentView === ViewState.ROSTER && <RosterView />}
       {currentView === ViewState.SESSION_SETUP && <SessionSetupView />}
@@ -791,6 +1090,8 @@ export default function PuntosApp() {
         onChange={setCurrentView} 
         hasActiveSession={!!activeSession} 
       />
+
+      <AdminPanel />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { AppData } from './types';
+import { AppData, PointsMeta } from './types';
 import { INITIAL_ROSTER } from './constants';
 
 const STORAGE_KEY = 'cadet_force_data_v1';
@@ -7,11 +7,27 @@ const API_PATH = process.env.NEXT_PUBLIC_PUNTOS_API_PATH || '/api/puntos';
 const normalizedPath = API_PATH.startsWith('/') ? API_PATH : `/${API_PATH}`;
 const API_URL = `${API_BASE}${normalizedPath}`;
 
-const DEFAULT_DATA: AppData = {
+const getDefaultMeta = (): PointsMeta => {
+  const now = new Date();
+  return {
+    currentQuarter: Math.floor(now.getMonth() / 3) + 1,
+    currentYear: now.getFullYear(),
+  };
+};
+
+const normalizeData = (data: AppData): AppData => {
+  return {
+    ...data,
+    meta: data.meta ?? getDefaultMeta(),
+    archives: Array.isArray(data.archives) ? data.archives : [],
+  };
+};
+
+const DEFAULT_DATA: AppData = normalizeData({
   players: INITIAL_ROSTER,
   sessions: [],
   logs: [],
-};
+});
 
 const isValidData = (data: unknown): data is AppData => {
   if (!data || typeof data !== 'object') return false;
@@ -25,7 +41,7 @@ const readLocalFallback = (): AppData => {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (isValidData(parsed)) {
-        return parsed;
+        return normalizeData(parsed);
       }
     }
   } catch {
@@ -52,7 +68,7 @@ export const loadData = async (): Promise<AppData> => {
     if (!isValidData(data)) {
       throw new Error('Invalid data shape');
     }
-    return data;
+    return normalizeData(data);
   } catch (error) {
     console.error('Failed to load data from server, using local fallback.', error);
     return readLocalFallback();
