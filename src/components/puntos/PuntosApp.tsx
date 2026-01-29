@@ -119,7 +119,9 @@ export default function PuntosApp() {
     localStorage.removeItem(ADMIN_STORAGE_KEY);
   };
 
-  const applyAdminAdjustment = (playerId: string, desiredTotal: number, reason: string) => {
+  type AdminAdjustmentResult = { ok: true; delta: number } | { ok: false; message: string };
+
+  const applyAdminAdjustment = (playerId: string, desiredTotal: number, reason: string): AdminAdjustmentResult => {
     if (!playerId) {
       return { ok: false, message: 'Selecciona un jugador.' };
     }
