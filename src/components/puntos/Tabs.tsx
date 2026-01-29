@@ -11,7 +11,7 @@ interface TabsProps {
 export const Tabs: React.FC<TabsProps> = ({ currentView, onChange, hasActiveSession }) => {
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 safe-area-pb z-50">
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto">
+      <div className="flex justify-around items-center h-16 w-full">
         <button
           onClick={() => onChange(ViewState.DASHBOARD)}
           className={`flex flex-col items-center justify-center w-full h-full space-y-1 ${

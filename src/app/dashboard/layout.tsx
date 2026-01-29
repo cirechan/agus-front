@@ -12,8 +12,9 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const isMatch = pathname?.startsWith("/dashboard/partidos/");
+  const isPuntos = pathname?.startsWith("/dashboard/puntos");
 
-  if (isMatch) {
+  if (isMatch || isPuntos) {
     return <>{children}</>;
   }
 

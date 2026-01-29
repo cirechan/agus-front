@@ -602,7 +602,7 @@ export default function PuntosApp() {
         {/* Controls Footer - Only show when NOT editing teams */}
         {!isEditingTeams && (
             <div className="fixed bottom-[64px] left-0 right-0 bg-white border-t border-slate-200 p-4 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-            <div className="max-w-lg mx-auto">
+            <div className="w-full">
                 {selectedPlayerIds.size === 0 ? (
                 <div className="text-center text-slate-400 text-sm py-4">
                     Selecciona jugadores o equipos para puntuar
@@ -778,7 +778,7 @@ export default function PuntosApp() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans max-w-lg mx-auto shadow-2xl overflow-hidden relative">
+    <div className="min-h-screen w-full bg-slate-50 text-slate-900 font-sans overflow-hidden relative">
       {currentView === ViewState.DASHBOARD && <DashboardView />}
       {currentView === ViewState.ROSTER && <RosterView />}
       {currentView === ViewState.SESSION_SETUP && <SessionSetupView />}
