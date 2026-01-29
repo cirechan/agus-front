@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppData, Player, TrainingSession, PointLog, ViewState } from '@/lib/puntos/types';
 import { loadData, saveData, generateId } from '@/lib/puntos/storage';
 import { Tabs } from '@/components/puntos/Tabs';
 import { Icons } from '@/components/puntos/Icon';
 import { POINT_PRESETS } from '@/lib/puntos/constants';
 import type { PointsMeta } from '@/lib/puntos/types';
+import { toPng } from 'html-to-image';
 
 const TEAM_COLORS: Record<string, { label: string, bg: string, text: string, border: string, ring: string }> = {
   red: { label: 'Rojo', bg: 'bg-rose-500', text: 'text-white', border: 'border-rose-600', ring: 'ring-rose-500' },
@@ -845,6 +846,47 @@ export default function PuntosApp() {
   };
 
   const HistoryView = () => {
+    const tableRef = useRef<HTMLTableElement | null>(null);
+    const [shareStatus, setShareStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+    const [shareMessage, setShareMessage] = useState('');
+
+    const handleShareTable = async () => {
+      if (!tableRef.current) return;
+      setShareStatus('loading');
+      setShareMessage('');
+      try {
+        const dataUrl = await toPng(tableRef.current, {
+          cacheBust: true,
+          backgroundColor: '#ffffff',
+          pixelRatio: 2,
+        });
+        const blob = await (await fetch(dataUrl)).blob();
+        const label = formatQuarterLabel(data.meta).replace(/\s+/g, '-');
+        const file = new File([blob], `puntos-${label}.png`, { type: 'image/png' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: `Puntos ${formatQuarterLabel(data.meta)}`,
+            text: `Puntos ${formatQuarterLabel(data.meta)}`,
+          });
+        } else {
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = `puntos-${label}.png`;
+          link.click();
+          setShareMessage('Imagen descargada. Puedes compartirla en WhatsApp.');
+        }
+
+        setShareStatus('done');
+        setTimeout(() => setShareStatus('idle'), 2000);
+      } catch (error) {
+        console.error(error);
+        setShareStatus('error');
+        setShareMessage('No se pudo generar la imagen.');
+      }
+    };
+
     // Create the matrix
     const sortedSessions = [...data.sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     
@@ -862,13 +904,29 @@ export default function PuntosApp() {
 
     return (
       <div className="flex flex-col h-screen bg-white">
-        <div className="p-4 border-b border-slate-100">
-           <h1 className="text-2xl font-bold text-slate-800">Hoja de Cálculo</h1>
-           <p className="text-sm text-slate-500">Vista general de asistencias y puntos</p>
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
+           <div>
+             <h1 className="text-2xl font-bold text-slate-800">Hoja de Cálculo</h1>
+             <p className="text-sm text-slate-500">Vista general de asistencias y puntos</p>
+           </div>
+           <div className="flex flex-col items-end gap-1">
+             <button
+               onClick={handleShareTable}
+               disabled={shareStatus === 'loading'}
+               className="flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2 text-xs font-semibold text-white shadow-sm disabled:opacity-60"
+             >
+               <Icons.Share2 size={14} />
+               {shareStatus === 'loading' ? 'Generando...' : 'Compartir tabla'}
+             </button>
+             {shareMessage && <span className="text-[11px] text-slate-500">{shareMessage}</span>}
+             {shareStatus === 'error' && !shareMessage && (
+               <span className="text-[11px] text-rose-600">Error al compartir.</span>
+             )}
+           </div>
         </div>
         
         <div className="flex-1 overflow-auto">
-          <table className="w-full text-sm border-collapse">
+          <table ref={tableRef} className="w-full text-sm border-collapse">
             <thead className="bg-slate-50 sticky top-0 z-20 shadow-sm">
               <tr>
                 <th className="p-3 text-left font-bold text-slate-700 border-b border-slate-200 sticky left-0 bg-slate-50 z-30 min-w-[120px]">Jugador</th>
